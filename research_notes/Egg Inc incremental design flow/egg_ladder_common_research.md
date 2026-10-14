@@ -258,3 +258,53 @@ I found no reliable, quantified source. Guides only describe pacing qualitativel
 
 ### Gaps
 - No measured times per egg (median player hours or days) were found. The r/EggsInc threads that would have them were not reachable in search results.
+
+---
+
+## Q7. Scaling: how Egg Inc makes growing take time (designer-requested)
+
+### Takeaway
+Pacing comes from a widening gap between two curves. **Egg value** rises only about ×3–7 per egg (×100 at two jumps). The **farm-value gates** rise about ×50–×80 per step early on and about ×1,000–×9,000 per step from Tachyon upward. Egg value covers only a small share of each step, so the rest has to come from deeper common research (whose per-level costs grow geometrically), more chickens and habs, and the cross-run meta (soul eggs, prophecy eggs, epic research, artifacts). New players therefore crawl through upper eggs, while veterans with large soul-egg bonuses can clear early eggs in minutes. Hard, recent data on time per egg is essentially missing. The one timeline figure found is old and ambiguous.
+
+### Cited Findings
+**Egg-value ratio vs farm-value gate ratio per step.** Egg ratios are [CONFIRMED-DATA] from [eggs.ts](https://github.com/carpetsage/egg/blob/main/lib/eggs.ts). Gates are Fandom "Upgrade" values [SNIPPET] from [Fandom Eggs](https://egg-inc.fandom.com/wiki/Eggs); gate ratios are computed by me.
+
+| Step (to egg) | Egg value × | Upgrade gate | Gate × vs previous listed gate | Gate×/Value× |
+|---|---|---|---|---|
+| Superfood | 5 | 6.8e7 | – | – |
+| Medical | 5 | 5.3e9 | ×78 | ~16 |
+| Rocket Fuel | 4.8 | 2.4e11 | ×45 | ~9 |
+| Super Material | 5 | (not found) | – | – |
+| Fusion | 4.67 | 5.0e16 | ×2.1e5 over 2 steps (~×456/step) | ~95 |
+| Quantum | 4.29 | 2.3e19 | ×460 | ~107 |
+| Immortality | 4.17 | (not found) | – | – |
+| Tachyon | 4 | 1.7e26 | ×7.4e6 over 2 steps (~×2,700/step) | ~670 |
+| Graviton | 3.5 | 9.8e29 | ×5,765 | ~1,650 |
+| Dilithium | 3 | 4.8e33 | ×4,900 | ~1,630 |
+| Prodigy | 2.86 | 1.6e37 | ×3,333 | ~1,170 |
+| Terraform | 6.67 | 2.0e40 | ×1,250 | ~190 |
+| Antimatter | 100 | 1.3e44 | ×6,500 | ~65 |
+| Dark Matter | 100 | 1.2e48 | ×9,230 | ~92 |
+
+Within each egg, Fandom's Discover→Upgrade gap is a steady ×6–6.8 (e.g. Superfood 10M→68M, Graviton 150→980 octillion, Dark Matter 190 quattuordecillion→1.2 quindecillion) — [SNIPPET] [Fandom Eggs](https://egg-inc.fandom.com/wiki/Eggs). NamuWiki gives different upper gates (Graviton 6 nonillion, Dilithium 21 decillion, Antimatter 33 tredecillion) — [SNIPPET] [NamuWiki](https://en.namu.wiki/w/Egg,%20Inc.). The ratio column should be read as order-of-magnitude only.
+
+**Research pacing within one egg** [CONFIRMED-DATA, computed from [researches.json](https://raw.githubusercontent.com/carpetsage/egg/main/lib/researches.json) and [commonResearch.ts](https://github.com/carpetsage/egg/blob/main/wasmegg/ascension-planner/src/calculations/commonResearch.ts)]:
+- Per-level cost growth: long percentage items grow ×1.07–×1.6 per level (Matter Reconfiguration ×1.07, Machine Learning Incubators ×1.11, Comfy Nests ×1.27, Shell Fortification ×1.28, Nutritional Supplements ×1.38, Lightweight Boxes ×1.40). Short flat-bonus items grow ×2–×13 per level (Internal Hatcheries ×3.6, Compact Incubators ×6.2, Neural Linking ×8.8, Relativity Optimization ×12.9). Multiplier items are steeper still (Even Bigger Eggs ×~470/level, Graviton Coating ×~220, Graviton Coupling ×~2.6e5).
+- Tier gates are cumulative levels bought: 0, 30, 80, 160, 280, 400, 520, 650, 800, 980, 1,185, 1,390, 1,655. The per-tier increments are 30/50/80/120/120/120/130/150/180/205/205/265.
+- Cost to max each tier (no discounts): T1 5.8e11, T3 4.3e14, T5 6.7e18, T7 1.7e30, T9 3.4e43, T10 1.4e63, T13 5.5e67. Level-1 prices go from 0.5 (T1) to about 1e52–1e67 (T13).
+- The same price list serves every standard egg (see Q4). A higher egg buys a given level ×(egg value ratio) faster, but must then reach deeper tiers to hit a gate that is ×1,000+ higher.
+
+**Time per egg / first-time timeline:**
+- A guide puts "roughly 50 to 75 days" as the typical time for an Enlightenment goal, depending on earnings bonus, internal hatchery rate and artifacts. It also gives a minimum for a pre-1.20.4 build. The snippet is ambiguous: it most likely refers to growing the Enlightenment farm to its trophy, not to reaching the egg. It is about 4.5 years old — [SNIPPET] [Thank Chickens: How do you beat Egg Inc fast?](https://thankchickens.com/how-do-you-beat-egg-inc-fast/)
+- Reaching the 250M-chicken trophy with maxed internal hatcheries takes "about a week of refilling the silos" — [SNIPPET] [patashu guide](https://lr.eu.psf.lt/r/EggsInc/wiki/patashu_guide)
+- Prestige advice: wait for about 50+ soul eggs on the first prestige, then roughly double each time. Each soul egg gives +10% earnings (+1% more per Soul Food level, up to 140 levels) — [SNIPPET] [Android Central](https://www.androidcentral.com/tips-and-tricks-egg-inc); Soul Food per level [CONFIRMED-DATA] [researches.json](https://raw.githubusercontent.com/carpetsage/egg/main/lib/researches.json)
+- Soul eggs earned on prestige scale with farm value — [SNIPPET] [Wikipedia](https://en.wikipedia.org/wiki/Egg,_Inc.)
+
+### Inferences
+- **Why upper eggs slow down:** early on, the gate ratio (×45–×80) is only about 10–16× the egg ratio (×5), so a few research tiers plus hab and vehicle growth close it within one sitting. From Tachyon on, the gate ratio (×1,000–×9,000) is 100–1,700× the egg ratio. A single run can't close that gap, so players have to prestige several times to grow the soul-egg multiplier. This is the main time sink. [ESTIMATE]
+- **New player vs veteran:** a veteran's earnings bonus (soul eggs × (10% + Soul Food) × prophecy compounding) multiplies all income. Early gates (1e7–1e11) are trivial to them, and they skip through early eggs in minutes. A new player has a bonus near 1× and must grow the farm itself. [ESTIMATE; no measured times found]
+- **Community-style first-time timeline** [ESTIMATE, unsourced folklore, for playtest targeting only]: Edible→Superfood→Medical in the first session (minutes to about 1 hour). Rocket Fuel and Super Material within day 1–2. Fusion and Quantum in the first week. Immortality→Graviton over weeks 1–3, now relying on prestige. Dilithium→Terraform over weeks to about 2 months. Antimatter→Universe over months. Enlightenment after months, and then 50–75+ days to grow it (per the Thank Chickens snippet).
+- **Design recipe for the dog clone:** pet value ×4–5 per tier early, shrinking to ×3 mid-ladder, with rare ×100 "era" jumps. Gates ×50–80 apart early, rising to ×1e3–1e4 later. Discover→Upgrade at a fixed ×6.5. One shared research price list with geometric per-level growth (×1.1–×1.6 for percentage items, ×2–×10 for flat items) and cumulative-purchase tier gates. The prestige-currency multiplier is the only thing that closes late gates.
+
+### Gaps
+- No reliable, recent, quantified time-per-egg data was found for either new or veteran players. The r/EggsInc timeline threads were not reachable. The Super Material, Immortality, AI, Nebula and Universe upgrade gates are missing, so those step ratios can't be computed.
