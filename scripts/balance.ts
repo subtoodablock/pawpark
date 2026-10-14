@@ -54,7 +54,7 @@ const JSON_OUT = argv.includes('--json');
 let STOP_ARG = flag('--stop');
 let STOP_AT = Number(STOP_ARG ?? FINDS.length - 1);
 /** --calibrate: gate calibration hook (see the calibration block below): running max of Park Value while in era `era` */
-let cal: { era: number; max: number; trace: [number, number][] } | null = null;
+let cal: { era: number; max: number; trace: [number, number, number, number][] } | null = null;
 /** --full: every profile runs on to the endgame (4 full Planet Paws + Academy maxed); default only AFK+Daily does */
 const FULL = argv.includes('--full');
 
@@ -356,8 +356,8 @@ function simulate(def: ProfileDef): Result {
       if (VERBOSE) console.log(`  [${fmtDays(t / DAY)}] FIND -> ${FINDS[lastHF].name}  pre-upgrade ${lastPv}`);
     }
     if (cal && state.findIndex === cal.era) {
-      const pv = computeStats(state).parkValue;
-      if (pv > cal.max) { cal.max = pv; cal.trace.push([t / DAY, pv]); }
+      const cs = computeStats(state);
+      if (cs.parkValue > cal.max) { cal.max = cs.parkValue; cal.trace.push([t / DAY, cs.parkValue, cs.earningsBonus, cs.incomePerSec]); }
     }
     if (VERBOSE && t - lastPvT >= 55) { lastPv = pvBreakdown(state); lastPvT = t; }
     if (state.trophies.length > lastTrophies) { lastTrophies = state.trophies.length; eventsT.push(t); }
@@ -853,7 +853,7 @@ if (argv.includes('--calibrate')) {
     if (!pick) { console.log(`k=${k}: no Park Value samples (era ${k - 1} never reached)`); break; }
     const gate = Number((pick[1] * (1 - 1e-6)).toPrecision(3));
     FINDS[k].unlockParkValue = gate;
-    const line = `${k} ${FINDS[k].name.padEnd(14)} gate ${gate.toExponential(2)}  opens at day ${pick[0].toFixed(3)} (target ${T.toFixed(3)})  [sim ${r.secs.toFixed(1)}s]`;
+    const line = `${k} ${FINDS[k].name.padEnd(14)} gate ${gate.toExponential(2)}  opens at day ${pick[0].toFixed(3)} (target ${T.toFixed(3)}) B ${pick[2].toExponential(1)} inc ${pick[3].toExponential(1)} paws ${Math.round(r.finalPaws)} prest ${r.prestiges} [sim ${r.secs.toFixed(1)}s]`;
     console.log(line);
     out.push(`  ${k}: ${gate.toExponential(2)}`);
   }
