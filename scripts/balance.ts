@@ -137,6 +137,7 @@ interface Result {
   lastAcademyT: number | null;
   academyLevels: number;
   academyT: Record<string, number>;
+  levels: Record<string, number>;
   maxPups: number;
   maxLadders: number;
   academySpent: number;
@@ -328,7 +329,7 @@ function simulate(def: ProfileDef): Result {
   for (const d of ACADEMY) if ((state.academy[d.id] ?? 0) >= d.maxLevel) maxLadders++;
   return {
     def, findT, findLogB, firstPrestigeT, endT: finalT / DAY, drought: drought / DAY, droughtAt: droughtAt / DAY, rows,
-    lastAcademyT: lastAcademyT === null ? null : lastAcademyT / DAY, academyT, maxPups, academyLevels: academyTotal(state), maxLadders, academySpent, nextCheapest: ACADEMY.reduce((m, d) => Math.min(m, academyCost(state, d.id) ?? Infinity), Infinity), academyGap: academyGap / DAY, academyGapAt: academyGapAt / DAY,
+    lastAcademyT: lastAcademyT === null ? null : lastAcademyT / DAY, academyT, levels: { ...state.academy }, maxPups, academyLevels: academyTotal(state), maxLadders, academySpent, nextCheapest: ACADEMY.reduce((m, d) => Math.min(m, academyCost(state, d.id) ?? Infinity), Infinity), academyGap: academyGap / DAY, academyGapAt: academyGapAt / DAY,
     academyBuys: academyBuys, finalPaws: state.spiritPaws, finalGB: state.goldenBones, prestiges: state.prestigeCount,
     secs: (Date.now() - t0) / 1000,
   };
@@ -418,6 +419,7 @@ for (const p of selected) {
     console.log(x.name.padEnd(26) + x.value.padEnd(22) + x.target.padEnd(22) + (x.b ?? '').padEnd(9) + (x.pass === null ? '' : x.pass ? 'PASS' : 'FAIL'));
     if (x.pass === false) allPass = false;
   }
+  console.log('final Academy levels: ' + ACADEMY.map((d) => `${d.id} ${r.levels[d.id] ?? 0}/${d.maxLevel}`).join(', '));
   console.log('first Academy buys (day): ' + Object.entries(r.academyT).map(([k, v]) => `${k}@${v.toFixed(1)}`).join(' '));
   console.log(`(max pups ${sig(r.maxPups)}, paws ${sig(r.finalPaws)}, prestiges ${r.prestiges}, academy levels ${r.academyLevels}, unspent GB ${sig(r.finalGB)}, Academy spent ${sig(r.academySpent)}, next cheapest ${sig(r.nextCheapest)})`);
 }

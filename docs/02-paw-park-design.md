@@ -4,9 +4,12 @@ An idle/incremental browser game built on the Egg, Inc. framework (see
 `01-egg-inc-teardown.md`). You run a dog park. Pups dig up **Finds**
 (sticks, balls, … cosmic bones), a delivery fleet ships them, and you sell them.
 
-All numbers in this document are **starting values**. The balance pass
-(`scripts/balance.ts`) is expected to tune them against the targets in §9. Any
-tuning must be made in `src/data/*`, never hard-coded in engine logic.
+The tables in §4 and the constants in §5 were updated to match `src/data/*` after
+the v2 balance pass (`scripts/balance.ts` and `scripts/wall.ts`, results in
+`04-long-game-afk.md` §7). Any tuning must be made in `src/data/*`, never
+hard-coded in engine logic. Where §3 differs from the v2 engine (automation, full
+offline simulation, the mailbox count, the squirrel hound, trophies v2),
+`04-long-game-afk.md` is authoritative.
 
 ---
 
@@ -170,92 +173,106 @@ highestFindIndex, lifetimeEarnings, stats, mail state.
 
 ## 4. Content tables
 
+These tables mirror `src/data/*` after the v2 balance pass (docs/04 §7). Large
+numbers are in scientific notation. If the data and this doc disagree, the data
+wins.
+
 ### 4.1 Kennels (`src/data/kennels.ts`) — 4 slots, start `[0, null, null, null]`
+Cost grows ×12 per tier from tier 2 on, while capacity grows ×2–2.5.
 | # | id | name | icon | capacity | cost |
 |---|---|---|---|---|---|
 | 0 | doghouse | Doghouse | 🏠 | 250 | 50 |
 | 1 | twin_doghouse | Twin Doghouse | 🏘️ | 500 | 600 |
-| 2 | kennel_shed | Kennel Shed | 🛖 | 1,000 | 10,000 |
-| 3 | pup_barn | Pup Barn | 🛖 | 2,000 | 75,000 |
-| 4 | bark_lodge | Bark Lodge | 🏡 | 5,000 | 500,000 |
-| 5 | doggy_daycare | Doggy Daycare | 🏫 | 10,000 | 3e6 |
-| 6 | pooch_plaza | Pooch Plaza | 🏬 | 20,000 | 2e7 |
-| 7 | hound_hall | Hound Hall | 🏛️ | 50,000 | 1.5e8 |
-| 8 | canine_complex | Canine Complex | 🏢 | 100,000 | 1e9 |
-| 9 | woof_warehouse | Woof Warehouse | 🏭 | 200,000 | 8e9 |
-| 10 | mutt_mansion | Mutt Mansion | 🏰 | 500,000 | 6e10 |
-| 11 | tail_tower | Tail Tower | 🗼 | 1e6 | 5e11 |
-| 12 | pupscraper | Pupscraper | 🏙️ | 2e6 | 4e12 |
-| 13 | bark_bunker | Bark Bunker | ⛰️ | 1e7 | 3e13 |
-| 14 | sky_kennel | Sky Kennel | ☁️ | 2.5e7 | 2.5e14 |
-| 15 | orbital_kennel | Orbital Kennel | 🛰️ | 5e7 | 2e15 |
-| 16 | moon_pound | Moon Pound | 🌙 | 1e8 | 1.5e16 |
-| 17 | planet_paw | Planet Paw | 🪐 | 6e8 | 1.2e17 |
+| 2 | kennel_shed | Kennel Shed | 🛖 | 1,000 | 7,200 |
+| 3 | pup_barn | Pup Barn | 🛖 | 2,000 | 86,000 |
+| 4 | bark_lodge | Bark Lodge | 🏡 | 5,000 | 1e6 |
+| 5 | doggy_daycare | Doggy Daycare | 🏫 | 10,000 | 1.2e7 |
+| 6 | pooch_plaza | Pooch Plaza | 🏬 | 20,000 | 1.5e8 |
+| 7 | hound_hall | Hound Hall | 🏛️ | 50,000 | 1.8e9 |
+| 8 | canine_complex | Canine Complex | 🏢 | 100,000 | 2.1e10 |
+| 9 | woof_warehouse | Woof Warehouse | 🏭 | 200,000 | 2.6e11 |
+| 10 | mutt_mansion | Mutt Mansion | 🏰 | 500,000 | 3.1e12 |
+| 11 | tail_tower | Tail Tower | 🗼 | 1e6 | 3.7e13 |
+| 12 | pupscraper | Pupscraper | 🏙️ | 2e6 | 4.5e14 |
+| 13 | bark_bunker | Bark Bunker | ⛰️ | 1e7 | 5.3e15 |
+| 14 | sky_kennel | Sky Kennel | ☁️ | 2.5e7 | 6.4e16 |
+| 15 | orbital_kennel | Orbital Kennel | 🛰️ | 5e7 | 7.7e17 |
+| 16 | moon_pound | Moon Pound | 🌙 | 1e8 | 9.2e18 |
+| 17 | planet_paw | Planet Paw | 🪐 | 6e8 | 1.1e20 |
 
 ### 4.2 Fleet (`src/data/vehicles.ts`) — 4 slots base, max 12, start `[0, null…]`
+Cost grows ×12 per tier from tier 3 on, while capacity grows ×3.
 | # | id | name | icon | capacityPerMin | cost |
 |---|---|---|---|---|---|
 | 0 | bike_basket | Bike Basket | 🚲 | 300 | 100 |
 | 1 | wagon | Red Wagon | 🛒 | 1,000 | 1,500 |
-| 2 | scooter | Scooter | 🛵 | 3,000 | 50,000 |
-| 3 | delivery_van | Delivery Van | 🚐 | 10,000 | 5e5 |
-| 4 | pickup | Pickup Truck | 🛻 | 30,000 | 5e6 |
-| 5 | box_truck | Box Truck | 🚚 | 1e5 | 5e7 |
-| 6 | semi | Semi | 🚛 | 3e5 | 5e8 |
-| 7 | double_semi | Double Semi | 🚛 | 1e6 | 5e9 |
-| 8 | cargo_plane | Cargo Plane | ✈️ | 3e6 | 5e10 |
-| 9 | bone_freighter | Bone Freighter | 🚢 | 1e7 | 5e11 |
-| 10 | hover_hauler | Hover Hauler | 🛸 | 3e7 | 5e12 |
-| 11 | rocket | Fetch Rocket | 🚀 | 1e8 | 5e13 |
-| 12 | teleporter | Teleporter | 🌀 | 5e8 | 5e14 |
+| 2 | scooter | Scooter | 🛵 | 3,000 | 30,000 |
+| 3 | delivery_van | Delivery Van | 🚐 | 10,000 | 360,000 |
+| 4 | pickup | Pickup Truck | 🛻 | 30,000 | 4.3e6 |
+| 5 | box_truck | Box Truck | 🚚 | 100,000 | 5.2e7 |
+| 6 | semi | Semi | 🚛 | 300,000 | 6.2e8 |
+| 7 | double_semi | Double Semi | 🚛 | 1e6 | 7.5e9 |
+| 8 | cargo_plane | Cargo Plane | ✈️ | 3e6 | 9e10 |
+| 9 | bone_freighter | Bone Freighter | 🚢 | 1e7 | 1.1e12 |
+| 10 | hover_hauler | Hover Hauler | 🛸 | 3e7 | 1.3e13 |
+| 11 | rocket | Fetch Rocket | 🚀 | 1e8 | 1.5e14 |
+| 12 | teleporter | Teleporter | 🌀 | 5e8 | 1.9e15 |
 
 ### 4.3 Finds (`src/data/finds.ts`)
+Value ladder is ×5 per find early, easing to ×4 at the top. The gates
+(`unlockParkValue`) were placed by the calibration loop in docs/04 §7.1 so that
+find k is reached on its target day; they are not a smooth geometric series.
 | # | id | name | icon | value | unlockParkValue | unlockReward (GB) |
 |---|---|---|---|---|---|---|
 | 0 | stick | Stick | 🪵 | 0.25 | 0 | 0 |
-| 1 | tennis_ball | Tennis Ball | 🎾 | 1.25 | 3.5e4 | 5 |
-| 2 | squeaky_toy | Squeaky Toy | 🧸 | 6.25 | 1e6 | 10 |
-| 3 | rawhide | Rawhide Bone | 🦴 | 30 | 1e9 | 15 |
-| 4 | lost_wallet | Lost Wallet | 👛 | 150 | 2.5e10 | 20 |
-| 5 | pirate_coin | Pirate Coin | 🪙 | 700 | 1e12 | 25 |
-| 6 | dino_fossil | Dino Fossil | 🦕 | 3,000 | 4e13 | 30 |
-| 7 | crystal_bone | Crystal Bone | 💎 | 12,500 | 2e15 | 40 |
-| 8 | meteorite | Meteorite | ☄️ | 50,000 | 1e17 | 50 |
-| 9 | ancient_relic | Ancient Relic | 🏺 | 175,000 | 5e18 | 60 |
-| 10 | moon_rock | Moon Rock | 🌑 | 525,000 | 2.5e20 | 75 |
-| 11 | time_bone | Time Bone | ⏳ | 1.5e6 | 1.2e22 | 100 |
-| 12 | cosmic_bone | Cosmic Bone | 🌌 | 1e7 | 6e23 | 150 |
+| 1 | tennis_ball | Tennis Ball | 🎾 | 1.25 | 25,000 | 10 |
+| 2 | squeaky_toy | Squeaky Toy | 🧸 | 6.25 | 400,000 | 15 |
+| 3 | rawhide | Rawhide Bone | 🦴 | 30 | 1.3e8 | 25 |
+| 4 | lost_wallet | Lost Wallet | 👛 | 150 | 6.8e14 | 40 |
+| 5 | pirate_coin | Pirate Coin | 🪙 | 700 | 1.1e20 | 60 |
+| 6 | dino_fossil | Dino Fossil | 🦕 | 2,750 | 1e23 | 80 |
+| 7 | crystal_bone | Crystal Bone | 💎 | 11,000 | 3.3e24 | 130 |
+| 8 | meteorite | Meteorite | ☄️ | 42,000 | 6e25 | 180 |
+| 9 | ancient_relic | Ancient Relic | 🏺 | 165,000 | 6.6e26 | 250 |
+| 10 | moon_rock | Moon Rock | 🌑 | 650,000 | 1.1e28 | 350 |
+| 11 | time_bone | Time Bone | ⏳ | 2.5e6 | 3.1e29 | 450 |
+| 12 | cosmic_bone | Cosmic Bone | 🌌 | 1e7 | 6e30 | 600 |
 
-Each find also has a one-line `flavor` string (the agent writes it, keeping it playful).
+Each find also has a one-line `flavor` string.
 
 ### 4.4 Training (`src/data/training.ts`) — resets on prestige
-Tier unlocks are based on total training levels purchased: T1 0, T2 15, T3 50, T4 120, T5 250.
+Tier unlocks are based on total training levels purchased:
+T1 0, T2 12, T3 40, T4 85, T5 130.
+Levels are capped low and costs rise steeply, so one park hits a wall within hours
+(docs/04 §2, §7.3).
 
 | tier | id | name | stat | perLevel | max | baseCost | growth |
 |---|---|---|---|---|---|---|---|
-| 1 | comfy_beds | Comfy Beds | layRate | 0.10 | 25 | 25 | 1.45 |
-| 1 | premium_kibble | Premium Kibble | findValue | 0.10 | 25 | 40 | 1.45 |
+| 1 | comfy_beds | Comfy Beds | layRate | 0.1 | 15 | 25 | 1.5 |
+| 1 | premium_kibble | Premium Kibble | findValue | 0.1 | 15 | 40 | 1.5 |
 | 1 | louder_whistle | Louder Whistle | adoptionCap | 20 | 10 | 60 | 1.6 |
 | 1 | rescue_program | Rescue Program | rescueRate | 2 | 10 | 150 | 1.7 |
-| 2 | bigger_holes | Bigger Holes | layRate | 0.15 | 20 | 1e4 | 1.5 |
-| 2 | mud_wash | Mud Wash | findValue | 0.20 | 20 | 1.5e4 | 1.5 |
-| 2 | extra_padding | Extra Padding | kennelCapacity | 0.05 | 20 | 2e4 | 1.5 |
-| 2 | tune_ups | Tune-Ups | shippingCapacity | 0.05 | 20 | 2e4 | 1.5 |
-| 2 | zoomie_training | Zoomie Training | zoomieBonus | 0.01 | 10 | 3e4 | 1.7 |
-| 2 | quick_refill | Quick Refill | adoptionRefill | 0.5 | 10 | 2.5e4 | 1.6 |
-| 3 | fleet_expansion | Fleet Expansion | fleetSlots | 1 | 8 | 5e6 | 3.0 |
-| 3 | truffle_noses | Truffle Noses | layRate | 0.25 | 15 | 1e7 | 1.6 |
-| 3 | appraisers | Appraisers | findValue | 0.25 | 15 | 1.5e7 | 1.6 |
-| 3 | bunk_beds | Bunk Beds | kennelCapacity | 0.10 | 15 | 2e7 | 1.6 |
-| 3 | rescue_network | Rescue Network | rescueRate | 5 | 10 | 3e7 | 1.8 |
-| 4 | golden_retrievers | Golden Retrievers | findValue | 0.50 | 10 | 1e10 | 1.8 |
-| 4 | excavators | Excavators | layRate | 0.50 | 10 | 1e10 | 1.8 |
-| 4 | express_lanes | Express Lanes | shippingCapacity | 0.15 | 10 | 2e10 | 1.8 |
-| 4 | pup_pods | Pup Pods | kennelCapacity | 0.15 | 10 | 3e10 | 1.8 |
-| 5 | quantum_fetch | Quantum Fetch | layRate | 1.0 | 5 | 1e13 | 2.5 |
-| 5 | celebrity_pups | Celebrity Pups | findValue | 1.0 | 5 | 1e13 | 2.5 |
-| 5 | hyper_shipping | Hyper Shipping | shippingCapacity | 0.5 | 5 | 2e13 | 2.5 |
-| 5 | dimension_kennels | Dimension Kennels | kennelCapacity | 0.25 | 5 | 3e13 | 2.5 |
+| 2 | bigger_holes | Bigger Holes | layRate | 0.1 | 12 | 10,000 | 1.8 |
+| 2 | mud_wash | Mud Wash | findValue | 0.1 | 12 | 15,000 | 1.8 |
+| 2 | extra_padding | Extra Padding | kennelCapacity | 0.1 | 10 | 20,000 | 1.8 |
+| 2 | tune_ups | Tune-Ups | shippingCapacity | 0.1 | 10 | 20,000 | 1.8 |
+| 2 | zoomie_training | Zoomie Training | zoomieBonus | 0.01 | 10 | 30,000 | 1.8 |
+| 2 | quick_refill | Quick Refill | adoptionRefill | 0.5 | 10 | 30,000 | 1.8 |
+| 3 | fleet_expansion | Fleet Expansion | fleetSlots | 1 | 8 | 3e7 | 3 |
+| 3 | truffle_noses | Truffle Noses | layRate | 0.2 | 10 | 1e8 | 2 |
+| 3 | appraisers | Appraisers | findValue | 0.2 | 10 | 1.5e8 | 2 |
+| 3 | bunk_beds | Bunk Beds | kennelCapacity | 0.2 | 10 | 2e8 | 2 |
+| 3 | rescue_network | Rescue Network | rescueRate | 5 | 10 | 3e8 | 2.1 |
+| 4 | golden_retrievers | Golden Retrievers | findValue | 0.4 | 8 | 1e12 | 2.5 |
+| 4 | excavators | Excavators | layRate | 0.4 | 8 | 1e12 | 2.5 |
+| 4 | express_lanes | Express Lanes | shippingCapacity | 0.3 | 8 | 2e12 | 2.5 |
+| 4 | pup_pods | Pup Pods | kennelCapacity | 0.3 | 8 | 3e12 | 2.5 |
+| 4 | rescue_choppers | Rescue Choppers | rescueRate | 30 | 8 | 5e12 | 2.5 |
+| 5 | quantum_fetch | Quantum Fetch | layRate | 1 | 6 | 1e17 | 3.5 |
+| 5 | celebrity_pups | Celebrity Pups | findValue | 1 | 6 | 1e17 | 3.5 |
+| 5 | hyper_shipping | Hyper Shipping | shippingCapacity | 0.6 | 6 | 3e17 | 3.5 |
+| 5 | dimension_kennels | Dimension Kennels | kennelCapacity | 0.6 | 6 | 5e17 | 3.5 |
+| 5 | pup_portals | Pup Portals | rescueRate | 100 | 6 | 8e17 | 3.5 |
 
 Each item also has an `icon` emoji and a short `description` that the agent
 writes. The description is rendered with the effect (e.g. "+10% dig rate per level").
@@ -263,60 +280,93 @@ writes. The description is rendered with the effect (e.g. "+10% dig rate per lev
 ### 4.5 Academy (`src/data/academy.ts`) — Golden Bones, permanent
 | id | name | stat | perLevel | max | baseCost | growth |
 |---|---|---|---|---|---|---|
-| epic_digging | Epic Digging | layRate | 0.05 | 20 | 5 | 1.3 |
-| epic_kibble | Epic Kibble | findValue | 0.05 | 20 | 5 | 1.3 |
-| spirit_bond | Spirit Bond | spiritPawBonus | 0.01 | 10 | 20 | 1.4 |
-| legend_lore | Legend Lore | collarBonus | 0.01 | 5 | 50 | 1.6 |
-| bigger_jar | Bigger Treat Jar | offlineHours | 0.5 | 10 | 10 | 1.35 |
-| night_shift | Night Shift | offlineRescue | 0.1 | 5 | 15 | 1.4 |
-| squirrel_spotter | Squirrel Spotter | squirrelRate | 0.10 | 10 | 10 | 1.35 |
-| max_zoomies | Max Zoomies | maxZoomies | 5 | 10 | 8 | 1.35 |
-| bargain_hunter | Bargain Hunter | researchDiscount | 0.05 | 10 | 15 | 1.4 |
-| kennel_deals | Kennel Deals | kennelDiscount | 0.05 | 10 | 10 | 1.35 |
-| fleet_deals | Fleet Deals | fleetDiscount | 0.05 | 10 | 10 | 1.35 |
+| foreman_pup | Foreman Pup | autoBuild | 1 | 1 | 10 | 1 |
+| head_trainer | Head Trainer | autoTraining | 1 | 1 | 30 | 1 |
+| volunteer_walkers | Volunteer Walkers | autoWhistle | 0.2 | 5 | 8 | 1.4 |
+| retirement_planner | Retirement Planner | autoPrestige | 1 | 1 | 500 | 1 |
+| bigger_jar | Bigger Treat Jar | offlineHours | 2 | 20 | 5 | 1.2 |
+| bigger_mailbox | Bigger Mailbox | mailCapacity | 1 | 6 | 12 | 1.4 |
+| squirrel_hound | Squirrel Hound | squirrelHound | 0.05 | 20 | 20 | 1.22 |
+| squirrel_spotter | Squirrel Spotter | squirrelRate | 0.04 | 25 | 10 | 1.18 |
+| epic_digging | Epic Digging | layRate | 0.05 | 50 | 5 | 1.18 |
+| epic_kibble | Epic Kibble | findValue | 0.05 | 50 | 5 | 1.18 |
+| spirit_bond | Spirit Bond | spiritPawBonus | 0.005 | 40 | 20 | 1.15 |
+| legend_lore | Legend Lore | collarBonus | 0.005 | 30 | 40 | 1.17 |
+| max_zoomies | Max Zoomies | maxZoomies | 2 | 25 | 8 | 1.17 |
+| bargain_hunter | Bargain Hunter | researchDiscount | 0.02 | 25 | 15 | 1.18 |
+| kennel_deals | Kennel Deals | kennelDiscount | 0.02 | 25 | 10 | 1.18 |
+| fleet_deals | Fleet Deals | fleetDiscount | 0.02 | 25 | 10 | 1.18 |
+
+`night_shift` / `offlineRescue` no longer exist (rescue runs at 100% offline).
+Costs are `ceil(baseCost × growth^level)`.
 
 ### 4.6 Treats (`src/data/treats.ts`)
 | id | name | icon | effect | multiplier | duration | cost GB |
 |---|---|---|---|---|---|---|
-| bacon_strip | Bacon Strip | 🥓 | earnings | ×2 | 30 min | 25 |
-| peanut_kong | Peanut Butter Kong | 🥜 | adoption | ×10 | 10 min | 15 |
-| steak_dinner | Steak Dinner | 🥩 | layRate | ×5 | 10 min | 40 |
+| bacon_strip | Bacon Strip | 🥓 | earnings | x2 | 4 h | 40 |
+| peanut_kong | Peanut Butter Kong | 🥜 | adoption | x5 | 4 h | 20 |
+| steak_dinner | Steak Dinner | 🥩 | layRate | x3 | 4 h | 60 |
 
-### 4.7 Trophies (`src/data/trophies.ts`) — grant Legend Collars once, ever
-| id | name | pupsRequired | collars |
-|---|---|---|---|
-| pack_10k | Pack Leader | 1e4 | 1 |
-| pack_100k | Top Dog | 1e5 | 1 |
-| pack_1m | Big Kahuna | 1e6 | 1 |
-| pack_10m | Dog Mayor | 1e7 | 2 |
-| pack_100m | Canine Emperor | 1e8 | 2 |
-| pack_1b | Galactic Alpha | 1e9 | 3 |
+### 4.7 Trophies (`src/data/trophies.ts`) — grant Legend Collars and Golden Bones once, ever
+| id | name | kind | threshold | collars | GB |
+|---|---|---|---|---|---|
+| pack_1k | Litter Leader | pups | 1,000 | 0 | 5 |
+| pack_10k | Pack Leader | pups | 10,000 | 1 | 10 |
+| pack_100k | Top Dog | pups | 100,000 | 1 | 0 |
+| pack_1m | Big Kahuna | pups | 1e6 | 1 | 15 |
+| pack_10m | Dog Mayor | pups | 1e7 | 2 | 0 |
+| pack_100m | Canine Emperor | pups | 1e8 | 2 | 40 |
+| pack_1b | Galactic Alpha | pups | 3e8 | 3 | 0 |
+| cash_1m | First Million | lifetimeEarnings | 1e6 | 0 | 10 |
+| cash_1b | Bone Baron | lifetimeEarnings | 1e9 | 1 | 0 |
+| cash_1t | Treat Tycoon | lifetimeEarnings | 1e12 | 1 | 15 |
+| cash_1q | Kibble Mogul | lifetimeEarnings | 1e15 | 1 | 0 |
+| cash_1Q | Fetch Financier | lifetimeEarnings | 1e18 | 2 | 20 |
+| cash_1s | Squeaky Rich | lifetimeEarnings | 1e21 | 2 | 0 |
+| cash_1S | Doggone Wealthy | lifetimeEarnings | 1e24 | 3 | 30 |
+| cash_1o | Richest Good Boy | lifetimeEarnings | 1e27 | 3 | 0 |
+| cash_1n | Bone Billionaire | lifetimeEarnings | 1e30 | 3 | 50 |
+| cash_1d | Cosmic Coffers | lifetimeEarnings | 1e33 | 3 | 0 |
+| park_1 | New Leash on Life | prestiges | 1 | 0 | 20 |
+| park_4 | Serial Park Opener | prestiges | 4 | 1 | 0 |
+| park_10 | Park Pioneer | prestiges | 10 | 1 | 20 |
+| park_20 | Park Magnate | prestiges | 20 | 2 | 40 |
+| park_30 | Eternal Groundskeeper | prestiges | 30 | 3 | 60 |
+| find_fossil | Bone Historian | find | 6 | 1 | 50 |
+| find_relic | Relic Hunter | find | 9 | 2 | 100 |
+| find_legend | Paw Park Legend | find | 12 | 5 | 500 |
 
 ## 5. Constants (`src/data/constants.ts`)
 ```
 START_CASH = 0               START_GOLDEN_BONES = 10
 KENNEL_SLOTS = 4             BASE_FLEET_SLOTS = 4        MAX_FLEET_SLOTS = 12
-BASE_DIG_PER_MIN = 6
+BASE_DIG_PER_MIN = 6         BASE_RESCUE_PER_MIN = 2
 BASE_ADOPTION_CAP = 50       BASE_ADOPTION_REFILL = 1    HOLD_ADOPT_PER_SEC = 6
 BASE_MAX_ZOOMIES = 20        BASE_ZOOMIE_BONUS = 0.05
 ZOOMIE_GRACE_SEC = 1.0       ZOOMIE_DECAY_PER_SEC = 10
 BASE_SPIRIT_PAW_BONUS = 0.10 BASE_COLLAR_BONUS = 1.05
-PRESTIGE_DIVISOR = 1e7       PRESTIGE_EXPONENT = 0.4
+PRESTIGE_DIVISOR = 1e8       PRESTIGE_EXPONENT = 0.3
 PARK_VALUE_SECONDS = 3600
-BASE_OFFLINE_HOURS = 1       OFFLINE_RESCUE_BASE = 0.5
-SQUIRREL_INTERVAL_MIN = 45   SQUIRREL_INTERVAL_MAX = 90
+BASE_OFFLINE_HOURS = 8       OFFLINE_MAX_CHUNK_SEC = 60
+SQUIRREL_INTERVAL_MIN = 900  SQUIRREL_INTERVAL_MAX = 1800
 SQUIRREL_LIFETIME_SEC = 7    MAX_ACTIVE_SQUIRRELS = 2    MIN_SQUIRREL_CASH_RATE = 1
-MAIL_INTERVAL_SEC = 300
+SQUIRREL_BONES_MIN = 1       SQUIRREL_BONES_MAX = 4      (35% of squirrels give bones)
+MAIL_INTERVAL_SEC = 7200     BASE_MAIL_CAPACITY = 6
+MAIL_BONES_CHANCE = 0.55     MAIL_BONES_MIN = 2          MAIL_BONES_MAX = 7
+MAIL_CASH_CHANCE = 0.8 (cumulative)                      MAIL_CASH_SECONDS = 300
 MIN_COST_MULTIPLIER = 0.25
+AUTOMATION_INTERVAL_SEC = 2  AUTOMATION_MAX_BUYS = 50    AUTO_SPLURGE_FRACTION = 0.1
+AUTO_PRESTIGE_MIN_RUN_SEC = 600   DEFAULT_AUTO_PRESTIGE_THRESHOLD = 0.5
 AUTOSAVE_INTERVAL_SEC = 10
-SAVE_KEY = 'pawpark.save.v1'
+SAVE_KEY = 'pawpark.save.v1'  SAVE_VERSION = 2
 ```
 
 ## 6. Stat modes
 ```
 mult: layRate, findValue, kennelCapacity, shippingCapacity, squirrelRate
 add : adoptionCap, adoptionRefill, rescueRate, fleetSlots, zoomieBonus, maxZoomies,
-      spiritPawBonus, collarBonus, offlineHours, offlineRescue,
+      spiritPawBonus, collarBonus, offlineHours, mailCapacity, squirrelHound,
+      autoBuild, autoTraining, autoPrestige, autoWhistle,
       researchDiscount, kennelDiscount, fleetDiscount
 ```
 
@@ -370,48 +420,13 @@ Zoomies make on-screen pups run faster.
   on `beforeunload`.
 - Export/import is a base64 of the JSON.
 
-## 9. Balance targets (for `scripts/balance.ts`)
-A greedy bot simulates play. It taps the whistle at `HOLD_ADOPT_PER_SEC` for the
-first 10 min, then 10 s of every 60 s. It buys the cheapest affordable thing that
-improves the current bottleneck (or else the cheapest overall), upgrades its find
-as soon as it can, and catches no squirrels. Targets for the first run:
-
-| Milestone | Target time |
-|---|---|
-| Tennis Ball | 3–6 min |
-| Squeaky Toy | 10–20 min |
-| Rawhide | 25–45 min |
-| Prestige gives ≥ 5 Spirit Paws | 30–60 min |
-| Longest gap with nothing affordable (first 60 min) | < 90 s |
-| Second run reaches Rawhide | ≥ 30% faster than first |
-
-### 9.1 Balance results
-`npm run balance` (add `-- --verbose` to log purchases) runs the bot (seed 12345,
-dt = 1 s, public engine API only). Bot refinements beyond the text above:
-kennels are only prioritised when dig is the bottleneck (a full kennel while
-shipping is the limit is not a problem); when ship-bound it prefers fleet items;
-a fallback "cheapest overall" purchase is skipped if it costs more than 10% of the
-cheapest bottleneck-widening item (the bot saves instead). "Idle gap" counts
-seconds where nothing at all was affordable; the longest gap *between* purchases
-(~195 s, the bot saving for a big fleet/kennel tier) is reported as information.
-
-| Milestone | Result | Target | |
-|---|---|---|---|
-| Tennis Ball | 4m40s | 3-6 min | PASS |
-| Squeaky Toy | 15m33s | 10-20 min | PASS |
-| Rawhide | 30m11s | 25-45 min | PASS |
-| Prestige gives >= 5 Spirit Paws | 32m10s | 30-60 min | PASS |
-| Longest idle gap (first 60 min) | 22 s | < 90 s | PASS |
-| Run 2 Rawhide (after 5 SP) | 9m47s (67.6% faster) | >= 30% faster | PASS |
-
-Income/s: 5 min = 152, 15 min = 220, 30 min = 2.5e5. Tuned vs. the first draft:
-`BASE_DIG_PER_MIN` 2 to 6, `PRESTIGE_DIVISOR` 1e5 to 1e7, Red Wagon cost 5,000 to 1,500,
-Twin Doghouse cost 1,000 to 600, and the find ladder thresholds (Tennis Ball 3.5e4,
-Rawhide 1e9, and everything after Rawhide re-spaced to roughly x25-x50 per step).
-
-Known issue: after Rawhide the mid/late economy outruns the kennel/fleet cost
-curves (the bot reaches find #8 within 60 min). Fixing that needs a
-longer-term pass over high-tier costs, not part of the first-run targets.
+## 9. Balance targets (superseded)
+The v1 first-hour targets (Tennis Ball in 3–6 min, Rawhide in 25–45 min, …) were
+replaced by the v2 long-game targets in `04-long-game-afk.md` §5, which `npm run
+balance` checks (three profiles over real days). The tuned results are in
+`04-long-game-afk.md` §7. In short: Tennis Ball in about 6 minutes, Squeaky Toy in
+9, Rawhide in a few hours, first prestige on day 0, the Cosmic Bone on day 110 for
+the AFK profile.
 
 ## 10. v2 extension points (not in scope now)
 Dog Shows (contracts, which are the main Legend Collar source), breeds (cosmetic
