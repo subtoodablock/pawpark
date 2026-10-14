@@ -100,6 +100,8 @@ fixed bonus should **rise gently**, with each era's rebuild taking roughly
   saves already sit on a valid Find and keep their park.
 
 ## 5. UI
+> Superseded in part by `09-egg-inc-screens.md`: price scaling is never shown to players.
+
 - **Find upgrade:** a confirm modal listing what resets and what's kept, the
   new Find's value multiplier, and the cost scale ("prices ×6").
 - **HUD:**
