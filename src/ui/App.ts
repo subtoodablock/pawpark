@@ -33,7 +33,7 @@ export function startApp(root: HTMLElement): GameController {
   initModal(app);
 
   controller.subscribe((e) => {
-    if (e.type === 'mailArrived') scene.floater('\u{1F4EC}', 300, 100);
+    if (e.type === 'mailArrived') scene.floater('\u{1F4EC}', scene.el.clientWidth - 32, 100);
   });
   controller.onOffline((r) => {
     showModal(

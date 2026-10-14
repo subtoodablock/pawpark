@@ -29,7 +29,7 @@ export function createKennelsPanel(c: GameController): Panel {
       const tier = s.kennels[i];
       const cur = tier === null || tier === undefined ? null : KENNELS[tier];
       const next = KENNELS[tier === null || tier === undefined ? 0 : tier + 1];
-      setText(row.icon, cur ? cur.icon : '⬜');
+      setText(row.icon, cur ? cur.icon : '➕');
       setText(row.title, `Slot ${i + 1}: ${cur ? cur.name : 'Empty'}`);
       setText(row.desc, cur ? `Holds ${formatNumber(Math.floor(cur.capacity * mult))} pups` : 'Build a kennel to house more pups');
       setText(row.meta, next ? `Next: ${next.icon} ${next.name} (${formatNumber(Math.floor(next.capacity * mult))} pups)` : 'Fully upgraded');

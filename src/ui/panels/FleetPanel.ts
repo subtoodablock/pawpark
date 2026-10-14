@@ -41,7 +41,7 @@ export function createFleetPanel(c: GameController): Panel {
       const tier = s.vehicles[i];
       const cur = tier === null || tier === undefined ? null : VEHICLES[tier];
       const next = VEHICLES[tier === null || tier === undefined ? 0 : tier + 1];
-      setText(row.icon, cur ? cur.icon : '⬜');
+      setText(row.icon, cur ? cur.icon : '➕');
       setText(row.title, `Slot ${i + 1}: ${cur ? cur.name : 'Empty'}`);
       setText(row.desc, cur ? `Ships ${formatNumber(cur.capacityPerMin * mult)}/min` : 'Buy a vehicle to ship more finds');
       setText(row.meta, next ? `Next: ${next.icon} ${next.name} (${formatNumber(next.capacityPerMin * mult)}/min)` : 'Fully upgraded');
