@@ -46,6 +46,10 @@ import f_medal from '@phosphor-icons/core/assets/fill/medal-fill.svg?raw';
 import f_sparkle from '@phosphor-icons/core/assets/fill/sparkle-fill.svg?raw';
 import f_rocket from '@phosphor-icons/core/assets/fill/rocket-fill.svg?raw';
 import f_cube from '@phosphor-icons/core/assets/fill/cube-fill.svg?raw';
+import f_flagBanner from '@phosphor-icons/core/assets/fill/flag-banner-fill.svg?raw';
+import f_compass from '@phosphor-icons/core/assets/fill/compass-fill.svg?raw';
+import b_swap from '@phosphor-icons/core/assets/bold/swap-bold.svg?raw';
+import b_arrowsClockwise from '@phosphor-icons/core/assets/bold/arrows-clockwise-bold.svg?raw';
 import b_x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
 import b_info from '@phosphor-icons/core/assets/bold/info-bold.svg?raw';
 import b_arrowCounterClockwise from '@phosphor-icons/core/assets/bold/arrow-counter-clockwise-bold.svg?raw';
@@ -104,6 +108,10 @@ const SVGS = {
   'sparkle': f_sparkle,
   'rocket': f_rocket,
   'cube': f_cube,
+  'flag-banner': f_flagBanner,
+  'compass': f_compass,
+  'swap-bold': b_swap,
+  'arrows-clockwise-bold': b_arrowsClockwise,
   'x-bold': b_x,
   'info-bold': b_info,
   'arrow-counter-clockwise-bold': b_arrowCounterClockwise,
@@ -186,6 +194,10 @@ const TOKENS: Record<string, IconName> = {
   cart: 'storefront',
   arrow: 'arrow-right-bold',
   info: 'info-bold',
+  spiral: 'spiral-bold',
+  medal: 'medal',
+  flag: 'flag-banner',
+  gem2: 'diamond',
 };
 
 const TOKEN_RE = /\{([a-z]+)\}/g;

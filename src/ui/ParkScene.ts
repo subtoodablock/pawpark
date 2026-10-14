@@ -1,7 +1,7 @@
 // The canvas park scene. Orchestrates procedural layers/sprites in src/ui/render/** (docs/07-art-direction.md).
 // Public surface used by App.ts / GameController: constructor, el, bounce(), floater(), frame(dt).
 import { getDayNight } from './prefs';
-import { FINDS, KENNEL_SLOTS, catchSquirrel, computeStats, kennelUpgradeCost } from '../core';
+import { FINDS, KENNEL_SLOTS, TOP_VEHICLE_TIER, bestRarity, catchSquirrel, computeStats, kennelUpgradeCost } from '../core';
 import type { RewardResult, Squirrel } from '../core';
 import type { GameController } from './GameController';
 import { formatReward } from './labels';
@@ -14,6 +14,7 @@ import { findArt, treatArt } from './render/art';
 import { FONT } from './render/palette';
 import { clamp, contactShadow, easeOutBack, hash01, rng } from './render/shade';
 import { Flock, type SimEnv, drawPup, drawPupShadow } from './render/PupActor';
+import { PortalFx } from './render/portal';
 import type { PupActor } from './render/PupActor';
 import {
   ADOPT_AX,
@@ -76,6 +77,9 @@ function noEmoji(t: string): string {
   return t.replace(EMOJI_RE, '').replace(/\s+/g, ' ').trim();
 }
 const MAX_VISIBLE = 56;
+/** sled cars drawn behind the leader (the rest still count for capacity) */
+const MAX_DRAWN_CARS = 6;
+const CAR_SCALE = 0.74;
 const DASH: number[] = [5, 4];
 const NO_DASH: number[] = [];
 
@@ -125,6 +129,8 @@ interface Veh {
   wheel: number;
   pop: number;
   bob: number;
+  /** extra sled cars trailing the leader (top tier only) */
+  cars: number;
 }
 interface Cloud {
   x: number;
@@ -148,6 +154,7 @@ const enum Kind {
   Tree,
   Squirrel,
   Pup,
+  Portal,
 }
 
 function byItemY(a: Item, b: Item): number {
@@ -203,6 +210,13 @@ export class ParkScene {
   private lastHidden = false;
   private dogSheet: DogSheet | null = null;
   private seenSquirrels = new Set<number>();
+  private portalFx = new PortalFx();
+  /** launchedAt of each slot's expedition as last seen (0 = empty) */
+  private portalSig: number[] = [];
+  private portalReady: boolean[] = [];
+  private portalSeen = false;
+  /** the Portal Gate was tapped (opens the Portal panel) */
+  onPortalTap: () => void = () => {};
 
   constructor(private c: GameController) {
     this.el = h('section', { cls: 'scene' }, this.canvas);
@@ -243,6 +257,13 @@ export class ParkScene {
       /* ignore */
     }
     this.queueWarm();
+    this.c.onView(() => {
+      this.snapView = true;
+      this.lastAdopted = -1;
+      this.pending = 0;
+      this.portalSeen = false;
+      for (const v of this.vehs) if (v) v.tier = null;
+    });
     new ResizeObserver(() => this.resize()).observe(this.el);
     this.canvas.addEventListener('pointerdown', (e) => this.onPointer(e));
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -462,6 +483,17 @@ export class ParkScene {
       }
       return;
     }
+    if (this.portalOn()) {
+      const pp = this.portalPos();
+      const cx = pp.x;
+      const cy = pp.y - 58 * pp.s;
+      const rx = 50 * pp.s + 8;
+      const ry = 70 * pp.s + 8;
+      if (((px - cx) / rx) ** 2 + ((py - cy) / ry) ** 2 <= 1) {
+        this.onPortalTap();
+        return;
+      }
+    }
     if (s.mailCount > 0) {
       const m = this.mailPos();
       if ((m.x - px) ** 2 + (m.y - py) ** 2 < 46 * 46) {
@@ -559,7 +591,7 @@ export class ParkScene {
       if (now !== sl.tier) {
         const first = sl.tier === null && sl.anim >= 1 && this.frames < 3;
         const reset = now !== null && sl.tier !== null && now < sl.tier; // era reset: snap, no pop
-        if (this.frames >= 3 && now !== null && !first && !reset) {
+        if (this.frames >= 3 && !this.snapView && now !== null && !first && !reset) {
           sl.old = sl.tier;
           sl.anim = 0;
           sl.fxDone = false;
@@ -591,16 +623,17 @@ export class ParkScene {
       const now = s.vehicles[i] ?? null;
       let v = this.vehs[i];
       if (!v) {
-        v = this.vehs[i] = { tier: null, out: false, wait: 0, x: -200, wheel: 0, pop: 1, bob: i * 1.7 };
+        v = this.vehs[i] = { tier: null, out: false, wait: 0, x: -200, wheel: 0, pop: 1, bob: i * 1.7, cars: 0 };
         this.lastVehTier[i] = null;
       }
+      v.cars = now === TOP_VEHICLE_TIER ? Math.min(MAX_DRAWN_CARS, Math.max(0, (s.vehicleCars[i] ?? 1) - 1)) : 0;
       if (now !== v.tier) {
         const wasNull = v.tier === null;
         const reset = now !== null && v.tier !== null && now < v.tier; // era reset: no pop
         v.tier = now;
         if (now !== null) {
-          if (wasNull) this.placeVehicle(i, this.frames < 3);
-          if (this.frames >= 3 && v.out && !reset) {
+          if (wasNull) this.placeVehicle(i, this.frames < 3 || this.snapView);
+          if (this.frames >= 3 && !this.snapView && v.out && !reset) {
             v.pop = 0;
             const sp = VEHICLE_SPECS[Math.min(now, VEHICLE_SPECS.length - 1)];
             const y = this.laneY();
@@ -623,7 +656,18 @@ export class ParkScene {
 
   /** on-screen width of a vehicle */
   private vehWidth(v: Veh): number {
+    const lead = VEHICLE_SPECS[Math.min(VEHICLE_SPECS.length - 1, v.tier ?? 0)].w * this.vehScale();
+    return lead + v.cars * (lead * CAR_SCALE + 8 * this.L.bs);
+  }
+
+  /** on-screen width of just the leading vehicle */
+  private leadWidth(v: Veh): number {
     return VEHICLE_SPECS[Math.min(VEHICLE_SPECS.length - 1, v.tier ?? 0)].w * this.vehScale();
+  }
+
+  /** distance from the train's centre to the leader's centre (0 without sled cars) */
+  private leadOffset(v: Veh): number {
+    return (this.vehWidth(v) - this.leadWidth(v)) / 2;
   }
 
   private vehGap(): number {
@@ -654,6 +698,58 @@ export class ParkScene {
   }
 
   // ---------------------------------------------------------------- update
+
+  // ---------------------------------------------------------------- Paw Portal
+
+  /** The gate exists on the home lawn (hidden while the Dog Show park is on screen). */
+  private portalOn(): boolean {
+    return !!this.c.home.portal && !this.c.viewingShow;
+  }
+
+  /** ground anchor of the gate and its size multiplier */
+  private portalPos(): { x: number; y: number; s: number } {
+    const L = this.L;
+    const span = L.lawnBottom - L.kennelBase;
+    return { x: L.w * 0.6, y: L.kennelBase + span * 0.74, s: clamp(L.bs * 0.74, 0.58, 0.9) };
+  }
+
+  /** watch the slots: dogs leap in when a crew launches and tumble out when one returns */
+  private syncPortal(dt: number): void {
+    const p = this.c.home.portal;
+    const pos = this.portalPos();
+    if (p && p.built && !this.c.viewingShow) {
+      const now = Date.now();
+      let launched = 0;
+      let returned = 0;
+      let best = 0;
+      let ready = 0;
+      p.slots.forEach((e, i) => {
+        const sig = e ? e.launchedAt : 0;
+        const isReady = !!e && now >= e.returnsAt;
+        if (isReady) ready++;
+        if (this.portalSeen) {
+          if (sig !== (this.portalSig[i] ?? 0) && e && now - e.launchedAt < 8000) launched++;
+          else if (isReady && !this.portalReady[i] && sig === (this.portalSig[i] ?? 0)) {
+            returned++;
+            best = Math.max(best, bestRarity(e.loot));
+          }
+        }
+        this.portalSig[i] = sig;
+        this.portalReady[i] = isReady;
+      });
+      this.portalSeen = true;
+      this.portalReadyCount = ready;
+      if (launched > 0) this.portalFx.launch(pos.x, pos.y, pos.s, this.L, launched);
+      if (returned > 0) this.portalFx.land(pos.x, pos.y, pos.s, this.L, returned, best);
+    } else {
+      this.portalReadyCount = 0;
+      this.portalSeen = false;
+    }
+    if (this.portalOn()) this.portalFx.update(dt, pos.s, this.particles);
+  }
+  private portalReadyCount = 0;
+  /** the screen switched between the home park and the show park: snap, do not animate the differences */
+  private snapView = false;
 
   frame(dt: number): void {
     if (document.hidden) {
@@ -725,6 +821,8 @@ export class ParkScene {
     while (this.warm.length && performance.now() - tw < 1.6) this.warm.pop()!();
 
     this.syncState(dt);
+    this.snapView = false;
+    this.syncPortal(dt);
     for (const sl of this.slots) void sl;
 
     // adoption detection -> runners from the Adoption Center
@@ -831,7 +929,8 @@ export class ParkScene {
         v.pop = Math.min(1, v.pop + dt * 2.2);
         rearmost = Math.min(rearmost, v.x - this.vehWidth(v) / 2);
         lead = v;
-        if (v.x > L.w + sp.w * this.vehScale() * 0.6 + 20) {
+        void sp;
+        if (v.x - this.vehWidth(v) / 2 > L.w + 20) {
           v.out = false;
           v.wait = 1.5 + (v.bob % 1);
         }
@@ -844,9 +943,9 @@ export class ParkScene {
         v.wait = Math.max(0, v.wait - dt);
         if (v.wait <= 0 && (!next || this.vehs.indexOf(v) < this.vehs.indexOf(next))) next = v;
       }
-      if (next && rearmost - gap >= dx0 + this.vehWidth(next) / 2 + 2) {
+      if (next && rearmost - gap >= dx0 + this.leadWidth(next) / 2 + 2) {
         next.out = true;
-        next.x = dx0;
+        next.x = dx0 + this.leadOffset(next);
         next.pop = 1;
       }
     }
@@ -965,6 +1064,7 @@ export class ParkScene {
     add(L.centerY, Kind.Center, 0, null);
     add(L.mailY, Kind.Mail, 0, null);
     for (let i = 0; i < L.trees.length; i++) add(L.trees[i].y, Kind.Tree, i, null);
+    if (this.portalOn()) add(this.portalPos().y, Kind.Portal, 0, null);
     for (let i = 0; i < s.squirrels.length; i++) add(this.squirrelState(s.squirrels[i]).y, Kind.Squirrel, i, null);
     for (const a of sorted) add(a.y, Kind.Pup, 0, a);
     list.sort(byItemY);
@@ -987,11 +1087,17 @@ export class ParkScene {
         case Kind.Squirrel:
           this.drawSquirrelAt(s.squirrels[it.i]);
           break;
+        case Kind.Portal: {
+          const pp = this.portalPos();
+          this.portalFx.draw(ctx, dpr, this.cache, { x: pp.x, y: pp.y, s: pp.s, built: !!this.c.home.portal?.built, ready: this.portalReadyCount, night: this.tint.night });
+          break;
+        }
         default:
           drawPup(ctx, dpr, this.cache, L, it.a!, 0);
       }
     }
 
+    if (this.portalOn()) this.portalFx.drawJumpers(ctx, dpr, this.cache, L);
     this.drawVehicles();
     this.drawButterflies();
     this.drawCaught();
@@ -1324,7 +1430,7 @@ export class ParkScene {
   }
 
   private drawVehicles(): void {
-    const { ctx, dpr, L } = this;
+    const { ctx, L } = this;
     const order: Veh[] = this.vehOrder;
     order.length = 0;
     for (const v of this.vehs) if (v && v.tier !== null && v.out) order.push(v);
@@ -1332,46 +1438,66 @@ export class ParkScene {
     for (const v of order) {
       const tier = Math.min(VEHICLE_SPECS.length - 1, v.tier as number);
       const sp = VEHICLE_SPECS[tier];
+      const lead = this.leadWidth(v);
+      const lx = v.x + this.leadOffset(v);
       // pull-out: scale/fade up from the garage door onto the road
-      const u = clamp((v.x - this.depotX()) / (60 * L.bs), 0, 1);
+      const u = clamp((lx - this.depotX()) / (60 * L.bs), 0, 1);
       const eu = u * u * (3 - 2 * u);
       const sc = this.vehScale() * (0.7 + 0.3 * eu);
       const ground = this.laneY() - (1 - eu) * 14 * L.bs;
       const pop = v.pop;
       const ps = pop < 1 ? easeOutBack(pop, 2.4) : 1;
       const slide = (1 - pop) * -34;
-      const x = v.x + slide;
       const fade = eu;
       if (fade <= 0.01) continue;
-      const bob = (Math.sin(v.bob) * 0.5 + 0.5) * sp.bob + (sp.hover ? Math.sin(v.bob * 0.7) * 1.2 : 0);
-      const hov = sp.hover + (sp.hover ? Math.sin(v.bob * 0.6) * 1.6 : 0);
       ctx.globalAlpha = fade * Math.min(1, pop * 3 + 0.2);
-      const body = this.cache.getOrNull(`veh:${tier}`, VEH_W, VEH_H, (cx) => drawVehicle(cx, tier), 3.5);
-      if (!body) continue;
-      // contact shadow
-      const sh = this.cache.get('shadow:veh', 64, 24, (cx) => contactShadow(cx, 32, 12, 31, 11, 0.26));
-      const sw = sp.sw * 2 * sc * (1 - hov * 0.012);
-      ctx.drawImage(sh.c as CanvasImageSource, x - sw / 2 + 4, ground - sw * 0.17 + 2, sw, sw * 0.3);
-      const y = ground - hov - bob;
-      if (sp.swirl) {
-        const sw2 = this.cache.get('swirl', 40, 40, (cx) => drawSwirl(cx));
-        ctx.setTransform(dpr * sc * 1.5, 0, 0, dpr * sc * 1.5, dpr * x, dpr * (y - 26 * sc));
-        ctx.rotate(this.t * 3);
-        ctx.drawImage(sw2.c as CanvasImageSource, -20, -20, 40, 40);
+      // sled cars first (behind the leader), each a little smaller, hitched with a spark of light
+      const carW = lead * CAR_SCALE;
+      const gap = 8 * L.bs;
+      for (let k = v.cars; k >= 1; k--) {
+        const cx = lx + slide - lead / 2 - gap * k - carW * (k - 0.5) - (k - 1) * 0;
+        this.paintVehicle(v, tier, cx, ground, sc * CAR_SCALE, ps, k * 0.9);
+        const hx = cx + carW / 2;
+        ctx.fillStyle = 'rgba(160,240,230,0.85)';
+        ctx.fillRect(hx, ground - 10 * L.bs, gap + 1, 2.2);
       }
-      blit(ctx, dpr, body, x, y, VEH_AX, VEH_AY, sc * ps, sc * ps);
-      for (const wh of sp.wheels) {
-        const bike = tier === 0;
-        const ws = this.cache.get(`wheel:${wh.r}:${bike ? 1 : 0}`, wh.r * 2 + 4, wh.r * 2 + 4, (cx) => drawWheel(cx, wh.r, bike));
-        const wx = x + wh.x * sc * ps;
-        const wy = y - wh.r * sc * ps;
-        ctx.setTransform(dpr * sc * ps, 0, 0, dpr * sc * ps, dpr * wx, dpr * wy);
-        ctx.rotate(v.wheel / wh.r);
-        ctx.drawImage(ws.c as CanvasImageSource, -wh.r - 2, -wh.r - 2, ws.w, ws.h);
-      }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.paintVehicle(v, tier, lx + slide, ground, sc, ps, 0);
+      void sp;
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** one vehicle body (leader or sled car): shadow, optional swirl, body, wheels */
+  private paintVehicle(v: Veh, tier: number, x: number, ground: number, sc: number, ps: number, phase: number): void {
+    const { ctx, dpr } = this;
+    const sp = VEHICLE_SPECS[tier];
+    const bobT = v.bob + phase;
+    const bob = (Math.sin(bobT) * 0.5 + 0.5) * sp.bob + (sp.hover ? Math.sin(bobT * 0.7) * 1.2 : 0);
+    const hov = sp.hover + (sp.hover ? Math.sin(bobT * 0.6) * 1.6 : 0);
+    const body = this.cache.getOrNull(`veh:${tier}`, VEH_W, VEH_H, (cx) => drawVehicle(cx, tier), 3.5);
+    if (!body) return;
+    // contact shadow
+    const sh = this.cache.get('shadow:veh', 64, 24, (cx) => contactShadow(cx, 32, 12, 31, 11, 0.26));
+    const sw = sp.sw * 2 * sc * (1 - hov * 0.012);
+    ctx.drawImage(sh.c as CanvasImageSource, x - sw / 2 + 4, ground - sw * 0.17 + 2, sw, sw * 0.3);
+    const y = ground - hov - bob;
+    if (sp.swirl) {
+      const sw2 = this.cache.get('swirl', 40, 40, (cx) => drawSwirl(cx));
+      ctx.setTransform(dpr * sc * 1.5, 0, 0, dpr * sc * 1.5, dpr * x, dpr * (y - 26 * sc));
+      ctx.rotate(this.t * 3 + phase);
+      ctx.drawImage(sw2.c as CanvasImageSource, -20, -20, 40, 40);
+    }
+    blit(ctx, dpr, body, x, y, VEH_AX, VEH_AY, sc * ps, sc * ps);
+    for (const wh of sp.wheels) {
+      const bike = tier === 0;
+      const ws = this.cache.get(`wheel:${wh.r}:${bike ? 1 : 0}`, wh.r * 2 + 4, wh.r * 2 + 4, (cx) => drawWheel(cx, wh.r, bike));
+      const wx = x + wh.x * sc * ps;
+      const wy = y - wh.r * sc * ps;
+      ctx.setTransform(dpr * sc * ps, 0, 0, dpr * sc * ps, dpr * wx, dpr * wy);
+      ctx.rotate(v.wheel / wh.r);
+      ctx.drawImage(ws.c as CanvasImageSource, -wh.r - 2, -wh.r - 2, ws.w, ws.h);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   private vehOrder: Veh[] = [];
 

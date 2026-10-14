@@ -1,4 +1,4 @@
-import { PARK_LEVEL_THRESHOLDS, computeStats, formatMoney, parkTitle } from '../../core';
+import { PARK_LEVEL_THRESHOLDS, PUP_RANK_TITLES, computeStats, formatMoney, formatNumber, parkTitle } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setMeter, setText } from '../dom';
 import { createShareCard } from '../share';
@@ -23,12 +23,39 @@ export function createLevelPanel(c: GameController): Panel {
     const e = h('div', { cls: 'ladder-row' }, h('span', { cls: 'ladder-name', text: t }), h('span', { cls: 'row-meta', text: `Lv ${l}+` }));
     entries.push({ level: l, title: t, el: e });
   }
-  el.append(section('Titles', h('div', { cls: 'ladder' }, ...entries.map((e) => e.el))));
+  const titlesSection = section('Titles', h('div', { cls: 'ladder' }, ...entries.map((e) => e.el)));
+  el.append(titlesSection);
+  // ---- Pup Rank: grows with the earnings bonus from Spirit Paws and Legend Collars
+  const rankTitle = h('div', { cls: 'row-title' });
+  const rankBig = h('div', { cls: 'level-big rank' });
+  const rankMeta = h('div', { cls: 'row-meta' });
+  const rankM = meter('goal');
+  const rankRows = PUP_RANK_TITLES.map((t, r) => ({
+    r,
+    el: h('div', { cls: 'ladder-row' }, h('span', { cls: 'ladder-name', text: t }), h('span', { cls: 'row-meta', text: r === 0 ? 'any bonus' : `+${formatNumber(10 ** r)}% earnings` })),
+  }));
+  const rankLadder = h('div', { cls: 'ladder rank-ladder' }, ...rankRows.map((x) => x.el));
+  el.insertBefore(
+    section(
+      'Pup rank',
+      h(
+        'div',
+        { cls: 'card' },
+        rankBig,
+        rankTitle,
+        rankM.el,
+        rankMeta,
+        h('div', { cls: 'row-desc', text: 'Rank grows with your earnings bonus from Spirit Paws and Legend Collars. Each rank needs ten times the bonus of the one before.' }),
+      ),
+      rankLadder,
+    ),
+    titlesSection,
+  );
   const share = createShareCard(c);
   el.append(section('{share} Share', share.el));
 
   function update(): void {
-    const s = c.state;
+    const s = c.home;
     const d = computeStats(s);
     const lvl = d.parkLevel;
     setText(big, `Lv ${lvl}`);
@@ -45,6 +72,24 @@ export function createLevelPanel(c: GameController): Panel {
       setText(meta, `${formatMoney(s.lifetimeEarnings)} / ${formatMoney(hi)} for Lv ${lvl + 1}`);
     }
     for (const e of entries) setClass(e.el, 'current', parkTitle(lvl) === e.title);
+    // rank (home save only)
+    setText(rankBig, d.pupRankTitle.toUpperCase());
+    setText(rankTitle, `Rank ${d.pupRank + 1} of ${PUP_RANK_TITLES.length}`);
+    const nextR = d.pupRank + 1;
+    const pct = Math.max(0, (d.earningsBonus - 1) * 100);
+    if (nextR >= PUP_RANK_TITLES.length) {
+      setMeter(rankM, 1);
+      setText(rankMeta, 'Top rank reached!');
+    } else {
+      const lo = 10 ** d.pupRank;
+      const hi = 10 ** nextR;
+      setMeter(rankM, (Math.log10(Math.max(1, pct)) - Math.log10(lo)) / Math.log10(hi / lo));
+      setText(rankMeta, `+${formatNumber(Math.floor(pct))}% earnings bonus. ${PUP_RANK_TITLES[nextR]} at +${formatNumber(hi)}%`);
+    }
+    for (const x of rankRows) {
+      setClass(x.el, 'current', x.r === d.pupRank);
+      x.el.hidden = x.r < d.pupRank - 1 || x.r > d.pupRank + 4; // a short window of the ladder around you
+    }
     share.update();
   }
   return { el, update };

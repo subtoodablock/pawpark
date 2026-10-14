@@ -1876,3 +1876,628 @@ export function treatArt(id: string, px: number): string {
   return render(`treat:${draw === drawBacon ? 'bacon' : draw === drawSteak ? 'steak' : 'kong'}`, px, draw);
 }
 
+
+// ------------------------------------------------------------------ Paw Portal: relics + stones (glossy, v6)
+
+/** tier metal: bronze, silver, gold, prismatic ice */
+const METAL: { hi: string; mid: string; lo: string }[] = [
+  { hi: '#f1b48a', mid: '#b8774a', lo: '#6e3f22' },
+  { hi: '#f4f7fb', mid: '#b9c3d0', lo: '#6c7787' },
+  { hi: '#fff0a0', mid: '#f2b417', lo: '#9a6a05' },
+  { hi: '#e6fbff', mid: '#6fd6f0', lo: '#7a4fd8' },
+];
+export const RARITY_COLORS: readonly string[] = ['#9aa3ad', '#2f6fdc', '#7a1fd1', '#f2b417'];
+
+function metalGrad(ctx: C, m: (typeof METAL)[number], x0: number, y0: number, x1: number, y1: number): CanvasGradient {
+  return lin(ctx, x0, y0, x1, y1, [
+    [0, m.hi],
+    [0.45, m.mid],
+    [1, m.lo],
+  ]);
+}
+
+type RelicDraw = (ctx: C, m: (typeof METAL)[number]) => void;
+
+const drawBaconPrism: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 88, 30, 5, 0.24);
+  const side = new Path2D();
+  side.moveTo(44, 14);
+  side.lineTo(62, 9);
+  side.lineTo(88, 66);
+  side.lineTo(68, 74);
+  side.closePath();
+  ctx.fillStyle = lin(ctx, 44, 10, 88, 70, [
+    [0, '#f7b2bc'],
+    [1, '#a8405a'],
+  ]);
+  ctx.fill(side);
+  const front = new Path2D();
+  front.moveTo(42, 14);
+  front.lineTo(10, 76);
+  front.lineTo(68, 76);
+  front.closePath();
+  ctx.fillStyle = lin(ctx, 20, 20, 62, 76, [
+    [0, '#fff1f3'],
+    [0.5, '#ffc2cb'],
+    [1, '#e8667c'],
+  ]);
+  ctx.fill(front);
+  // bacon strips inside the glass
+  ctx.save();
+  ctx.clip(front);
+  for (let i = 0; i < 4; i++) {
+    const y = 34 + i * 11;
+    ctx.beginPath();
+    ctx.moveTo(8, y + 5);
+    for (let x = 8; x <= 72; x += 8) ctx.quadraticCurveTo(x + 2, y + ((x / 8 + i) % 2 ? -4 : 8), x + 8, y + 2);
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = i % 2 ? '#f6d3b0' : '#c8392f';
+    ctx.stroke();
+  }
+  ctx.restore();
+  bevel(ctx, front, 2.6, 0.55, 0.3);
+  // refracted beam
+  ctx.save();
+  ctx.globalAlpha = 0.8;
+  const cols = ['#ff6b6b', '#ffd34d', '#6bdc8a', '#5ab4ff'];
+  cols.forEach((c, i) => {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(66, 46);
+    ctx.lineTo(96, 40 + i * 6);
+    ctx.stroke();
+  });
+  ctx.restore();
+  // base plate
+  const base = rrP(8, 76, 64, 9, 4.5);
+  ctx.fillStyle = metalGrad(ctx, m, 8, 76, 8, 86);
+  ctx.fill(base);
+  bevel(ctx, base, 1.4, 0.5, 0.35);
+  spec(ctx, 28, 34, 9, 4, -1.1, 0.8);
+};
+
+const drawSqueakyOrb: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 88, 30, 5.5, 0.26);
+  const cx = 50;
+  const cy = 56;
+  const r = 31;
+  const body = ellP(cx, cy, r, r);
+  ctx.fillStyle = sphereFill(ctx, cx, cy, r, '#fff6a0', '#f6c915', '#a86d05');
+  ctx.fill(body);
+  bevel(ctx, body, 5, 0.3, 0.32);
+  // metal equator band
+  ctx.save();
+  ctx.clip(body);
+  ctx.strokeStyle = metalGrad(ctx, m, 20, 56, 80, 70);
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 2, r + 2, 9, -0.08, 0, TAU);
+  ctx.stroke();
+  ctx.restore();
+  // squeaker
+  const nz = rrP(41, 17, 18, 13, 5);
+  ctx.fillStyle = lin(ctx, 41, 17, 59, 30, [
+    [0, '#ff8a7a'],
+    [1, '#c4301f'],
+  ]);
+  ctx.fill(nz);
+  ctx.fillStyle = '#7e1a10';
+  ctx.beginPath();
+  ctx.ellipse(50, 20, 4.4, 1.7, 0, 0, TAU);
+  ctx.fill();
+  spec(ctx, 36, 42, 12, 7, -0.7, 0.85);
+  sparkle(ctx, 76, 28, 5, '#fff', 0.9);
+};
+
+const drawKennelKey: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 52, 88, 32, 5, 0.22);
+  ctx.save();
+  ctx.translate(50, 52);
+  ctx.rotate(-0.72);
+  const house = new Path2D();
+  house.moveTo(-46, 12);
+  house.lineTo(-46, -5);
+  house.lineTo(-30, -21);
+  house.lineTo(-14, -5);
+  house.lineTo(-14, 12);
+  house.closePath();
+  const shaft = rrP(-16, -4, 62, 8, 4);
+  const t1 = rrP(28, 3, 7, 12, 2);
+  const t2 = rrP(38, 3, 6, 8, 2);
+  const key = new Path2D();
+  key.addPath(house);
+  key.addPath(shaft);
+  key.addPath(t1);
+  key.addPath(t2);
+  ctx.fillStyle = metalGrad(ctx, m, -46, -22, 40, 16);
+  ctx.fill(key);
+  bevel(ctx, key, 2.2, 0.55, 0.38);
+  // door hole + window
+  ctx.fillStyle = '#2a1c3a';
+  ctx.beginPath();
+  ctx.moveTo(-34, 11);
+  ctx.lineTo(-34, 1);
+  ctx.arc(-30, 1, 4, Math.PI, 0);
+  ctx.lineTo(-26, 11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  spec(ctx, 30, 28, 10, 3.6, -0.8, 0.8);
+  sparkle(ctx, 80, 34, 5, '#fff', 0.85);
+};
+
+const drawWormholeLeash: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 90, 30, 5, 0.22);
+  const cx = 44;
+  const cy = 40;
+  // the swirl inside the loop
+  ctx.fillStyle = rad(ctx, cx, cy, 2, cx, cy, 24, [
+    [0, '#ffffff'],
+    [0.25, '#9ef0e0'],
+    [0.7, '#7a4fd8'],
+    [1, '#3b1f8a'],
+  ]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    for (let a = 0; a < 5; a += 0.2) {
+      const rr = 3 + a * 4.1;
+      const ang = a + k * 2.09;
+      const x = cx + Math.cos(ang) * rr;
+      const y = cy + Math.sin(ang) * rr;
+      if (a === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  const red = lin(ctx, 16, 16, 84, 90, [
+    [0, '#ff8a6a'],
+    [0.5, '#e8241c'],
+    [1, '#8f1410'],
+  ]);
+  // strap sweeping off the loop down to a hand loop
+  ctx.strokeStyle = red;
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(66, 52);
+  ctx.bezierCurveTo(84, 62, 86, 80, 64, 84);
+  ctx.stroke();
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.ellipse(46, 82, 19, 8, 0.05, 0, TAU);
+  ctx.stroke();
+  // leash loop
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 27, 0, TAU);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 27, 0, TAU);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // metal clip where the strap meets the loop
+  const cl = rrP(60, 44, 18, 13, 5);
+  ctx.fillStyle = metalGrad(ctx, m, 60, 44, 78, 57);
+  ctx.fill(cl);
+  bevel(ctx, cl, 1.6, 0.55, 0.38);
+  ctx.fillStyle = '#2a1c3a';
+  ctx.beginPath();
+  ctx.ellipse(69, 50.5, 3.4, 2.2, 0, 0, TAU);
+  ctx.fill();
+  spec(ctx, 28, 24, 10, 3.4, -0.8, 0.7);
+};
+
+const drawRescueBeacon: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 90, 30, 5, 0.24);
+  // glow rays
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,214,90,0.95)';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  [-1.15, -0.65, -0.2, 0.2, 0.65, 1.15].forEach((a) => {
+    ctx.beginPath();
+    ctx.moveTo(50 + Math.sin(a) * 26, 36 - Math.cos(a) * 26);
+    ctx.lineTo(50 + Math.sin(a) * 36, 36 - Math.cos(a) * 36);
+    ctx.stroke();
+  });
+  ctx.restore();
+  const base = rrP(22, 74, 56, 13, 5);
+  ctx.fillStyle = metalGrad(ctx, m, 22, 74, 22, 87);
+  ctx.fill(base);
+  bevel(ctx, base, 1.6, 0.5, 0.36);
+  const body = rrP(30, 44, 40, 32, 7);
+  ctx.fillStyle = lin(ctx, 30, 44, 70, 76, [
+    [0, '#ff8d7e'],
+    [0.5, '#e8241c'],
+    [1, '#8c1510'],
+  ]);
+  ctx.fill(body);
+  bevel(ctx, body, 3, 0.4, 0.34);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillRect(30, 56, 40, 7);
+  // lamp dome
+  const dome = new Path2D();
+  dome.moveTo(32, 46);
+  dome.arc(50, 46, 18, Math.PI, 0);
+  dome.closePath();
+  ctx.fillStyle = rad(ctx, 44, 34, 1, 50, 44, 22, [
+    [0, '#ffffff'],
+    [0.35, '#ffe27a'],
+    [1, '#f0801a'],
+  ]);
+  ctx.fill(dome);
+  bevel(ctx, dome, 2.4, 0.5, 0.25);
+  spec(ctx, 42, 33, 7, 3.2, -0.9, 0.9);
+  sparkle(ctx, 78, 22, 5, '#fff', 0.9);
+};
+
+const drawTimefoldCollar: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 90, 30, 5, 0.22);
+  // collar ring (back half darker, front half lit)
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1f57b8';
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.ellipse(50, 40, 33, 21, 0, Math.PI, TAU);
+  ctx.stroke();
+  ctx.strokeStyle = lin(ctx, 20, 30, 80, 66, [
+    [0, '#6ea6ff'],
+    [0.5, '#2f6fdc'],
+    [1, '#17428f'],
+  ]);
+  ctx.beginPath();
+  ctx.ellipse(50, 40, 33, 21, 0, 0, Math.PI);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([3.5, 3.5]);
+  ctx.beginPath();
+  ctx.ellipse(50, 40, 33, 21, 0, 0.15, Math.PI - 0.15);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // buckle
+  const bk = rrP(41, 56, 18, 9, 3);
+  ctx.fillStyle = metalGrad(ctx, m, 41, 56, 59, 65);
+  ctx.fill(bk);
+  // tag with an hourglass
+  const tag = ellP(50, 77, 14, 14);
+  ctx.fillStyle = metalGrad(ctx, m, 36, 63, 64, 91);
+  ctx.fill(tag);
+  bevel(ctx, tag, 2, 0.55, 0.38);
+  ctx.fillStyle = '#2a1c3a';
+  ctx.beginPath();
+  ctx.moveTo(44, 70);
+  ctx.lineTo(56, 70);
+  ctx.lineTo(51, 77);
+  ctx.lineTo(56, 84);
+  ctx.lineTo(44, 84);
+  ctx.lineTo(49, 77);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#7ef0e0';
+  ctx.beginPath();
+  ctx.moveTo(46, 82.5);
+  ctx.lineTo(54, 82.5);
+  ctx.lineTo(50, 78.5);
+  ctx.closePath();
+  ctx.fill();
+  spec(ctx, 30, 40, 9, 3, -0.4, 0.55);
+};
+
+const drawLuckyAcorn: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 90, 26, 5, 0.24);
+  const nut = blobP([
+    [50, 36],
+    [74, 50],
+    [72, 72],
+    [50, 90],
+    [28, 72],
+    [26, 50],
+  ]);
+  ctx.fillStyle = lin(ctx, 28, 40, 76, 90, [
+    [0, '#f6c76a'],
+    [0.5, '#c9862b'],
+    [1, '#7a4511'],
+  ]);
+  ctx.fill(nut);
+  bevel(ctx, nut, 4, 0.4, 0.32);
+  // clover on the nut
+  ctx.fillStyle = '#4fb04a';
+  for (const [dx, dy] of [
+    [-4, 0],
+    [4, 0],
+    [0, -4],
+    [0, 4],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(50 + dx, 66 + dy, 4, 0, TAU);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#2e7d2a';
+  ctx.beginPath();
+  ctx.arc(50, 66, 1.8, 0, TAU);
+  ctx.fill();
+  // cap
+  const cap = blobP([
+    [20, 44],
+    [28, 26],
+    [50, 20],
+    [72, 26],
+    [80, 44],
+    [50, 50],
+  ]);
+  ctx.fillStyle = metalGrad(ctx, m, 22, 20, 78, 52);
+  ctx.fill(cap);
+  ctx.save();
+  ctx.clip(cap);
+  ctx.strokeStyle = 'rgba(40,20,5,0.3)';
+  ctx.lineWidth = 1.1;
+  for (let i = -3; i < 9; i++) {
+    ctx.beginPath();
+    ctx.moveTo(10 + i * 9, 18);
+    ctx.lineTo(30 + i * 9, 52);
+    ctx.moveTo(90 - i * 9, 18);
+    ctx.lineTo(70 - i * 9, 52);
+    ctx.stroke();
+  }
+  ctx.restore();
+  bevel(ctx, cap, 2.6, 0.5, 0.36);
+  const stem = capsuleP(50, 22, 3, 54, 10, 2.4);
+  ctx.fillStyle = '#6e4217';
+  ctx.fill(stem);
+  spec(ctx, 36, 60, 7, 12, -0.3, 0.6);
+  sparkle(ctx, 78, 30, 5, '#fff', 0.9);
+};
+
+const drawBarkTablet: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 90, 30, 5, 0.24);
+  const tab = rrP(22, 10, 56, 78, 14);
+  ctx.fillStyle = lin(ctx, 22, 10, 78, 88, [
+    [0, '#d7cdbd'],
+    [0.5, '#a39682'],
+    [1, '#5f5546'],
+  ]);
+  ctx.fill(tab);
+  bevel(ctx, tab, 4, 0.45, 0.36);
+  ctx.strokeStyle = metalGrad(ctx, m, 22, 10, 78, 88);
+  ctx.lineWidth = 3;
+  ctx.stroke(rrP(26, 14, 48, 70, 11));
+  // carved paw: dark engraving + light lower edge
+  const paw = (dx: number, dy: number, col: string): void => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(50 + dx, 60 + dy, 10, 8, 0, 0, TAU);
+    for (const [px, py, rot] of [
+      [-12, -12, -0.4],
+      [-4, -18, -0.1],
+      [5, -18, 0.1],
+      [13, -12, 0.4],
+    ]) {
+      ctx.moveTo(50 + dx + px + 4, 56 + dy + py);
+      ctx.ellipse(50 + dx + px, 56 + dy + py, 4.2, 5.4, rot, 0, TAU);
+    }
+    ctx.fill();
+  };
+  paw(0.8, 1.2, 'rgba(255,255,255,0.55)');
+  paw(0, 0, '#54493a');
+  // runes
+  ctx.strokeStyle = '#54493a';
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 4; i++) {
+    const x = 35 + i * 10;
+    ctx.beginPath();
+    ctx.moveTo(x, 24);
+    ctx.lineTo(x + (i % 2 ? 3 : -3), 31);
+    ctx.lineTo(x + 2, 31);
+    ctx.stroke();
+  }
+  // glow runes for higher tiers
+  spec(ctx, 36, 24, 10, 4, -0.7, 0.55);
+};
+
+const drawCosmicFrisbee: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 86, 34, 5, 0.22);
+  const rim = ellP(50, 52, 42, 22, -0.12);
+  const under = ellP(50, 57, 42, 22, -0.12);
+  ctx.fillStyle = metalGrad(ctx, m, 8, 40, 92, 80);
+  ctx.fill(under);
+  ctx.fill(rim);
+  const top = ellP(50, 50, 36, 17.5, -0.12);
+  ctx.fillStyle = rad(ctx, 40, 44, 2, 50, 50, 40, [
+    [0, '#b5f5ff'],
+    [0.35, '#7a4fd8'],
+    [0.75, '#3b1f8a'],
+    [1, '#1b0f4a'],
+  ]);
+  ctx.fill(top);
+  ctx.save();
+  ctx.clip(top);
+  const neb = rad(ctx, 62, 54, 1, 62, 54, 20, [
+    [0, 'rgba(255,120,200,0.85)'],
+    [1, 'rgba(255,120,200,0)'],
+  ]);
+  ctx.fillStyle = neb;
+  ctx.fillRect(20, 30, 70, 40);
+  const r = rng(11);
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${0.5 + r() * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(18 + r() * 64, 36 + r() * 28, 0.7 + r() * 1.1, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+  bevel(ctx, rim, 2.2, 0.5, 0.35);
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.ellipse(50, 50, 40, 20, -0.12, Math.PI * 1.05, Math.PI * 1.5);
+  ctx.stroke();
+  sparkle(ctx, 82, 26, 5.5, '#fff', 0.95);
+  sparkle(ctx, 16, 70, 3.6, '#bff', 0.85);
+};
+
+const drawGoldenBowl: RelicDraw = (ctx, m) => {
+  groundShadow(ctx, 50, 88, 36, 5.5, 0.26);
+  const body = new Path2D();
+  body.moveTo(12, 46);
+  body.quadraticCurveTo(14, 82, 50, 84);
+  body.quadraticCurveTo(86, 82, 88, 46);
+  body.closePath();
+  ctx.fillStyle = lin(ctx, 14, 44, 86, 84, [
+    [0, '#fff0a0'],
+    [0.45, '#f2b417'],
+    [1, '#8e5c04'],
+  ]);
+  ctx.fill(body);
+  bevel(ctx, body, 4, 0.45, 0.36);
+  // kibble pile
+  const r = rng(5);
+  for (let i = 0; i < 16; i++) {
+    const a = r() * Math.PI;
+    const d = r() * 26;
+    const x = 50 + Math.cos(a) * d * (r() > 0.5 ? 1 : -1);
+    const y = 40 - Math.sin(a) * d * 0.55;
+    ctx.fillStyle = ['#9a5a2a', '#b8743d', '#7a4520'][i % 3];
+    ctx.beginPath();
+    ctx.ellipse(x, y, 4.2, 3.4, r() * 3, 0, TAU);
+    ctx.fill();
+  }
+  // rim
+  const rim = ellP(50, 46, 40, 8);
+  ctx.strokeStyle = metalGrad(ctx, m, 10, 40, 90, 52);
+  ctx.lineWidth = 4;
+  ctx.stroke(rim);
+  ctx.save();
+  ctx.clip(body);
+  // bone emblem
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fill(boneP(50, 66, 20, 11, -0.2));
+  ctx.restore();
+  spec(ctx, 30, 62, 12, 5, -0.9, 0.8);
+  sparkle(ctx, 80, 30, 5, '#fff', 0.9);
+};
+
+const RELIC_DRAW: Record<string, RelicDraw> = {
+  bacon_prism: drawBaconPrism,
+  squeaky_orb: drawSqueakyOrb,
+  kennel_key: drawKennelKey,
+  wormhole_leash: drawWormholeLeash,
+  rescue_beacon: drawRescueBeacon,
+  timefold_collar: drawTimefoldCollar,
+  lucky_acorn: drawLuckyAcorn,
+  bark_tablet: drawBarkTablet,
+  cosmic_frisbee: drawCosmicFrisbee,
+  golden_bowl: drawGoldenBowl,
+};
+
+/**
+ * A relic as a glossy object. `tier` (0..3) sets the metal (bronze, silver, gold, prismatic); `rarity` (0..3)
+ * adds a coloured aura (Rare+) and sparkles (Epic, Legendary).
+ */
+export function relicArt(familyId: string, tier: number, rarity: number, px: number): string {
+  const t = Math.max(0, Math.min(3, Math.floor(Number.isFinite(tier) ? tier : 0)));
+  const rar = Math.max(0, Math.min(3, Math.floor(Number.isFinite(rarity) ? rarity : 0)));
+  const draw = RELIC_DRAW[familyId] ?? drawSqueakyOrb;
+  return render(`relic:${familyId}:${t}:${rar}`, px, (ctx) => {
+    if (rar >= 1) {
+      const col = RARITY_COLORS[rar];
+      const g = rad(ctx, 50, 52, 8, 50, 52, 50, [
+        [0, `${col}${rar === 3 ? '88' : '55'}`],
+        [1, `${col}00`],
+      ]);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 100, 100);
+    }
+    draw(ctx, METAL[t]);
+    if (rar >= 2) {
+      sparkle(ctx, 14, 22, 5.5, '#ffffff', 0.95);
+      sparkle(ctx, 88, 62, 4, rar === 3 ? '#fff3b0' : '#e5ccff', 0.95);
+    }
+    if (rar === 3) sparkle(ctx, 84, 14, 7, '#fff3b0', 1);
+  });
+}
+
+const STONE_COL: Record<string, string> = {
+  lay_shard: '#f06a5a',
+  find_shard: '#f2c21a',
+  kennel_shard: '#3fa0ff',
+  ship_shard: '#35c2b0',
+  rescue_shard: '#ff7a2e',
+  acorn_shard: '#8fd04a',
+};
+
+/** A faceted gem for a stone type; tier 0..2 grows the gem and adds facets. */
+export function stoneArt(stoneId: string, tier: number, px: number): string {
+  const t = Math.max(0, Math.min(2, Math.floor(Number.isFinite(tier) ? tier : 0)));
+  const col = STONE_COL[stoneId] ?? '#a46bff';
+  return render(`stone:${stoneId}:${t}`, px, (ctx) => {
+    groundShadow(ctx, 50, 84, 22 + t * 4, 4.5, 0.24);
+    const s = 0.7 + t * 0.15;
+    ctx.save();
+    ctx.translate(50, 50);
+    ctx.scale(s, s);
+    ctx.translate(-50, -50);
+    const gem = new Path2D();
+    gem.moveTo(50, 12);
+    gem.lineTo(78, 32);
+    gem.lineTo(70, 74);
+    gem.lineTo(50, 88);
+    gem.lineTo(30, 74);
+    gem.lineTo(22, 32);
+    gem.closePath();
+    ctx.fillStyle = lin(ctx, 24, 14, 76, 88, [
+      [0, lighten(col, 0.7)],
+      [0.45, col],
+      [1, darken(col, 0.45)],
+    ]);
+    ctx.fill(gem);
+    ctx.save();
+    ctx.clip(gem);
+    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(22, 32);
+    ctx.lineTo(50, 44);
+    ctx.lineTo(78, 32);
+    ctx.moveTo(50, 44);
+    ctx.lineTo(50, 88);
+    ctx.moveTo(50, 12);
+    ctx.lineTo(50, 44);
+    if (t >= 1) {
+      ctx.moveTo(30, 74);
+      ctx.lineTo(50, 44);
+      ctx.lineTo(70, 74);
+    }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.beginPath();
+    ctx.moveTo(22, 32);
+    ctx.lineTo(50, 12);
+    ctx.lineTo(50, 44);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(30,10,60,0.22)';
+    ctx.beginPath();
+    ctx.moveTo(50, 44);
+    ctx.lineTo(78, 32);
+    ctx.lineTo(70, 74);
+    ctx.lineTo(50, 88);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+    sparkle(ctx, 72, 26, 5 + t, '#fff', 0.95);
+    if (t >= 2) sparkle(ctx, 24, 66, 4, '#fff', 0.85);
+  });
+}

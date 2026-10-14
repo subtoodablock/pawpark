@@ -21,6 +21,8 @@ export function statLabel(stat: Stat, perLevel: number): string {
       return `+${pct(perLevel)} shipping capacity`;
     case 'squirrelRate':
       return `+${pct(perLevel)} squirrel visits`;
+    case 'rescueMult':
+      return `+${pct(perLevel)} pups rescued`;
     case 'adoptionCap':
       return `+${trim(perLevel)} adoption stock`;
     case 'adoptionRefill':

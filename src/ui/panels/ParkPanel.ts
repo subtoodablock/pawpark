@@ -65,7 +65,7 @@ export function createParkPanel(c: GameController, openFind: () => void): ParkPa
     on: {
       click: () => {
         c.save();
-        box.value = exportSave(c.state);
+        box.value = exportSave(c.home);
         box.select();
         const nav = navigator.clipboard;
         if (nav?.writeText) nav.writeText(box.value).then(() => toast('Save copied to clipboard', 'good'), () => toast('Save exported below. Copy it manually.', 'info'));
@@ -125,7 +125,7 @@ export function createParkPanel(c: GameController, openFind: () => void): ParkPa
   el.append(settings);
 
   function update(): void {
-    const s = c.state;
+    const s = c.home;
     const d = computeStats(s);
 
     // current find + progress to the next era

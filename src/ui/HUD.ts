@@ -7,6 +7,7 @@ import {
   formatMoney,
   formatNumber,
   nextFind,
+  showWindow,
   FINDS,
 } from '../core';
 import type { GameController } from './GameController';
@@ -50,7 +51,7 @@ export function moneyParts(n: number): { num: string; unit: string } {
   return { num: m[1], unit: UNIT_WORDS[m[2]] ?? '' };
 }
 
-export type NavId = 'research' | 'treats' | 'store' | 'menu';
+export type NavId = 'research' | 'treats' | 'portal' | 'store' | 'menu';
 
 interface Chip {
   el: HTMLElement;
@@ -72,6 +73,7 @@ function makeChip(tag: 'span' | 'button', cls: string, glyph: IconName | null, t
 const NAV: { id: NavId; glyph: IconName; label: string }[] = [
   { id: 'research', glyph: 'flask', label: 'Research' },
   { id: 'treats', glyph: 'lightning', label: 'Treats and boosts' },
+  { id: 'portal', glyph: 'spiral-bold', label: 'Paw Portal' },
   { id: 'store', glyph: 'storefront', label: 'Kennel Club shop' },
   { id: 'menu', glyph: 'squares-four', label: 'Menu' },
 ];
@@ -87,6 +89,10 @@ export class HUD {
   private income = h('span', { cls: 'income' });
   private pups = h('span', { cls: 'pups-val' });
   private level = makeChip('button', 'lv', null, 'Park Level');
+  private rank = makeChip('button', 'rank', null, 'Pup Rank');
+  private showBand = h('div', { cls: 'show-band' }, icon('flag-banner', { size: 18, color: '#111' }));
+  private showBandText = h('span');
+  private strip = h('div', { cls: 'hud-strip' });
   private stars = makeChip('button', 'stars', 'star', 'Kennel Club: Pup Stars');
   private bones = makeChip('span', 'bones', 'bone', 'Golden Bones');
   private paws = makeChip('span', 'paws', 'paw-print', 'Spirit Paws');
@@ -125,6 +131,9 @@ export class HUD {
     this.buildBadge();
     this.badge.addEventListener('click', () => this.onOpenFind());
     this.level.el.addEventListener('click', () => this.onOpenLevel());
+    this.rank.el.addEventListener('click', () => this.onOpenLevel());
+    this.showBand.append(this.showBandText);
+    this.showBand.addEventListener('click', () => this.onOpenFind());
     this.stars.el.addEventListener('click', () => this.onOpenStore());
     this.shopBtn.addEventListener('click', () => this.onOpenStore());
     this.upgradePill.addEventListener('click', () => {
@@ -134,9 +143,10 @@ export class HUD {
     this.top = h(
       'header',
       { cls: 'hud-top' },
-      h(
-        'div',
-        { cls: 'hud-strip' },
+      this.strip,
+    );
+    this.strip.append(
+        this.showBand,
         h(
           'div',
           { cls: 'hud-row' },
@@ -150,8 +160,7 @@ export class HUD {
           h('div', { cls: 'chips' }, this.bones.el, this.paws.el),
           this.shopBtn,
         ),
-        h('div', { cls: 'find-row' }, this.findLine, this.upgradePill, this.stars.el, this.level.el),
-      ),
+        h('div', { cls: 'find-row' }, this.findLine, this.upgradePill, this.stars.el, this.level.el, this.rank.el),
     );
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(() => document.documentElement.style.setProperty('--hud-h', `${this.top.offsetHeight}px`)).observe(this.top);
@@ -281,7 +290,10 @@ export class HUD {
 
   update(): void {
     const s = this.c.state;
+    const home = this.c.home;
+    const inShow = this.c.viewingShow;
     const d = computeStats(s);
+    const hd = inShow ? computeStats(home) : d;
     const now = performance.now();
     const dt = Math.min(0.25, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
@@ -303,16 +315,35 @@ export class HUD {
     setText(this.cashUnit, cp.unit);
     this.fitCash(`${cp.num.length}:${cp.unit}`);
     setText(this.income, `+${formatMoney(d.incomePerSec)}/s` + (d.zoomieMult > 1.001 ? `  ×${d.zoomieMult.toFixed(2)}` : ''));
-    this.setChip(this.bones, Math.floor(s.goldenBones), formatNumber(Math.floor(s.goldenBones)));
-    this.setChip(this.level, d.parkLevel, `LV ${d.parkLevel}`);
-    this.setChip(this.stars, Math.floor(s.premium.stars), formatNumber(Math.floor(s.premium.stars)));
-    this.setChip(this.paws, s.spiritPaws, formatNumber(s.spiritPaws));
+    // meta currencies, Park Level and Pup Rank always belong to the home save
+    this.setChip(this.bones, Math.floor(home.goldenBones), formatNumber(Math.floor(home.goldenBones)));
+    this.setChip(this.level, hd.parkLevel, `LV ${hd.parkLevel}`);
+    this.setChip(this.stars, Math.floor(home.premium.stars), formatNumber(Math.floor(home.premium.stars)));
+    this.setChip(this.paws, home.spiritPaws, formatNumber(home.spiritPaws));
+    setText(this.rank.val, hd.pupRankTitle.toUpperCase());
+    this.rank.el.title = `Pup Rank ${hd.pupRank + 1}: ${hd.pupRankTitle}`;
+
+    // Dog Show band: gold tint + caption while the show park is on screen
+    setClass(this.strip, 'show-mode', inShow);
+    setHidden(this.showBand, !inShow);
+    if (inShow && home.show) {
+      const end = showWindow(home.show.weekKey).end;
+      setText(this.showBandText, `DOG SHOW  ·  ${formatDuration(Math.max(0, (end - Date.now()) / 1000)).toUpperCase()} LEFT`);
+    }
+
+    // the Portal button appears once the gate exists; a red dot says a crew is back
+    const pb = this.navBtns.get('portal');
+    if (pb) {
+      setHidden(pb, !home.portal);
+      const ready = !!home.portal && home.portal.slots.some((e) => !!e && Date.now() >= e.returnsAt);
+      setClass(pb, 'has-dot', ready);
+    }
 
     const f = FINDS[s.findIndex];
     setArt(this.badgeImg, 'find', s.findIndex, 40);
     const nf = nextFind(s);
     const ready = !!nf && d.parkValue >= nf.unlockParkValue;
-    setHidden(this.upgradePill, !ready);
+    setHidden(this.upgradePill, !ready || inShow);
     setClass(this.badge, 'ready', ready);
 
     // next-goal: log-scale progress from the current find's gate to the next one, shown as the badge ring

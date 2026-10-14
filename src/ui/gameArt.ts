@@ -1,8 +1,8 @@
 // Rendered game-object images for the DOM UI (Finds, kennels, vehicles, training, treats).
 // The procedural renderers live in render/art.ts and cache their PNG data URLs.
-import { findArt, kennelArt, trainingArt, treatArt, vehicleArt } from './render/art';
+import { findArt, kennelArt, relicArt, stoneArt, trainingArt, treatArt, vehicleArt } from './render/art';
 
-export type ArtKind = 'find' | 'kennel' | 'vehicle' | 'training' | 'treat';
+export type ArtKind = 'find' | 'kennel' | 'vehicle' | 'training' | 'treat' | 'relic' | 'stone';
 
 function dpr(): number {
   try {
@@ -25,6 +25,16 @@ function srcFor(kind: ArtKind, key: string | number, px: number): string {
       return trainingArt(String(key), p);
     case 'treat':
       return treatArt(String(key), p);
+    case 'relic': {
+      // key: `${family}:${tier}:${rarity}`
+      const [f, t, r] = String(key).split(':');
+      return relicArt(f, Number(t), Number(r), p);
+    }
+    case 'stone': {
+      // key: `${stoneId}:${tier}`
+      const [id, t] = String(key).split(':');
+      return stoneArt(id, Number(t), p);
+    }
   }
 }
 

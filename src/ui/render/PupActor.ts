@@ -77,6 +77,8 @@ export class PupActor {
   wag = 0;
   wagAmp = 0.3;
   alpha = 1;
+  /** extra size multiplier (portal leaps shrink the dog into the swirl) */
+  scale = 1;
   fadeRate = 0;
   face = 1;
   faceS = 1;
@@ -113,6 +115,7 @@ export class PupActor {
     this.wag = Math.random() * TAU;
     this.wagAmp = 0.3;
     this.alpha = 1;
+    this.scale = 1;
     this.fadeRate = 0;
     this.faceS = this.face = Math.random() < 0.5 ? 1 : -1;
     this.squash = 0;
@@ -721,7 +724,7 @@ export function drawPupShadow(ctx: CanvasRenderingContext2D, dpr: number, cache:
   const sz = b.size * (a.puppy ? 0.74 : 1);
   const len = (b.bodyL + b.bodyH + b.headR + b.snoutL * 0.6 + 1) * DOG_K * sz;
   const lift = clamp(1 - a.z / 40, 0.55, 1);
-  const w = len * ds * lift;
+  const w = len * ds * lift * a.scale;
   const h = w * (SHADOW_H / SHADOW_W) * (a.state === St.Nap ? 1.2 : 1) * 0.9;
   const al = a.alpha * (a.state === St.Nap ? 1 : 1);
   if (al < 0.99) ctx.globalAlpha = al;
@@ -735,7 +738,7 @@ export function drawPup(ctx: CanvasRenderingContext2D, dpr: number, cache: Sprit
   const ds = depthScale(L, a.y);
   const sprite = getDogSprite(cache, a.breed, a.pose, a.frame, a.puppy);
   if (!sprite) return;
-  const s = ds;
+  const s = ds * a.scale;
   const sq = a.squash;
   // sleepers breathe: a slow, tiny squash/stretch
   const br = a.state === St.Nap ? Math.sin(a.t * 2.4 + a.phase * 6) * 0.022 : 0;

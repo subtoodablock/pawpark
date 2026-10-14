@@ -49,7 +49,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
                     toast(res.reason, 'info');
                     return;
                   }
-                  const g = grantPurchase(c.state, p.id, res.receiptId);
+                  const g = grantPurchase(c.home, p.id, res.receiptId);
                   if (c.check(g)) {
                     c.save();
                     toast(`{star} +${formatNumber(p.stars)} Pup Stars. Thank you!`, 'gold', 4500);
@@ -82,7 +82,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
   // ---- shop
   const shopRows = PREMIUM_SHOP.map((def) => {
     const row = makeRow(icon(statIcon(def.stat), { size: 26, color: 'var(--purple)' }), def.name, () => {
-      const ok = c.check(buyPremium(c.state, def.id));
+      const ok = c.check(buyPremium(c.home, def.id));
       if (ok) c.save();
       update();
       return ok;
@@ -95,7 +95,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
 
   // ---- consumables
   const fRow = makeRow(icon('snowflake', { size: 26, color: 'var(--blue)' }), 'Streak Freeze', () => {
-    const ok = c.check(buyStreakFreeze(c.state));
+    const ok = c.check(buyStreakFreeze(c.home));
     if (ok) c.save();
     update();
     return ok;
@@ -103,7 +103,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
   el.append(section('{snow} Consumables', fRow.el, h('div', { cls: 'row-desc' }, ...rich('Treats can also be bought with {star} in the Epic research tab.', 15))));
 
   function update(): void {
-    const s = c.state;
+    const s = c.home;
     const tier = computeStats(s).vipTier;
     setRich(stars, `{star} ${formatNumber(Math.floor(s.premium.stars))} Pup Stars`, 30);
 

@@ -49,7 +49,7 @@ function rewardLong(r: DailyTreatReward): string {
 
 /** Streak the next claim would produce (mirrors the engine rules, display only). */
 function projectedStreak(c: GameController): number {
-  const d = c.state.daily;
+  const d = c.home.daily;
   if (!d.lastClaimDay) return 1;
   const gap = dayDiff(d.lastClaimDay, c.today());
   if (gap === 1) return d.streak + 1;
@@ -77,7 +77,7 @@ export function createTodayPanel(c: GameController): Panel {
     attrs: { type: 'button' },
     on: {
       click: () => {
-        const r = claimDailyTreat(c.state, c.today());
+        const r = claimDailyTreat(c.home, c.today());
         if (c.check(r)) {
           if (r.reward) toast(`{gift} Daily Treat: ${rewardLong(r.reward)}  {fire} ${r.streak ?? ''}`, 'gold', 4500);
           c.save();
@@ -107,7 +107,7 @@ export function createTodayPanel(c: GameController): Panel {
       attrs: { type: 'button' },
       on: {
         click: () => {
-          if (c.check(claimDailyDig(c.state, i))) {
+          if (c.check(claimDailyDig(c.home, i))) {
             c.save();
           }
           update();
@@ -122,7 +122,7 @@ export function createTodayPanel(c: GameController): Panel {
     attrs: { type: 'button' },
     on: {
       click: () => {
-        if (c.check(claimDailyDigBonus(c.state))) {
+        if (c.check(claimDailyDigBonus(c.home))) {
           toast(`{tick} All Digs done! +${DIG_BONUS_BONES} {bone} +${DIG_BONUS_STARS} {star}`, 'gold', 4500);
           c.save();
         }
@@ -137,7 +137,7 @@ export function createTodayPanel(c: GameController): Panel {
   el.append(section('{share} Share', share.el));
 
   function update(): void {
-    const s = c.state;
+    const s = c.home;
     const d = s.daily;
     const today = c.today();
     const claimed = d.lastClaimDay === today;
@@ -189,6 +189,6 @@ export function createTodayPanel(c: GameController): Panel {
 
 /** True when today's Daily Treat can still be claimed (drives the tab badge). */
 export function treatReady(c: GameController): boolean {
-  const d = c.state.daily;
+  const d = c.home.daily;
   return d.lastClaimDay !== c.today();
 }

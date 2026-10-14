@@ -18,7 +18,7 @@ export interface PrestigeSummary {
 }
 
 export function prestigeSummary(c: GameController): PrestigeSummary {
-  const s = c.state;
+  const s = c.home;
   const d = computeStats(s);
   const gain = d.prestigeGain;
   const after = 1 + (s.spiritPaws + gain) * d.pawBonus * d.collarMult;
@@ -33,7 +33,7 @@ export function prestigeSummary(c: GameController): PrestigeSummary {
 
 /** Confirm + perform a prestige ("Open a New Park"). */
 export function confirmPrestige(c: GameController): void {
-  const d = computeStats(c.state);
+  const d = computeStats(c.home);
   showModal(
     'Open a New Park?',
     [
@@ -46,7 +46,7 @@ export function confirmPrestige(c: GameController): void {
         label: 'Open it!',
         primary: true,
         onClick: () => {
-          const r = prestige(c.state);
+          const r = prestige(c.home);
           if (c.check(r)) {
             toast(`{paw} New park opened! +${formatNumber(r.gained ?? 0)} Spirit Paws`, 'gold', 5000);
             confetti();

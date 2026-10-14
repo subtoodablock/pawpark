@@ -193,7 +193,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     const hintEl = h('div', { cls: 'rcard-hint' });
     const btn = h('button', { cls: 'btn buy', attrs: { type: 'button' } });
     btn.addEventListener('click', () => {
-      const s = c.state;
+      const s = c.home;
       if (computeStats(s).automationUnlocked[def.key]) c.check(setAutomation(s, def.key, !s.automation[def.key]));
       else academyHead.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       update();
@@ -221,7 +221,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
       attrs: { type: 'button' },
       on: {
         click: () => {
-          c.check(setAutoPrestigeThreshold(c.state, t));
+          c.check(setAutoPrestigeThreshold(c.home, t));
           update();
         },
       },
@@ -254,7 +254,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     for (const def of defs) {
       placed.add(def.id);
       const card = levelCard(def, icon(statIcon(def.stat), { size: 30, color: 'var(--purple)' }), () => {
-        const ok = c.check(buyAcademy(c.state, def.id));
+        const ok = c.check(buyAcademy(c.home, def.id));
         update();
         return ok;
       });
@@ -265,7 +265,8 @@ export function createResearchPanel(c: GameController): ResearchPanel {
 
   // -- Treats
   const treatsHead = sectionHead('TREATS', 'Timed boosts');
-  epic.append(treatsHead.el);
+  const showNote = h('div', { cls: 'r-note', text: 'Treats boost your home park. They cannot be bought while you are in the Show Park.' });
+  epic.append(treatsHead.el, showNote);
   const trRows = TREATS.map((def) => {
     const stat = h('div', { cls: 'rcard-prog stack' });
     const btn = h('button', { cls: 'btn buy', attrs: { type: 'button' } });
@@ -274,7 +275,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     onBuyClick(
       btn,
       () => {
-        const ok = c.check(buyTreat(c.state, def.id, 'bones'));
+        const ok = c.check(buyTreat(c.home, def.id, 'bones'));
         update();
         return ok;
       },
@@ -283,7 +284,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     onBuyClick(
       star,
       () => {
-        const ok = c.check(buyTreat(c.state, def.id, 'stars'));
+        const ok = c.check(buyTreat(c.home, def.id, 'stars'));
         if (ok) c.save();
         update();
         return ok;
@@ -358,7 +359,9 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   }
 
   function updateEpic(): void {
-    const s = c.state;
+    const s = c.home;
+    const inShow = c.viewingShow;
+    setHidden(showNote, !inShow);
     const d = computeStats(s);
     setRich(bonesLine, `{bone} ${formatNumber(Math.floor(s.goldenBones))}`, 22);
     for (const r of packRows) {
@@ -401,8 +404,8 @@ export function createResearchPanel(c: GameController): ResearchPanel {
       const active = s.treats.find((t) => t.id === def.id);
       setRich(stat, active ? `{timer} Active: ${formatDuration(active.remaining)} left` : `\u00d7${def.multiplier} for ${formatTreatDuration(def.durationSec)}`, 16);
       setClass(stat, 'on', !!active);
-      setBtn(btn, `{bone} ${formatNumber(def.cost)}`, s.goldenBones >= def.cost);
-      setBtn(star, `{star} ${formatNumber(def.starCost)}`, s.premium.stars >= def.starCost);
+      setBtn(btn, `{bone} ${formatNumber(def.cost)}`, !inShow && s.goldenBones >= def.cost);
+      setBtn(star, `{star} ${formatNumber(def.starCost)}`, !inShow && s.premium.stars >= def.starCost);
     }
   }
 

@@ -25,7 +25,7 @@ const KEEPS = ['Spirit Paws', 'Golden Bones', 'Academy', 'Pup Stars', 'Streak'];
 
 /** Confirm modal for the manual Find upgrade (starts the next era). */
 export function confirmEraUpgrade(c: GameController, onDone?: () => void): void {
-  const s = c.state;
+  const s = c.home;
   const nf = nextFind(s);
   if (!nf) return;
   const cur = FINDS[s.findIndex];
@@ -61,12 +61,12 @@ export function confirmEraUpgrade(c: GameController, onDone?: () => void): void 
         onClick: () => {
           // automation (or another panel) may have started this era while the modal was open:
           // close quietly and just refresh, no error toast
-          if (c.state.findIndex !== startIndex) {
+          if (c.home.findIndex !== startIndex) {
             onDone?.();
             return;
           }
           const name = nf.name;
-          if (c.check(upgradeFind(c.state))) {
+          if (c.check(upgradeFind(c.home))) {
             toast(`Welcome to the ${name} Era!`, 'gold', 5000);
             confetti({ y: window.innerHeight * 0.3, count: 90, power: 0.9 });
             c.save();

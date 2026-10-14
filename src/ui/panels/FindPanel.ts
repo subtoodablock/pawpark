@@ -1,4 +1,4 @@
-import { FINDS, TROPHIES, computeStats, formatMoney, formatNumber, nextFind } from '../../core';
+import { FINDS, TROPHIES, computeStats, formatMoney, formatNumber, nextFind, showProgress } from '../../core';
 import type { TrophyDef, TrophyKind } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
@@ -7,8 +7,9 @@ import { artImg, setArt } from '../gameArt';
 import { icon, rich, setRich } from '../icons';
 import { reducedMotion, restart } from '../motion';
 import type { Panel } from './common';
+import { createShowView } from './ShowView';
 
-type View = 'park' | 'trophies';
+type View = 'park' | 'show' | 'trophies';
 type CardState = 'current' | 'completed' | 'next' | 'discovered' | 'unknown';
 
 export interface FindPanel extends Panel {
@@ -53,14 +54,16 @@ function rewardLabel(t: TrophyDef): string {
 }
 
 /** Egg Inc "Farm" panel: Find carousel + Park Value + next-era action, plus the Trophies tab. */
-export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () => void }): FindPanel {
+export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () => void; onClose?: () => void }): FindPanel {
   let tab: View = 'park';
   let view = c.state.findIndex;
 
   // ---- big tabs
   const tabPark = h('button', { cls: 'bigtab blue on', text: 'PARK', attrs: { type: 'button' }, on: { click: () => showTab('park') } });
-  const tabTro = h('button', { cls: 'bigtab green', text: 'TROPHIES', attrs: { type: 'button' }, on: { click: () => showTab('trophies') } });
-  const tabs = h('div', { cls: 'big-tabs', attrs: { role: 'tablist' } }, tabPark, tabTro);
+  const tabShowDot = h('i', { cls: 'dot' });
+  const tabShow = h('button', { cls: 'bigtab green', attrs: { type: 'button' }, on: { click: () => showTab('show') } }, 'DOG SHOW', tabShowDot);
+  const tabTro = h('button', { cls: 'bigtab purple', text: 'TROPHIES', attrs: { type: 'button' }, on: { click: () => showTab('trophies') } });
+  const tabs = h('div', { cls: 'big-tabs three', attrs: { role: 'tablist' } }, tabPark, tabShow, tabTro);
 
   // ---- hero: glossy art + name/value/flavor
   const discIcon = artImg('find', 0, 132, 'find-disc-ico');
@@ -107,7 +110,8 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
 
   const prestigeBar = h('button', { cls: 'btn purple find-prestige', attrs: { type: 'button' }, on: { click: () => opts.onPrestigeInfo() } }, ...rich('PRESTIGE INFO {arrow}', 20));
 
-  const parkCard = h('div', { cls: 'find-card' }, hero, nav, pv, pop, action, prestigeBar);
+  const showBanner = h('div', { cls: 'show-banner' }, icon('flag-banner', { size: 20, color: '#111' }), h('span', { text: 'SHOW PARK: the Find is fixed for the whole week. No upgrades or prestige here.' }));
+  const parkCard = h('div', { cls: 'find-card' }, showBanner, hero, nav, pv, pop, action, prestigeBar);
 
   // ---- swipe on the hero (horizontal only; vertical scrolls the sheet)
   let sx = 0;
@@ -154,13 +158,18 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
   const trophyView = h('div', { cls: 'find-trophies' }, collars, ...trophyGroups);
   trophyView.hidden = true;
 
-  const el = h('div', { cls: 'panel find-panel' }, tabs, parkCard, trophyView);
+  const showView = createShowView(c, { onSwitch: () => opts.onClose?.() });
+  showView.el.hidden = true;
+
+  const el = h('div', { cls: 'panel find-panel' }, tabs, parkCard, showView.el, trophyView);
 
   function showTab(t: View): void {
     tab = t;
     setClass(tabPark, 'on', t === 'park');
+    setClass(tabShow, 'on', t === 'show');
     setClass(tabTro, 'on', t === 'trophies');
     parkCard.hidden = t !== 'park';
+    showView.el.hidden = t !== 'show';
     trophyView.hidden = t !== 'trophies';
     update();
   }
@@ -189,9 +198,17 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
 
   function update(): void {
     const s = c.state;
+    // red dot on the Dog Show tab: not joined yet, or a medal is waiting to be claimed
+    const sp = showProgress(c.home);
+    setClass(tabShow, 'has-dot', !sp || sp.goals.some((g) => g.reached && !g.claimed));
+    if (tab === 'show') {
+      showView.update();
+      return;
+    }
     if (tab === 'trophies') {
-      setText(collars, `Legend Collars: ${s.legendCollars}  (\u00d7${computeStats(s).collarMult.toFixed(3)} paw bonus)`);
-      for (const { t, e } of trophyEls) setClass(e, 'owned', s.trophies.includes(t.id));
+      const hs = c.home;
+      setText(collars, `Legend Collars: ${hs.legendCollars}  (\u00d7${computeStats(hs).collarMult.toFixed(3)} paw bonus)`);
+      for (const { t, e } of trophyEls) setClass(e, 'owned', hs.trophies.includes(t.id));
       return;
     }
     const d = computeStats(s);
@@ -230,8 +247,11 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
     setText(pvVal, formatMoney(d.parkValue));
 
     // action for the viewed find
-    const showStart = st === 'next' && ready;
-    const showLock = st === 'next' && !ready;
+    const inShow = c.viewingShow;
+    setHidden(showBanner, !inShow);
+    setHidden(prestigeBar, inShow);
+    const showStart = st === 'next' && ready && !inShow;
+    const showLock = st === 'next' && !ready && !inShow;
     setHidden(startBtn, !showStart);
     setHidden(lockBar, !showLock);
     if (showLock && nf) {
@@ -240,7 +260,8 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
       setText(lockText, `Unlocks at Park Value ${formatMoney(nf.unlockParkValue)}`);
     }
     let hintText = '';
-    if (st === 'next' && f.unlockReward > 0 && s.highestFindIndex < view) hintText = `First time: +${formatNumber(f.unlockReward)} {bone} Golden Bones`;
+    if (inShow) hintText = '';
+    else if (st === 'next' && f.unlockReward > 0 && s.highestFindIndex < view) hintText = `First time: +${formatNumber(f.unlockReward)} {bone} Golden Bones`;
     else if (st === 'discovered') hintText = `Reach the ${FINDS[view - 1].name} Era first.`;
     else if (st === 'unknown') hintText = 'Locked. Keep climbing the eras.';
     else if (st === 'current' && !nf) hintText = 'Every find discovered!';

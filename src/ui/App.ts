@@ -1,6 +1,6 @@
 import { TROPHIES, computeStats, formatDuration, formatMoney, formatNumber } from '../core';
 import type { OfflineReport } from '../core';
-import { GameController } from './GameController';
+import { GameController, type OfflineExtra } from './GameController';
 import { HUD } from './HUD';
 import { ParkScene } from './ParkScene';
 import { Sheet } from './Sheet';
@@ -19,6 +19,7 @@ import { MockProvider } from './payments/MockProvider';
 import { createParkPanel } from './panels/ParkPanel';
 import { createFindPanel } from './panels/FindPanel';
 import { createResearchPanel } from './panels/ResearchPanel';
+import { createPortalPanel } from './panels/PortalPanel';
 import { showPrestigeInfo } from './prestige';
 
 export function startApp(root: HTMLElement): GameController {
@@ -30,6 +31,7 @@ export function startApp(root: HTMLElement): GameController {
   const research = createResearchPanel(controller);
   const park = createParkPanel(controller, () => sheet.openById('find'));
   const go = (id: string): void => sheet.openById(id);
+  const portal = createPortalPanel(controller);
 
   const sheet: Sheet = new Sheet([
     { id: 'menu', icon: 'squares-four', label: 'Menu', tone: 'blue', compact: true, panel: createMenuPanel(controller, go, () => {
@@ -41,15 +43,18 @@ export function startApp(root: HTMLElement): GameController {
     { id: 'fleet', icon: 'truck', label: 'Fleet', tone: 'blue', panel: createFleetPanel(controller) },
     { id: 'research', icon: 'flask', label: 'Research', tone: 'blue', ownHeader: true, panel: research },
     { id: 'park', icon: 'tree', label: 'Park', tone: 'green', panel: park },
-    { id: 'find', icon: 'magnifying-glass', label: 'Finds', tone: 'blue', ownHeader: true, panel: createFindPanel(controller, { onPrestigeInfo: () => showPrestigeInfo(controller) }) },
+    { id: 'find', icon: 'magnifying-glass', label: 'Finds', tone: 'blue', ownHeader: true, panel: createFindPanel(controller, { onPrestigeInfo: () => showPrestigeInfo(controller), onClose: () => sheet.open(null) }) },
     { id: 'level', icon: 'medal', label: 'Park Level', tone: 'green', panel: createLevelPanel(controller) },
     { id: 'store', icon: 'storefront', label: 'Kennel Club', tone: 'purple', panel: createStorePanel(controller, new MockProvider()) },
+    { id: 'portal', icon: 'spiral-bold', label: 'Paw Portal', tone: 'purple', panel: portal },
   ]);
+  scene.onPortalTap = () => sheet.openById('portal');
   hud.onOpenFind = () => sheet.openById('find');
   hud.onOpenLevel = () => sheet.openById('level');
   hud.onOpenStore = () => sheet.openById('store');
   hud.onNav = (id) => {
     if (id === 'store') sheet.openById('store');
+    else if (id === 'portal') sheet.openById('portal');
     else if (id === 'menu') {
       if (sheet.activeId === 'menu') sheet.open(null);
       else sheet.openById('menu');
@@ -71,8 +76,8 @@ export function startApp(root: HTMLElement): GameController {
     if (e.type === 'mailArrived') scene.floater('MAIL', scene.el.clientWidth - 32, 100);
     if (e.type === 'endgame') showEndgame(controller);
   });
-  controller.onOffline((r) => {
-    showWelcomeBack(r);
+  controller.onOffline((r, extra) => {
+    showWelcomeBack(r, extra);
     if (r.endgame) showEndgame(controller);
   });
 
@@ -84,16 +89,21 @@ export function startApp(root: HTMLElement): GameController {
     if (acc >= 0.25) {
       acc = 0;
       sheet.update();
-      hud.setDot('menu', treatReady(controller));
+      hud.setDot('menu', treatReady(controller) || portalReady(controller));
     }
   });
   hud.update();
   controller.start();
-  hud.setDot('menu', treatReady(controller));
+  hud.setDot('menu', treatReady(controller) || portalReady(controller));
   return controller;
 }
 
-function showWelcomeBack(r: OfflineReport): void {
+function portalReady(c: GameController): boolean {
+  const p = c.home.portal;
+  return !!p && p.slots.some((e) => !!e && Date.now() >= e.returnsAt);
+}
+
+function showWelcomeBack(r: OfflineReport, extra: OfflineExtra): void {
   const rows: [string, string][] = [];
   const add = (label: string, value: string, show: boolean): void => {
     if (show) rows.push([label, value]);
@@ -106,6 +116,11 @@ function showWelcomeBack(r: OfflineReport): void {
   add('{bone} Golden Bones', `+${formatNumber(r.goldenBonesGained)}`, r.goldenBonesGained > 0);
   add('{dog} Squirrels caught by hound', formatNumber(r.squirrelsCaught), r.squirrelsCaught > 0);
   add('{mail} Letters waiting', formatNumber(r.mailWaiting), r.mailWaiting > 0);
+  const best = extra.bestRarity >= 2 ? ` (${extra.bestRarity === 3 ? 'a Legendary' : 'an Epic'}!)` : '';
+  add('{spiral} Expeditions returned', `${extra.expeditions}${best}`, extra.expeditions > 0);
+  add('{flag} Dog Show finds', `+${formatNumber(extra.showFinds)}`, extra.showFinds > 0);
+  add('{trophy} Dog Show medals', `+${extra.showMedalsGained}`, extra.showMedalsGained > 0 && !extra.showEnded);
+  add('{trophy} Dog Show ended', `${extra.showEnded?.medals ?? 0} medal${extra.showEnded?.medals === 1 ? '' : 's'}`, !!extra.showEnded);
 
   const finds = r.findsUnlocked.map((i) => artImg('find', i, 30));
   const row = (label: string, ...value: (Node | string)[]): HTMLElement => h('li', null, h('span', null, ...rich(label, 16)), h('b', null, ...value));
