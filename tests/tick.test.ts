@@ -1,0 +1,171 @@
+import { describe, expect, it } from 'vitest';
+import { computeStats, tick, TROPHIES } from '../src/core';
+import type { GameState } from '../src/core';
+import { constRng, newState, seeded } from './helpers';
+
+function productive(): GameState {
+  const s = newState();
+  s.pups = 200;
+  s.kennels = [3, 3, null, null];
+  s.training = { rescue_program: 2 };
+  s.squirrelTimer = 1e9;
+  s.mailTimer = 1e9;
+  s.adoptionStock = 5;
+  return s;
+}
+
+describe('tick', () => {
+  it('is dt-invariant (10s vs 100 x 0.1s)', () => {
+    const a = productive();
+    const b = productive();
+    tick(a, 10, seeded(1));
+    for (let i = 0; i < 100; i++) tick(b, 0.1, seeded(1));
+    expect(b.cash).toBeGreaterThan(0);
+    expect(a.cash / b.cash).toBeCloseTo(1, 1);
+    expect(Math.abs(a.cash - b.cash) / b.cash).toBeLessThan(0.01);
+    expect(Math.abs(a.adoptionStock - b.adoptionStock)).toBeLessThan(1e-6);
+    expect(Math.abs(a.runEarnings - b.runEarnings) / b.runEarnings).toBeLessThan(0.01);
+  });
+
+  it('refills adoption stock up to the cap', () => {
+    const s = newState();
+    s.adoptionStock = 0;
+    tick(s, 10, constRng(0.5));
+    expect(s.adoptionStock).toBeCloseTo(10, 10);
+    tick(s, 1000, constRng(0.5));
+    expect(s.adoptionStock).toBe(computeStats(s).adoptionCap);
+  });
+
+  it('rescue is clamped to capacity', () => {
+    const s = productive();
+    s.pups = 3990;
+    tick(s, 1000, constRng(0.5));
+    expect(s.pups).toBe(computeStats(s).kennelCapacity);
+  });
+
+  it('accumulates earnings in cash, run and lifetime totals', () => {
+    const s = productive();
+    const income = computeStats(s).incomePerSec;
+    tick(s, 2, constRng(0.5));
+    expect(s.cash).toBeCloseTo(income * 2, 8);
+    expect(s.runEarnings).toBeCloseTo(income * 2, 8);
+    expect(s.lifetimeEarnings).toBeCloseTo(income * 2, 8);
+  });
+
+  it('decays zoomies only after the grace period', () => {
+    const s = newState();
+    s.zoomies = 10;
+    s.zoomieIdle = 0;
+    tick(s, 0.5, constRng(0.5));
+    expect(s.zoomies).toBe(10);
+    tick(s, 0.6, constRng(0.5)); // idle 1.1 > 1.0
+    expect(s.zoomies).toBeCloseTo(10 - 10 * 0.6, 8);
+    tick(s, 5, constRng(0.5));
+    expect(s.zoomies).toBe(0);
+  });
+
+  it('expires treats and emits an event', () => {
+    const s = newState();
+    s.treats = [{ id: 'bacon_strip', remaining: 3 }];
+    s.squirrelTimer = 1e9;
+    s.mailTimer = 1e9;
+    expect(tick(s, 2, constRng(0.5))).toEqual([]);
+    expect(s.treats[0].remaining).toBeCloseTo(1, 10);
+    const ev = tick(s, 2, constRng(0.5));
+    expect(ev).toContainEqual({ type: 'treatExpired', treatId: 'bacon_strip' });
+    expect(s.treats).toHaveLength(0);
+  });
+
+  it('arrives mail once and does not stack', () => {
+    const s = newState();
+    s.squirrelTimer = 1e9;
+    s.mailTimer = 1;
+    const ev = tick(s, 2, constRng(0.5));
+    expect(ev).toContainEqual({ type: 'mailArrived' });
+    expect(s.mailReady).toBe(true);
+    expect(s.mailTimer).toBe(300);
+    s.mailTimer = 1;
+    expect(tick(s, 2, constRng(0.5)).some((e) => e.type === 'mailArrived')).toBe(false);
+    expect(s.mailReady).toBe(true);
+  });
+
+  it('awards trophies once, with collars', () => {
+    const s = newState();
+    s.squirrelTimer = 1e9;
+    s.mailTimer = 1e9;
+    s.kennels = [17, 17, 17, 17];
+    s.pups = TROPHIES[1].pupsRequired + 1; // 100k: first two trophies
+    const ev = tick(s, 0.1, constRng(0.5));
+    expect(ev.filter((e) => e.type === 'trophy')).toHaveLength(2);
+    expect(s.trophies).toEqual(['pack_10k', 'pack_100k']);
+    expect(s.legendCollars).toBe(2);
+    expect(tick(s, 0.1, constRng(0.5)).filter((e) => e.type === 'trophy')).toHaveLength(0);
+    expect(s.legendCollars).toBe(2);
+  });
+
+  it('emits findUpgradeAvailable once per index', () => {
+    const s = productive();
+    s.squirrelTimer = 1e9;
+    s.mailTimer = 1e9;
+    s.runEarnings = 0;
+    s.vehicles = [5, 5, 5, 5, ...new Array(8).fill(null)];
+    s.pups = 200;
+    s.training = { comfy_beds: 25, premium_kibble: 25 };
+    expect(computeStats(s).parkValue).toBeGreaterThan(5e4);
+    const ev = tick(s, 0.1, constRng(0.5));
+    expect(ev).toContainEqual({ type: 'findUpgradeAvailable', findIndex: 1 });
+    expect(tick(s, 0.1, constRng(0.5)).some((e) => e.type === 'findUpgradeAvailable')).toBe(false);
+    expect(s.notifiedFinds).toEqual([1]);
+  });
+});
+
+describe('squirrels', () => {
+  it('spawns with reward rolled at spawn and resets the timer', () => {
+    const s = newState();
+    s.squirrelTimer = 0.5;
+    s.mailTimer = 1e9;
+    // reward roll 0.1 -> cash; incomeSeconds rng 0.5 -> 60; interval rng 0 -> 45
+    const ev = tick(s, 1, constRng(0.1, 0.5, 0));
+    expect(ev).toContainEqual({ type: 'squirrelSpawned', squirrelId: 1 });
+    expect(s.squirrels).toHaveLength(1);
+    expect(s.squirrels[0].reward).toEqual({ kind: 'cash', incomeSeconds: 60 });
+    expect(s.squirrels[0].lifetime).toBe(7);
+    expect(s.squirrelTimer).toBeCloseTo(45, 10);
+    expect(s.nextSquirrelId).toBe(2);
+  });
+
+  it('timer scales with Squirrel Spotter', () => {
+    const s = newState();
+    s.academy = { squirrel_spotter: 10 }; // x2
+    s.squirrelTimer = 0.5;
+    s.mailTimer = 1e9;
+    tick(s, 1, constRng(0.1, 0.5, 1));
+    expect(s.squirrelTimer).toBeCloseTo(90 / 2, 6);
+  });
+
+  it('rolls bones and treat rewards', () => {
+    const s = newState();
+    s.squirrelTimer = 0;
+    s.mailTimer = 1e9;
+    tick(s, 0.1, constRng(0.7, 0.99, 0.5)); // bones: randInt(1,3) with .99 -> 3
+    expect(s.squirrels[0].reward).toEqual({ kind: 'goldenBones', amount: 3 });
+    s.squirrelTimer = 0;
+    tick(s, 0.1, constRng(0.99, 0, 0.5)); // treat 0 -> bacon at half duration
+    expect(s.squirrels[1].reward).toEqual({ kind: 'treat', treatId: 'bacon_strip', durationSec: 900 });
+  });
+
+  it('respects the active squirrel limit and expires old ones', () => {
+    const s = newState();
+    s.mailTimer = 1e9;
+    for (let i = 0; i < 4; i++) {
+      s.squirrelTimer = 0;
+      tick(s, 0.1, constRng(0.1, 0.5, 0.5));
+    }
+    expect(s.squirrels).toHaveLength(2);
+    s.squirrelTimer = 1e9;
+    tick(s, 6.5, constRng(0.5));
+    expect(s.squirrels).toHaveLength(2);
+    tick(s, 0.5, constRng(0.5));
+    expect(s.squirrels).toHaveLength(0);
+  });
+});
