@@ -222,7 +222,7 @@ describe('daily counters', () => {
     openMail(s, seeded(1));
     expect(c(s).letters).toBe(1);
   });
-  it('whistle counts only taps; zoomies counts reaching max once', () => {
+  it('whistle counts only taps; zoomies counts crossing the target once', () => {
     const s = newState();
     s.kennels = [5, 5, null, null];
     s.adoptionStock = 1000;
@@ -234,6 +234,17 @@ describe('daily counters', () => {
     adopt(s, 30, true);
     expect(c(s).zoomies).toBe(1);
     adopt(s, 5, true);
+    expect(c(s).zoomies).toBe(1);
+    expect(DAILY_DIG_POOL.find((p) => p.kind === 'zoomies')!.target).toBe(20);
+  });
+  it('zoomies dig still counts when max zoomies exceeds the adoption stock', () => {
+    const s = newState();
+    s.kennels = [5, 5, null, null];
+    s.adoptionStock = 50;
+    s.academy.max_zoomies = 5;
+    adopt(s, 19, true);
+    expect(c(s).zoomies).toBe(0);
+    adopt(s, 1, true);
     expect(c(s).zoomies).toBe(1);
   });
   it('training and buildings count manual purchases', () => {

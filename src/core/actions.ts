@@ -13,6 +13,7 @@ import {
   MIN_SQUIRREL_CASH_RATE,
   TRAINING,
   TRAINING_TIERS,
+  ZOOMIES_DIG_TARGET,
   TREATS,
   VEHICLES,
 } from '../data';
@@ -52,7 +53,7 @@ export function adopt(state: GameState, n: number, fromTap: boolean): number {
     bumpCounter(state, 'whistle', k);
     const before = state.zoomies;
     state.zoomies = Math.min(s.maxZoomies, state.zoomies + k);
-    if (before < s.maxZoomies && state.zoomies >= s.maxZoomies) bumpCounter(state, 'zoomies');
+    if (before < ZOOMIES_DIG_TARGET && state.zoomies >= ZOOMIES_DIG_TARGET) bumpCounter(state, 'zoomies');
     state.zoomieIdle = 0;
   }
   return k;

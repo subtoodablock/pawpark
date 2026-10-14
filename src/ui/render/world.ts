@@ -13,6 +13,8 @@ export interface Layout {
   w: number;
   h: number;
   bs: number;
+  /** kennel scale: bs, shrunk when the tallest building would not fit above the kennel row */
+  ks: number;
   horizon: number;
   lawnTop: number;
   lawnBottom: number;
@@ -37,6 +39,8 @@ export function computeLayout(w: number, h: number, slots: number): Layout {
   const lawnBottom = roadTop - 12;
   const base = Math.max(lawnTop + (lawnBottom - lawnTop) * 0.2, 126 * bs);
   const kennelBase = Math.min(base, lawnBottom - 90);
+  // tallest sprite is 126px above its base; keep it clear of the HUD card tucked over the scene top
+  const ks = clamp((kennelBase - 38) / 126, 0.5, bs);
   const pad = 6;
   const slotW = (w - pad * 2) / slots;
   const kennelX: number[] = [];
@@ -51,6 +55,7 @@ export function computeLayout(w: number, h: number, slots: number): Layout {
     w,
     h,
     bs,
+    ks,
     horizon,
     lawnTop,
     lawnBottom,
@@ -62,7 +67,8 @@ export function computeLayout(w: number, h: number, slots: number): Layout {
     centerY: midY + 6,
     mailX: w - 30 * bs,
     mailY: midY - 4,
-    lanes: [roadTop + roadH * 0.36, roadTop + roadH * 0.76],
+    /** [centre line, drive lane]: a single lane heading right; the upper lane is the empty oncoming side */
+    lanes: [roadTop + roadH * 0.34, roadTop + roadH * 0.7],
     trees,
   };
 }
@@ -477,7 +483,7 @@ function road(ctx: Ctx, L: Layout): void {
     ctx.fillRect(x, y, 1, 5.5);
   }
   // lane dashes + edge line
-  const mid = (L.lanes[0] + L.lanes[1]) / 2 + 1;
+  const mid = L.lanes[0];
   ctx.fillStyle = P.roadLine;
   for (let x = 6; x < L.w; x += 34) {
     roundRect(ctx, x, mid - 1.4, 18, 2.8, 1.4);

@@ -1828,3 +1828,17 @@ strong {
     animation: none !important;
   }
 }
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px 10px;
+  font-weight: 600;
+}
+.pref-row input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent, #4a8fe7);
+}

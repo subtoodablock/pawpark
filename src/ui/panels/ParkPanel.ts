@@ -20,6 +20,7 @@ import { toast } from '../Toasts';
 import { burst } from '../motion';
 import { confetti } from '../fx/confetti';
 import { createShareCard } from '../share';
+import { getDayNight, setDayNight } from '../prefs';
 import { section, type Panel } from './common';
 
 export function createParkPanel(c: GameController): Panel {
@@ -200,7 +201,11 @@ export function createParkPanel(c: GameController): Panel {
         ]),
     },
   });
-  el.append(section('⚙️ Settings', box, h('div', { cls: 'btn-row' }, exportBtn, importBtn, resetBtn)));
+  const dnInput = h('input', { attrs: { type: 'checkbox' } });
+  dnInput.checked = getDayNight();
+  dnInput.addEventListener('change', () => setDayNight(dnInput.checked));
+  const dnRow = h('label', { cls: 'pref-row' }, h('span', { text: 'Day/night follows your clock' }), dnInput);
+  el.append(section('⚙️ Settings', dnRow, box, h('div', { cls: 'btn-row' }, exportBtn, importBtn, resetBtn)));
 
   function update(): void {
     const s = c.state;

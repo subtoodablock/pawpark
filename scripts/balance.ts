@@ -315,7 +315,7 @@ function simulate(def: ProfileDef): Result {
   };
   const claimDigs = () => {
     const d = state.daily;
-    for (let i = 0; i < d.digs.length; i++) claimDailyDig(state, i);
+    d.digs.forEach((_, i) => claimDailyDig(state, i));
     if (process.env.DIGLOG && VERBOSE) console.log(`  dig d${d.digsDay} ${d.digs.map((x) => `${x.kind}${x.claimed ? '+' : '-'}`).join(' ')} mod ${d.modifierId}`);
     claimDailyDigBonus(state);
   };

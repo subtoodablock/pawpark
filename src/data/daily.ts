@@ -25,6 +25,8 @@ export const STREAK_FREEZE_COST = 60;
 export const MAX_STREAK_FREEZES = 2;
 
 const DIG_BONES = 3;
+/** Zoomies Daily Dig target: counted when zoomies cross this value upward (reachable: base max zoomies is 20). */
+export const ZOOMIES_DIG_TARGET = 20;
 
 export const DAILY_DIG_POOL: DailyDigDef[] = [
   { kind: 'squirrels', name: 'Squirrel Chaser', icon: '🐿️', text: 'Catch {n} squirrels', target: 3, rewardBones: DIG_BONES },
@@ -34,7 +36,7 @@ export const DAILY_DIG_POOL: DailyDigDef[] = [
   { kind: 'buildings', name: 'Builder Pup', icon: '🏗️', text: 'Upgrade {n} kennels or vehicles', target: 3, rewardBones: DIG_BONES },
   { kind: 'earn', name: 'Pay Day', icon: '💰', text: 'Earn {n}', target: 0, rewardBones: DIG_BONES },
   { kind: 'treat', name: 'Treat Time', icon: '🥓', text: 'Use {n} treat', target: 1, rewardBones: DIG_BONES },
-  { kind: 'zoomies', name: 'Zoomie Master', icon: '💨', text: 'Hit max zoomies', target: 1, rewardBones: DIG_BONES },
+  { kind: 'zoomies', name: 'Zoomie Master', icon: '💨', text: 'Reach {n} zoomies', target: ZOOMIES_DIG_TARGET, rewardBones: DIG_BONES },
 ];
 
 export const DAILY_MODIFIERS: DailyModifierDef[] = [

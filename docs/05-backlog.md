@@ -17,14 +17,8 @@ pacing, and the AFK loop. Visual polish comes afterward.
 - Sound and haptics.
 
 ## Known small issues
-- Academy one-time unlocks read "Unlocks Auto-Build **per level**". Drop "per
-  level" when `maxLevel === 1`.
 - The largest number suffixes ("o", "S", "N" …) are hard to read. Consider
   scientific notation or the aa/ab/ac style past 1e15.
-- **Zoomies Daily Dig can't be completed:** "Hit max zoomies" stops being
-  reachable once Academy *Max Zoomies* pushes max zoomies above the adoption
-  stock, which is 50 after a prestige resets training. Change it to "Reach N
-  zoomies" with a fixed N (e.g. 20), counted when `zoomies` crosses N.
 - `docs/04` §7 still shows the v2 balance tables. The v3 numbers live in `docs/06` §11.
 - Pure-AFK players who skip the daily ritual reach the endgame on about day 141,
   past the 95–125 window (by design: dailies are the expected play).

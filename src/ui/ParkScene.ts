@@ -1,5 +1,6 @@
 // The canvas park scene. Orchestrates procedural layers/sprites in src/ui/render/** (docs/07-art-direction.md).
 // Public surface used by App.ts / GameController: constructor, el, bounce(), floater(), frame(dt).
+import { getDayNight } from './prefs';
 import { FINDS, KENNEL_SLOTS, catchSquirrel, computeStats, kennelUpgradeCost } from '../core';
 import type { RewardResult, Squirrel } from '../core';
 import type { GameController } from './GameController';
@@ -63,6 +64,7 @@ import {
 import { SQ_AX, SQ_AY, SQ_H, SQ_W, SQUIRREL_POSES as SQ_POSES, drawSquirrel } from './render/squirrel';
 import type { SquirrelPose } from './render/squirrel';
 import { BREEDS } from './render/breeds';
+import { DogSheet, parseSheet } from './render/dogSheet';
 import { POSE_FRAMES, DOG_H, DOG_W, dogKey, drawDogFrame, drawTail, tailKey, TAIL_W } from './render/dogSprite';
 import type { Pose } from './render/dogSprite';
 
@@ -106,8 +108,11 @@ interface Slot {
 }
 interface Veh {
   tier: number | null;
+  /** false while parked inside the depot (hidden), waiting to pull out */
+  out: boolean;
+  /** seconds until the vehicle may pull out again (after a lap) */
+  wait: number;
   x: number;
-  lane: number;
   wheel: number;
   pop: number;
   bob: number;
@@ -187,6 +192,7 @@ export class ParkScene {
   private frames = 0;
   private msWin: number[] = [];
   private lastHidden = false;
+  private dogSheet: DogSheet | null = null;
   private seenSquirrels = new Set<number>();
 
   constructor(private c: GameController) {
@@ -210,6 +216,12 @@ export class ParkScene {
     for (let i = 0; i < 28; i++) this.mounds.push({ on: false, x: 0, y: 0, age: 0 });
     for (let i = 0; i < 6; i++) this.caught.push({ on: false, x: 0, y: 0, age: 0, flip: 1 });
     for (let i = 0; i < KENNEL_SLOTS; i++) this.slots.push({ tier: null, old: null, anim: 1, fxDone: true });
+    try {
+      const sheet = parseSheet(location.search);
+      if (sheet) this.dogSheet = new DogSheet(sheet);
+    } catch {
+      /* ignore */
+    }
     try {
       const q = new URLSearchParams(location.search).get('hour');
       if (q !== null && q !== '' && !Number.isNaN(Number(q))) this.hourOverride = Number(q);
@@ -519,7 +531,7 @@ export class ParkScene {
     const L = this.L;
     const tier = this.slots[i].tier ?? 0;
     const fx = KENNEL_FX[Math.min(KENNEL_COUNT - 1, tier)];
-    return { x: L.kennelX[i] + fx.door.x * L.bs, y: L.kennelBase + 5 * L.bs };
+    return { x: L.kennelX[i] + fx.door.x * L.ks, y: L.kennelBase + 5 * L.ks };
   }
 
   private syncState(dt: number): void {
@@ -564,7 +576,7 @@ export class ParkScene {
       const now = s.vehicles[i] ?? null;
       let v = this.vehs[i];
       if (!v) {
-        v = this.vehs[i] = { tier: null, x: -200, lane: i % 2, wheel: 0, pop: 1, bob: i * 1.7 };
+        v = this.vehs[i] = { tier: null, out: false, wait: 0, x: -200, wheel: 0, pop: 1, bob: i * 1.7 };
         this.lastVehTier[i] = null;
       }
       if (now !== v.tier) {
@@ -572,10 +584,10 @@ export class ParkScene {
         v.tier = now;
         if (now !== null) {
           if (wasNull) this.placeVehicle(i, this.frames < 3);
-          if (this.frames >= 3) {
+          if (this.frames >= 3 && v.out) {
             v.pop = 0;
             const sp = VEHICLE_SPECS[Math.min(now, VEHICLE_SPECS.length - 1)];
-            const y = this.laneY(v.lane);
+            const y = this.laneY();
             this.particles.dust(v.x, y - 4, 10, sp.w * 0.8);
             this.particles.ring(v.x, y, sp.w * 0.5);
             this.particles.sparkle(v.x, y - 18, 5, sp.w * 0.4, 4);
@@ -585,36 +597,44 @@ export class ParkScene {
     }
   }
 
-  private laneY(lane: number): number {
-    return this.L.lanes[lane];
+  private laneY(): number {
+    return this.L.lanes[1];
   }
 
+  private vehScale(): number {
+    return 0.84 * this.L.bs;
+  }
+
+  /** on-screen width of a vehicle */
   private vehWidth(v: Veh): number {
-    return VEHICLE_SPECS[Math.min(VEHICLE_SPECS.length - 1, v.tier ?? 0)].w;
+    return VEHICLE_SPECS[Math.min(VEHICLE_SPECS.length - 1, v.tier ?? 0)].w * this.vehScale();
+  }
+
+  private vehGap(): number {
+    return 30 * this.L.bs;
+  }
+
+  /** x of the depot door, where vehicles pull out */
+  private depotX(): number {
+    return 34 * this.L.bs;
   }
 
   private placeVehicle(i: number, initial: boolean): void {
     const v = this.vehs[i];
-    const w = this.vehWidth(v);
-    if (initial) {
-      // spread over the loop on first load
-      let x = 20 + ((i * 97) % 40);
-      for (let k = 0; k < i; k++) {
-        const o = this.vehs[k];
-        if (o && o.tier !== null && o.lane === v.lane) x += this.vehWidth(o) + 34;
-      }
-      v.x = x % (this.L.w + 160) - 40;
-      return;
-    }
-    // spawn just left of the screen, behind the left-most car of the lane
-    let left = 1e9;
-    for (let k = 0; k < this.vehs.length; k++) {
+    v.wait = 0;
+    v.out = false;
+    if (!initial) return; // a new vehicle simply pulls out of the depot when the road is clear
+    // first load: fill the road evenly from the depot onwards, the rest wait inside
+    let front = this.depotX() + this.vehWidth(v) / 2 + 10;
+    for (let k = 0; k < i; k++) {
       const o = this.vehs[k];
-      if (!o || k === i || o.tier === null || o.lane !== v.lane) continue;
-      left = Math.min(left, o.x - this.vehWidth(o) / 2);
+      if (o && o.out) front = Math.max(front, o.x + this.vehWidth(o) / 2 + this.vehGap() + this.vehWidth(v) / 2);
     }
-    v.x = Math.min(w * 0.3, left - w / 2 - 22);
-    if (v.x > -w * 0.4) v.x = Math.max(v.x, 40);
+    // vehicles are placed in slot order; the earliest-placed ones are furthest right
+    if (front < this.L.w - this.vehWidth(v) * 0.3) {
+      v.out = true;
+      v.x = front;
+    }
   }
 
   // ---------------------------------------------------------------- update
@@ -633,6 +653,10 @@ export class ParkScene {
     this.t += dt;
     this.frames++;
     this.cache.nextFrame();
+    if (this.dogSheet) {
+      this.dogSheet.draw(this.ctx, this.dpr, this.w, this.hgt);
+      return;
+    }
     this.update(dt);
     this.draw();
     this.recordStats(performance.now() - t0);
@@ -674,7 +698,7 @@ export class ParkScene {
         this.maxZoomies = 20;
       }
       const d = new Date();
-      const hr = this.hourOverride ?? d.getHours() + d.getMinutes() / 60;
+      const hr = this.hourOverride ?? (getDayNight() ? d.getHours() + d.getMinutes() / 60 : 12);
       this.tint = tintAt(hr);
       if (this.tint.night !== this.skyNight) this.buildSky();
     }
@@ -752,12 +776,12 @@ export class ParkScene {
         const tier = this.slots[i].tier;
         if (tier === null) continue;
         const fx = KENNEL_FX[tier];
-        if (fx.smoke) this.particles.smoke(L.kennelX[i] + fx.smoke.x * L.bs, L.kennelBase + fx.smoke.y * L.bs);
-        if (fx.sparkles && Math.random() < 0.5) this.particles.sparkle(L.kennelX[i] + (Math.random() - 0.5) * 70 * L.bs, L.kennelBase - 60 * L.bs - Math.random() * 20, 1, 4, 3);
+        if (fx.smoke) this.particles.smoke(L.kennelX[i] + fx.smoke.x * L.ks, L.kennelBase + fx.smoke.y * L.ks);
+        if (fx.sparkles && Math.random() < 0.5) this.particles.sparkle(L.kennelX[i] + (Math.random() - 0.5) * 70 * L.ks, L.kennelBase - 60 * L.ks - Math.random() * 20, 1, 4, 3);
       }
       for (const v of this.vehs) {
-        if (v && v.tier === 11) this.particles.smoke(v.x - 44, this.laneY(v.lane) - 14);
-        if (v && v.tier === 10 && Math.random() < 0.5) this.particles.sparkle(v.x, this.laneY(v.lane) - 8, 1, 14, 3);
+        if (v && v.tier === 11) this.particles.smoke(v.x - 44, this.laneY() - 14);
+        if (v && v.tier === 10 && Math.random() < 0.5) this.particles.sparkle(v.x, this.laneY() - 8, 1, 14, 3);
       }
       if (s.mailCount > 0) this.particles.sparkle(L.mailX, L.mailY - 30 * L.bs, 1, 12, 3.4);
     }
@@ -769,25 +793,45 @@ export class ParkScene {
       }
     }
 
-    // vehicles: drive left -> right, wheels roll with distance
-    for (let i = 0; i < this.vehs.length; i++) {
-      const v = this.vehs[i];
-      if (!v || v.tier === null) continue;
-      const sp = VEHICLE_SPECS[Math.min(VEHICLE_SPECS.length - 1, v.tier)];
-      const speed = (v.lane === 0 ? 46 : 58) * (1 + v.tier * 0.015);
-      const dx = speed * dt;
-      v.x += dx;
-      v.wheel += dx;
-      v.bob += dt * (6 + speed * 0.05);
-      v.pop = Math.min(1, v.pop + dt * 2.2);
-      if (v.x > L.w + sp.w * 0.6 + 20) {
-        let left = 1e9;
-        for (let k = 0; k < this.vehs.length; k++) {
-          const o = this.vehs[k];
-          if (!o || k === i || o.tier === null || o.lane !== v.lane) continue;
-          left = Math.min(left, o.x - this.vehWidth(o) / 2);
+    // vehicles: leave the depot, drive left -> right in one lane, keep a minimum gap, then go back to the depot
+    {
+      const road: Veh[] = [];
+      let rearmost = Infinity;
+      for (const v of this.vehs) {
+        if (!v || v.tier === null) continue;
+        if (v.out) road.push(v);
+      }
+      road.sort((a, b) => b.x - a.x);
+      const speed = 52 * L.bs;
+      const gap = this.vehGap();
+      let lead: Veh | null = null;
+      for (const v of road) {
+        const sp = VEHICLE_SPECS[Math.min(VEHICLE_SPECS.length - 1, v.tier as number)];
+        let dx = speed * dt;
+        if (lead) dx = Math.min(dx, Math.max(0, lead.x - this.vehWidth(lead) / 2 - gap - this.vehWidth(v) / 2 - v.x));
+        v.x += dx;
+        v.wheel += dx / this.vehScale();
+        v.bob += dt * (6 + speed * 0.05);
+        v.pop = Math.min(1, v.pop + dt * 2.2);
+        rearmost = Math.min(rearmost, v.x - this.vehWidth(v) / 2);
+        lead = v;
+        if (v.x > L.w + sp.w * this.vehScale() * 0.6 + 20) {
+          v.out = false;
+          v.wait = 1.5 + (v.bob % 1);
         }
-        v.x = Math.min(-sp.w * 0.6 - 10, left - sp.w / 2 - 26);
+      }
+      // pull the next waiting vehicle out of the depot once the road in front of the door is clear
+      const dx0 = this.depotX();
+      let next: Veh | null = null;
+      for (const v of this.vehs) {
+        if (!v || v.tier === null || v.out) continue;
+        v.wait = Math.max(0, v.wait - dt);
+        if (v.wait <= 0 && (!next || this.vehs.indexOf(v) < this.vehs.indexOf(next))) next = v;
+      }
+      if (next && rearmost - gap >= dx0 + this.vehWidth(next) / 2 + 2) {
+        next.out = true;
+        next.x = dx0;
+        next.pop = 1;
       }
     }
 
@@ -870,7 +914,7 @@ export class ParkScene {
       if (tier !== null && !(sl.anim < 0.17 && sl.old === null && sl.anim < 0)) {
         const sh = this.kennelShadow(Math.min(KENNEL_COUNT - 1, tier));
         const sc = this.popScale(sl);
-        if (sh) blit(ctx, dpr, sh, L.kennelX[i], L.kennelBase, BLD_AX, BLD_AY, L.bs * sc.x, L.bs * sc.y);
+        if (sh) blit(ctx, dpr, sh, L.kennelX[i], L.kennelBase, BLD_AX, BLD_AY, L.ks * sc.x, L.ks * sc.y);
       }
     }
     {
@@ -991,24 +1035,24 @@ export class ParkScene {
     const sp = this.kennelSprite(t);
     if (!sp) return;
     const sc = this.popScale(sl);
-    const bob = fx.floating ? Math.sin(this.t * 1.5 + i * 1.3) * 3 * L.bs : 0;
-    blit(ctx, dpr, sp, x, base - bob, BLD_AX, BLD_AY, L.bs * sc.x, L.bs * sc.y);
+    const bob = fx.floating ? Math.sin(this.t * 1.5 + i * 1.3) * 3 * L.ks : 0;
+    blit(ctx, dpr, sp, x, base - bob, BLD_AX, BLD_AY, L.ks * sc.x, L.ks * sc.y);
     // live details
     if (fx.flags) {
-      for (const f of fx.flags) this.flag(x + f.x * L.bs, base + f.y * L.bs - bob, i);
+      for (const f of fx.flags) this.flag(x + f.x * L.ks, base + f.y * L.ks - bob, i);
     }
     if (fx.blink) {
       for (const b of fx.blink) {
         const on = Math.sin(this.t * 4 + i) > 0.1 ? 1 : 0.25;
         const g = this.glow('#ff4d4d');
         ctx.globalAlpha = on;
-        ctx.drawImage(g.c as CanvasImageSource, x + b.x * L.bs - 8, base + b.y * L.bs - bob - 8, 16, 16);
+        ctx.drawImage(g.c as CanvasImageSource, x + b.x * L.ks - 8, base + b.y * L.ks - bob - 8, 16, 16);
         ctx.globalAlpha = 1;
       }
     }
     if (fx.dish) {
-      const dx = x + fx.dish.x * L.bs;
-      const dy = base + fx.dish.y * L.bs;
+      const dx = x + fx.dish.x * L.ks;
+      const dy = base + fx.dish.y * L.ks;
       const sx = Math.cos(this.t * 1.4);
       ctx.fillStyle = '#e6ebf5';
       ctx.strokeStyle = '#6e7280';
@@ -1264,19 +1308,21 @@ export class ParkScene {
     const { ctx, dpr, L } = this;
     const order: Veh[] = this.vehOrder;
     order.length = 0;
-    for (const v of this.vehs) if (v && v.tier !== null) order.push(v);
-    order.sort(byLane);
+    for (const v of this.vehs) if (v && v.tier !== null && v.out) order.push(v);
+    order.sort((a, b) => a.x - b.x);
     for (const v of order) {
       const tier = Math.min(VEHICLE_SPECS.length - 1, v.tier as number);
       const sp = VEHICLE_SPECS[tier];
-      const lane = v.lane;
-      const sc = (lane === 0 ? 0.78 : 0.88) * L.bs;
-      const ground = this.laneY(lane);
+      // pull-out: scale/fade up from the garage door onto the road
+      const u = clamp((v.x - this.depotX()) / (60 * L.bs), 0, 1);
+      const eu = u * u * (3 - 2 * u);
+      const sc = this.vehScale() * (0.7 + 0.3 * eu);
+      const ground = this.laneY() - (1 - eu) * 14 * L.bs;
       const pop = v.pop;
       const ps = pop < 1 ? easeOutBack(pop, 2.4) : 1;
       const slide = (1 - pop) * -34;
       const x = v.x + slide;
-      const fade = clamp((x + 40) / 60, 0, 1);
+      const fade = eu;
       if (fade <= 0.01) continue;
       const bob = (Math.sin(v.bob) * 0.5 + 0.5) * sp.bob + (sp.hover ? Math.sin(v.bob * 0.7) * 1.2 : 0);
       const hov = sp.hover + (sp.hover ? Math.sin(v.bob * 0.6) * 1.6 : 0);
@@ -1337,8 +1383,8 @@ export class ParkScene {
       const tier = this.slots[i].tier;
       if (tier === null) continue;
       const fx = KENNEL_FX[Math.min(KENNEL_COUNT - 1, tier)];
-      const s = (50 + fx.hw * 0.6) * L.bs;
-      ctx.drawImage(g.c as CanvasImageSource, L.kennelX[i] + fx.door.x * L.bs - s / 2, L.kennelBase + (fx.door.y - 10) * L.bs - s / 2, s, s);
+      const s = (50 + fx.hw * 0.6) * L.ks;
+      ctx.drawImage(g.c as CanvasImageSource, L.kennelX[i] + fx.door.x * L.ks - s / 2, L.kennelBase + (fx.door.y - 10) * L.ks - s / 2, s, s);
     }
     const s2 = 56 * L.bs;
     ctx.drawImage(g.c as CanvasImageSource, L.centerX - s2 / 2, L.centerY - 18 * L.bs - s2 / 2, s2, s2);
@@ -1367,6 +1413,3 @@ export class ParkScene {
   }
 }
 
-function byLane(a: Veh, b: Veh): number {
-  return a.lane - b.lane;
-}
