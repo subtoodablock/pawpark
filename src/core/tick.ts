@@ -24,6 +24,7 @@ import { automate } from './automation';
 import { computeStats, statValue } from './stats';
 import { bumpCounter } from './counters';
 import { checkDigCompletion } from './daily';
+import { stepShow } from './show';
 
 export interface StepOptions {
   /** Offline mode: no zoomies, squirrels resolve instantly via the hound, automation fires once per call. */
@@ -118,8 +119,10 @@ export function stepSimulationDetailed(
   autoWhistle(state, s, dt);
 
   // 2. rescue (100% offline too)
-  if (s.rescuePerSec > 0) {
-    state.pups = Math.max(state.pups, Math.min(s.kennelCapacity, state.pups + s.rescuePerSec * dt));
+  // Calm Kennels (offlineRescueMult) applies only while offline
+  const rescuePerSec = offline ? s.rescuePerSec * statValue(state, 'offlineRescueMult') : s.rescuePerSec;
+  if (rescuePerSec > 0) {
+    state.pups = Math.max(state.pups, Math.min(s.kennelCapacity, state.pups + rescuePerSec * dt));
   }
 
   // 3. zoomies
@@ -138,6 +141,7 @@ export function stepSimulationDetailed(
   // 4. earnings (stats from the start of the step)
   const earned = s.incomePerSec * dt;
   state.cash += earned;
+  state.stats.findsDelivered += s.deliveredPerSec * dt;
   state.runEarnings += earned;
   state.lifetimeEarnings += earned;
   bumpCounter(state, 'earn', earned);
@@ -232,6 +236,9 @@ export function stepSimulationDetailed(
   }
 
   if (!offline) events.push(...checkDigCompletion(state));
+
+  // 12. Dog Show park (home only: the show park's own show is null)
+  if (state.show) stepShow(state, dt, rng, offline, events);
 
   return { events, purchases };
 }

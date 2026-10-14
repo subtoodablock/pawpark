@@ -8,3 +8,5 @@ export * from './treats';
 export * from './trophies';
 export * from './daily';
 export * from './premium';
+export * from './show';
+export * from './rank';

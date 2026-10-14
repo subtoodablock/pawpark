@@ -1,4 +1,4 @@
-import type { AutomationKey, GameState } from './types';
+import type { AutomationKey, DogShowGoal, GameState } from './types';
 import {
   ACADEMY,
   AUTO_PRESTIGE_THRESHOLDS,
@@ -7,6 +7,7 @@ import {
   KENNELS,
   MAX_STREAK_FREEZES,
   PREMIUM_SHOP,
+  SHOW_HISTORY_WEEKS,
   KENNEL_SLOTS,
   MAX_FLEET_SLOTS,
   SAVE_KEY,
@@ -104,6 +105,45 @@ function cleanPremium(raw: unknown, base: GameState['premium']): GameState['prem
   return out;
 }
 
+const WEEK_RE = /^\d{4}-W\d{2}$/;
+
+/** Sanitizes the Dog Show and its nested park (parsed through deserialize; the park's own show is dropped). */
+function cleanShow(raw: unknown, fallbackHistory: GameState['showHistory']): Pick<GameState, 'show' | 'showHistory'> {
+  const rawObj = isObj(raw) ? raw : {};
+  const history = Array.isArray(rawObj.showHistory) ? rawObj.showHistory : fallbackHistory;
+  const showHistory = history
+    .filter(
+      (r): r is { weekKey: string; findIndex: number; medals: number } =>
+        isObj(r) && typeof r.weekKey === 'string' && WEEK_RE.test(r.weekKey) && isNum(r.findIndex) && isNum(r.medals),
+    )
+    .map((r) => ({
+      weekKey: r.weekKey,
+      findIndex: Math.min(Math.max(0, Math.floor(r.findIndex)), FINDS.length - 1),
+      medals: Math.min(3, Math.max(0, Math.floor(r.medals))),
+    }))
+    .slice(-SHOW_HISTORY_WEEKS);
+  const s = rawObj.show;
+  if (!isObj(s) || typeof s.weekKey !== 'string' || !WEEK_RE.test(s.weekKey) || !isObj(s.park) || !Array.isArray(s.goals) || s.goals.length !== 3) {
+    return { show: null, showHistory };
+  }
+  const goals = s.goals.map((g) => (isObj(g) && isNum(g.target) ? { target: Math.max(1, Math.floor(g.target)), claimed: g.claimed === true } : null));
+  if (goals.some((g) => g === null)) return { show: null, showHistory };
+  const park = deserialize(JSON.stringify({ ...s.park, show: null, showHistory: [] }));
+  if (!park) return { show: null, showHistory };
+  const findIndex = Math.min(Math.max(0, isNum(s.findIndex) ? Math.floor(s.findIndex) : park.findIndex), FINDS.length - 1);
+  return {
+    show: {
+      weekKey: s.weekKey,
+      name: typeof s.name === 'string' ? s.name : 'Dog Show',
+      findIndex,
+      joinedAt: isNum(s.joinedAt) ? s.joinedAt : park.createdAt,
+      goals: goals as DogShowGoal[],
+      park,
+    },
+    showHistory,
+  };
+}
+
 export function deserialize(json: string): GameState | null {
   let parsed: unknown;
   try {
@@ -111,7 +151,7 @@ export function deserialize(json: string): GameState | null {
   } catch {
     return null;
   }
-  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1)) return null;
+  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 4 && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1)) return null;
   for (const k of NUMERIC_KEYS) {
     if (k in parsed && !isNum(parsed[k])) return null;
   }
@@ -120,9 +160,16 @@ export function deserialize(json: string): GameState | null {
   const base = createInitialState(Date.now());
   const merged = { ...base, ...parsed } as GameState;
 
-  merged.version = SAVE_VERSION as 4; // v3 -> v4 only bumps the version
+  merged.version = SAVE_VERSION as 5; // v4 -> v5 adds vehicleCars, show, showHistory, stats.findsDelivered
   merged.kennels = cleanSlots(parsed.kennels ?? base.kennels, KENNEL_SLOTS, KENNELS.length);
   merged.vehicles = cleanSlots(parsed.vehicles ?? base.vehicles, MAX_FLEET_SLOTS, VEHICLES.length);
+  // v5: sled cars. 1 for any slot already at the top tier, else 0 (migration and sanitizing)
+  const rawCars = Array.isArray(parsed.vehicleCars) ? parsed.vehicleCars : [];
+  merged.vehicleCars = merged.vehicles.map((t, i) => {
+    if (t !== VEHICLES.length - 1) return 0;
+    const c = rawCars[i];
+    return isNum(c) && c >= 1 ? Math.floor(c) : 1;
+  });
   merged.training = cleanLevels(parsed.training, TRAINING);
   merged.academy = cleanLevels(parsed.academy, ACADEMY);
   merged.findIndex = Math.min(Math.max(0, Math.floor(merged.findIndex)), FINDS.length - 1);
@@ -133,6 +180,7 @@ export function deserialize(json: string): GameState | null {
 
   merged.daily = cleanDaily(parsed.daily);
   merged.premium = cleanPremium(parsed.premium, base.premium);
+  Object.assign(merged, cleanShow(parsed, []));
 
   merged.trophies = Array.isArray(parsed.trophies)
     ? parsed.trophies.filter((t): t is string => typeof t === 'string')

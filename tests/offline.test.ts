@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { applyOfflineProgress, computeStats, BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC } from '../src/core';
 import type { GameState } from '../src/core';
-import { newState } from './helpers';
+import { lockGates, newState } from './helpers';
 
 function setup(): GameState {
   const s = newState();
@@ -13,6 +13,7 @@ function setup(): GameState {
 }
 
 describe('applyOfflineProgress', () => {
+  beforeEach(() => lockGates());
   it('does nothing and returns null under 5 seconds', () => {
     const s = setup();
     const before = JSON.stringify(s);

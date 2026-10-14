@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC, SQUIRREL_BONES_MAX, SQUIRREL_INTERVAL_MAX, SQUIRREL_INTERVAL_MIN,
-  START_GOLDEN_BONES, TRAINING, TROPHIES, computeStats, tick,
+  FINDS, START_GOLDEN_BONES, TRAINING, TROPHIES, computeStats, tick,
 } from '../src/core';
 import type { GameState } from '../src/core';
-import { constRng, newState, seeded } from './helpers';
+import { constRng, lockGates, newState, restoreGates, seeded } from './helpers';
 
 const COMFY_MAX = TRAINING.find((d) => d.id === 'comfy_beds')!.maxLevel;
 
@@ -20,6 +20,8 @@ function productive(): GameState {
 }
 
 describe('tick', () => {
+  beforeEach(() => lockGates());
+  afterEach(() => restoreGates());
   it('is dt-invariant (10s vs 100 x 0.1s)', () => {
     const a = productive();
     const b = productive();
@@ -137,7 +139,8 @@ describe('tick', () => {
     s.vehicles = [5, 5, 5, 5, ...new Array(8).fill(null)];
     s.pups = 200;
     s.training = { comfy_beds: COMFY_MAX, premium_kibble: 15 };
-    expect(computeStats(s).parkValue).toBeGreaterThan(5e4);
+    restoreGates();
+    expect(computeStats(s).parkValue).toBeGreaterThan(FINDS[1].unlockParkValue);
     const ev = tick(s, 0.1, constRng(0.5));
     expect(ev).toContainEqual({ type: 'findUpgradeAvailable', findIndex: 1 });
     expect(tick(s, 0.1, constRng(0.5)).some((e) => e.type === 'findUpgradeAvailable')).toBe(false);

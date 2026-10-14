@@ -1,4 +1,4 @@
-import { createInitialState } from '../src/core';
+import { FINDS, createInitialState } from '../src/core';
 import type { GameState, Rng } from '../src/core';
 
 export function newState(): GameState {
@@ -29,4 +29,13 @@ export function memStorage() {
     setItem: (k: string, v: string) => void m.set(k, v),
     removeItem: (k: string) => void m.delete(k),
   };
+}
+
+const ORIGINAL_GATES = FINDS.map((f) => f.unlockParkValue);
+/** Test isolation: disable Find upgrades (module state is per test file). */
+export function lockGates(): void {
+  for (let i = 1; i < FINDS.length; i++) FINDS[i].unlockParkValue = Infinity;
+}
+export function restoreGates(): void {
+  FINDS.forEach((f, i) => (f.unlockParkValue = ORIGINAL_GATES[i]));
 }

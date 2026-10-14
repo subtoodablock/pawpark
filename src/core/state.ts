@@ -33,12 +33,13 @@ export function defaultAutomation(): AutomationSettings {
 
 export function createInitialState(now: number): GameState {
   return {
-    version: SAVE_VERSION as 4,
+    version: SAVE_VERSION as 5,
     cash: START_CASH,
     pups: 0,
     adoptionStock: BASE_ADOPTION_CAP,
     kennels: emptySlots(KENNEL_SLOTS),
     vehicles: emptySlots(MAX_FLEET_SLOTS),
+    vehicleCars: new Array(MAX_FLEET_SLOTS).fill(0),
     findIndex: 0,
     highestFindIndex: 0,
     training: {},
@@ -61,13 +62,15 @@ export function createInitialState(now: number): GameState {
     endgameReached: false,
     daily: createDailyState(),
     premium: { stars: 0, spendCents: 0, receipts: [], shop: {} },
+    show: null,
+    showHistory: [],
     notifiedFinds: [],
     runEarnings: 0,
     lifetimeEarnings: 0,
     prestigeCount: 0,
     createdAt: now,
     lastSaved: now,
-    stats: { totalAdopted: 0, totalTaps: 0, squirrelsCaught: 0, mailOpened: 0, totalPlaySec: 0 },
+    stats: { totalAdopted: 0, totalTaps: 0, squirrelsCaught: 0, mailOpened: 0, totalPlaySec: 0, findsDelivered: 0 },
   };
 }
 
@@ -80,6 +83,7 @@ export function resetPark(state: GameState, cash: number): void {
   state.pups = 0;
   state.kennels = emptySlots(KENNEL_SLOTS);
   state.vehicles = emptySlots(MAX_FLEET_SLOTS);
+  state.vehicleCars = new Array(MAX_FLEET_SLOTS).fill(0);
   state.training = {};
   state.zoomies = 0;
   state.zoomieIdle = 0;

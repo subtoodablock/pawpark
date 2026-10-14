@@ -9,8 +9,8 @@ import {
   TRAINING_TIERS,
   VEHICLES,
 } from '../data';
-import { kennelTierCost, prestige, trainingLevelCost, upgradeFind, vehicleTierCost } from './actions';
-import { computeStats } from './stats';
+import { eraCostScale, kennelTierCost, prestige, sledCarCost, upgradeFind, vehicleTierCost } from './actions';
+import { computeStats, costMultiplier, TOP_VEHICLE_TIER } from './stats';
 import { bumpCounter } from './counters';
 
 export interface AutomationResult {
@@ -22,13 +22,15 @@ export interface AutomationResult {
 interface Candidate {
   cost: number;
   inBucket: boolean;
-  /** 0 kennel, 1 vehicle, 2 training */
-  kind: 0 | 1 | 2;
+  /** 0 kennel, 1 vehicle, 2 training, 3 sled car */
+  kind: 0 | 1 | 2 | 3;
   /** slot index (kennel / vehicle) or training def index */
   idx: number;
   /** tier or level to set */
   to: number;
 }
+
+const TIER_UNLOCK_AT: Record<number, number> = Object.fromEntries(TRAINING_TIERS.map((t) => [t.tier, t.unlockAt]));
 
 const SHIP_STATS: readonly Stat[] = ['shippingCapacity'];
 const KENNEL_STATS: readonly Stat[] = ['kennelCapacity'];
@@ -90,6 +92,10 @@ function buyLoop(state: GameState): number {
       const slots = Math.min(s.fleetSlots, state.vehicles.length);
       for (let slot = 0; slot < slots; slot++) {
         const cur = state.vehicles[slot];
+        const carCost = cur === TOP_VEHICLE_TIER ? sledCarCost(state, slot) : null;
+        if (carCost !== null) {
+          cands.push({ cost: carCost, inBucket: bucketVehicles, kind: 3, idx: slot, to: (state.vehicleCars[slot] || 1) + 1 });
+        }
         const next = cur === null || cur === undefined ? 0 : cur + 1;
         if (next >= VEHICLES.length) continue;
         cands.push({
@@ -102,14 +108,16 @@ function buyLoop(state: GameState): number {
       }
     }
     if (train) {
+      // same price as trainingLevelCost, with the per-pass constants hoisted out of the loop
+      const trainMult = eraCostScale(state) * costMultiplier(state, 'researchDiscount');
       for (let d = 0; d < TRAINING.length; d++) {
         const def = TRAINING[d];
         const level = state.training[def.id] ?? 0;
         if (level >= def.maxLevel) continue;
-        const tier = TRAINING_TIERS.find((t) => t.tier === def.tier);
-        if (!tier || s.totalTrainingLevels < tier.unlockAt) continue;
+        const unlockAt = TIER_UNLOCK_AT[def.tier];
+        if (unlockAt === undefined || s.totalTrainingLevels < unlockAt) continue;
         cands.push({
-          cost: trainingLevelCost(state, def, level),
+          cost: def.baseCost * Math.pow(def.costGrowth, level) * trainMult,
           inBucket: bucketStats.includes(def.stat),
           kind: 2,
           idx: d,
@@ -147,8 +155,11 @@ function buyLoop(state: GameState): number {
     // same math as buyKennel / buyVehicle / buyTraining; validity was checked above
     state.cash -= pick.cost;
     if (pick.kind === 0) state.kennels[pick.idx] = pick.to;
-    else if (pick.kind === 1) state.vehicles[pick.idx] = pick.to;
-    else state.training[TRAINING[pick.idx].id] = pick.to;
+    else if (pick.kind === 1) {
+      state.vehicles[pick.idx] = pick.to;
+      state.vehicleCars[pick.idx] = pick.to === TOP_VEHICLE_TIER ? 1 : 0;
+    } else if (pick.kind === 3) state.vehicleCars[pick.idx] = pick.to;
+    else if (pick.kind === 2) state.training[TRAINING[pick.idx].id] = pick.to;
     bumpCounter(state, pick.kind === 2 ? 'training' : 'buildings');
     buys++;
   }

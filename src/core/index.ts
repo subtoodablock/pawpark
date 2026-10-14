@@ -10,6 +10,10 @@ export {
   parkLevel,
   parkTitle,
   vipTierFor,
+  prestigeGainFor,
+  pupRankFor,
+  pupRankTitleFor,
+  TOP_VEHICLE_TIER,
 } from './stats';
 export { tick, stepSimulation } from './tick';
 export { runAutomation } from './automation';
@@ -22,6 +26,8 @@ export {
   trainingLevelCost,
   eraCostScale,
   vehicleUpgradeCost,
+  sledCarCost,
+  buySledCar,
   trainingCost,
   trainingMaxBuy,
   academyCost,
@@ -65,5 +71,18 @@ export {
   shareText,
 } from './daily';
 export { bumpCounter } from './counters';
+export {
+  weekKeyOf,
+  showWindow,
+  showForWeek,
+  syncShowMeta,
+  joinShow,
+  claimShowGoal,
+  refreshShow,
+  showProgress,
+  showMedals,
+  calibrateShow,
+} from './show';
+export type { ShowProgress } from './show';
 export { grantPurchase, buyPremium, premiumCost, buyStreakFreeze } from './premium';
 export { formatNumber, formatMoney, formatRate, formatDuration } from './format';

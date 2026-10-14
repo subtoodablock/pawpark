@@ -7,6 +7,12 @@ import {
   BASE_DIG_PER_MIN,
   BASE_FLEET_SLOTS,
   BASE_MAIL_CAPACITY,
+  BASE_MAX_CARS,
+  DISCOVER_DIVISOR,
+  PRESTIGE_KNEE,
+  PRESTIGE_EXP_EARLY,
+  PRESTIGE_EXP_LATE,
+  PUP_RANK_TITLES,
   BASE_RESCUE_PER_MIN,
   BASE_MAX_ZOOMIES,
   BASE_OFFLINE_HOURS,
@@ -22,7 +28,6 @@ import {
   PARK_VALUE_SECONDS,
   PREMIUM_SHOP,
   PRESTIGE_DIVISOR,
-  PRESTIGE_EXPONENT,
   SECONDS_PER_HOUR,
   SECONDS_PER_MIN,
   STAT_MODES,
@@ -78,7 +83,7 @@ export function statValue(state: GameState, stat: Stat): number {
     const level =
       (kind === 'training' ? state.training[def.id] : kind === 'academy' ? state.academy[def.id] : state.premium.shop[def.id]) ?? 0;
     if (level <= 0) continue;
-    if (mode === 'mult') acc *= 1 + def.perLevel * level;
+    if (mode === 'mult') acc *= def.multPerLevel !== undefined ? Math.pow(def.multPerLevel, level) : 1 + def.perLevel * level;
     else acc += def.perLevel * level;
   }
   // Kennel Club perks: the current tier replaces lower ones (no stacking)
@@ -122,6 +127,31 @@ function treatMultFor(state: GameState): Record<TreatEffect, number> {
   return m;
 }
 
+/** v5 prestige gain (docs/10 §2.5): exponent EARLY below PRESTIGE_KNEE run earnings, LATE above, continuous at the knee. */
+export function prestigeGainFor(runEarnings: number): number {
+  const e = Math.max(0, runEarnings);
+  const atKnee = Math.pow(PRESTIGE_KNEE / PRESTIGE_DIVISOR, PRESTIGE_EXP_EARLY);
+  const raw =
+    e <= PRESTIGE_KNEE
+      ? Math.pow(e / PRESTIGE_DIVISOR, PRESTIGE_EXP_EARLY)
+      : atKnee * Math.pow(e / PRESTIGE_KNEE, PRESTIGE_EXP_LATE);
+  return Math.floor(raw);
+}
+
+/** Pup Rank (docs/10 §2.6): floor(log10(earnings bonus as a percent above base)), min 0. */
+export function pupRankFor(earningsBonus: number): number {
+  const pct = (earningsBonus - 1) * 100;
+  if (!(pct >= 1)) return 0;
+  return Math.max(0, Math.floor(Math.log10(pct) + 1e-9));
+}
+
+export function pupRankTitleFor(rank: number): string {
+  return PUP_RANK_TITLES[Math.min(PUP_RANK_TITLES.length - 1, Math.max(0, rank))];
+}
+
+/** Index of the top vehicle tier (the Sled Express). */
+export const TOP_VEHICLE_TIER = VEHICLES.length - 1;
+
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
 export function computeStats(state: GameState): DerivedStats {
@@ -147,18 +177,22 @@ export function computeStats(state: GameState): DerivedStats {
     const tier = state.vehicles[i];
     if (tier === null || tier === undefined) continue;
     const def = VEHICLES[tier];
-    if (def) rawShip += def.capacityPerMin / SECONDS_PER_MIN;
+    if (def) {
+      const cars = tier === TOP_VEHICLE_TIER ? Math.max(1, state.vehicleCars?.[i] ?? 0) : 1;
+      rawShip += (def.capacityPerMin * cars) / SECONDS_PER_MIN;
+    }
   }
   const shipPerSec = rawShip * statValue(state, 'shippingCapacity');
 
-  const digPerPupPerSec =
-    (BASE_DIG_PER_MIN / SECONDS_PER_MIN) * statValue(state, 'layRate') * treatMult.layRate;
+  const layRate = statValue(state, 'layRate');
+  const digPerPupPerSec = (BASE_DIG_PER_MIN / SECONDS_PER_MIN) * layRate * treatMult.layRate;
   const digPerSec = state.pups * digPerPupPerSec;
   const deliveredPerSec = Math.min(digPerSec, shipPerSec);
   const bottleneck: 'dig' | 'ship' = digPerSec <= shipPerSec ? 'dig' : 'ship';
 
   const find = FINDS[state.findIndex] ?? FINDS[0];
-  const findValue = find.value * statValue(state, 'findValue');
+  const findValueMult = statValue(state, 'findValue');
+  const findValue = find.value * findValueMult;
 
   const pawBonus = BASE_SPIRIT_PAW_BONUS + statValue(state, 'spiritPawBonus');
   const collarMult = Math.pow(
@@ -174,17 +208,34 @@ export function computeStats(state: GameState): DerivedStats {
   const base = deliveredPerSec * findValue * earningsBonus;
   const earnings = statValue(state, 'earnings');
   const incomePerSec = base * zoomieMult * treatMult.earnings * earnings;
-  const parkValue = base * PARK_VALUE_SECONDS * earnings;
+  const rescueMult = statValue(state, 'rescueMult');
+  const offlineHours = BASE_OFFLINE_HOURS + statValue(state, 'offlineHours');
+  // Park Value (docs/10 §2.2): max zoomies, no treats, population term with rescue potential
+  const digPerPup = (BASE_DIG_PER_MIN / SECONDS_PER_MIN) * layRate;
+  const digRaw = state.pups * digPerPup;
+  const shipFrac = digRaw > 0 ? Math.min(1, shipPerSec / digRaw) : 1;
+  const emptySpace = Math.max(0, kennelCapacity - state.pups);
+  const rescueRate = statValue(state, 'rescueRate');
+  const rescuePerMinPerKennel = (BASE_RESCUE_PER_MIN + rescueRate) * rescueMult;
+  const popTerm =
+    state.pups * shipFrac +
+    0.2 * state.pups * (1 - shipFrac) +
+    Math.pow(emptySpace, 0.6) +
+    0.25 * rescuePerMinPerKennel * builtKennels * offlineHours * 60;
+  const maxZoomieMult = 1 + maxZoomies * zoomieBonusPer;
+  const parkValue =
+    find.value * findValueMult * digPerPup * earningsBonus * maxZoomieMult * popTerm *
+    PARK_VALUE_SECONDS * earnings;
 
   const adoptionCap = BASE_ADOPTION_CAP + statValue(state, 'adoptionCap');
   const adoptionRefill =
     (BASE_ADOPTION_REFILL + statValue(state, 'adoptionRefill')) * treatMult.adoption;
   const rescuePerSec =
-    ((builtKennels * (BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate'))) / SECONDS_PER_MIN) *
-    treatMult.adoption;
+    ((builtKennels * (BASE_RESCUE_PER_MIN + rescueRate)) / SECONDS_PER_MIN) *
+    treatMult.adoption *
+    rescueMult;
 
-  const offlineCapSec =
-    (BASE_OFFLINE_HOURS + statValue(state, 'offlineHours')) * SECONDS_PER_HOUR;
+  const offlineCapSec = offlineHours * SECONDS_PER_HOUR;
 
   const mailCapacity = BASE_MAIL_CAPACITY + Math.floor(statValue(state, 'mailCapacity'));
   const squirrelHoundChance = clamp01(statValue(state, 'squirrelHound'));
@@ -197,9 +248,14 @@ export function computeStats(state: GameState): DerivedStats {
     prestige: statValue(state, 'autoPrestige') >= 1,
   };
 
-  const prestigeGain = Math.floor(
-    Math.pow(Math.max(0, state.runEarnings) / PRESTIGE_DIVISOR, PRESTIGE_EXPONENT),
-  );
+  const prestigeGain = prestigeGainFor(state.runEarnings);
+  const pupRank = pupRankFor(earningsBonus);
+  const maxCars = BASE_MAX_CARS + Math.floor(statValue(state, 'sledCars'));
+  const nextIdx = state.highestFindIndex + 1;
+  const discoveredFind =
+    FINDS[nextIdx] && parkValue >= FINDS[nextIdx].unlockParkValue / DISCOVER_DIVISOR
+      ? nextIdx
+      : state.highestFindIndex;
 
   return {
     kennelCapacity,
@@ -235,5 +291,9 @@ export function computeStats(state: GameState): DerivedStats {
     totalTrainingLevels: totalTrainingLevels(state),
     prestigeGain,
     costScale: find.costScale,
+    pupRank,
+    pupRankTitle: pupRankTitleFor(pupRank),
+    maxCars,
+    discoveredFind,
   };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACADEMY, BASE_COLLAR_BONUS, BASE_DIG_PER_MIN, BASE_OFFLINE_HOURS, BASE_SPIRIT_PAW_BONUS, BASE_ZOOMIE_BONUS, FINDS,
-  KENNELS, PRESTIGE_DIVISOR, PRESTIGE_EXPONENT, STAT_MODES, TRAINING, VEHICLES, computeStats, statMode, statValue,
+  ACADEMY, BASE_COLLAR_BONUS, BASE_DIG_PER_MIN, BASE_OFFLINE_HOURS, BASE_SPIRIT_PAW_BONUS, BASE_ZOOMIE_BONUS, FINDS, PARK_VALUE_SECONDS,
+  KENNELS, PRESTIGE_DIVISOR, PRESTIGE_EXP_EARLY, STAT_MODES, TRAINING, VEHICLES, computeStats, statMode, statValue,
 } from '../src/core';
 import { newState } from './helpers';
 
@@ -14,7 +14,7 @@ describe('stat modes', () => {
     expect(statMode('squirrelRate')).toBe('mult');
     expect(statMode('fleetSlots')).toBe('add');
     expect(statMode('fleetDiscount')).toBe('add');
-    expect(Object.keys(STAT_MODES)).toHaveLength(25);
+    expect(Object.keys(STAT_MODES)).toHaveLength(28);
   });
 });
 
@@ -73,7 +73,14 @@ describe('computeStats', () => {
     expect(d.treatMult.earnings).toBe(2);
     const base = d.digPerSec * FINDS[1].value * fv * bonus;
     expect(d.incomePerSec).toBeCloseTo(base * (1 + 10 * zPer) * 2, 8);
-    expect(d.parkValue).toBeCloseTo(base * 3600, 6);
+    // v5 park value (docs/10 §2.2): max zoomies, no treats, population term
+    const digRaw = 100 * (BASE_DIG_PER_MIN / 60) * lay;
+    const shipFrac = Math.min(1, d.shipPerSec / digRaw);
+    const empty = d.kennelCapacity - 100;
+    const rescueTerm = 0.25 * (2 + 0) * 2 * BASE_OFFLINE_HOURS * 60;
+    const pop = 100 * shipFrac + 0.2 * 100 * (1 - shipFrac) + empty ** 0.6 + rescueTerm;
+    const pv = FINDS[1].value * fv * (BASE_DIG_PER_MIN / 60) * lay * bonus * (1 + d.maxZoomies * zPer) * pop * PARK_VALUE_SECONDS;
+    expect(d.parkValue).toBeCloseTo(pv, 6);
     expect(d.totalTrainingLevels).toBe(27);
   });
 
@@ -107,7 +114,7 @@ describe('computeStats', () => {
     expect(d.adoptionRefill).toBeCloseTo((1 + 1) * 5, 10);
     expect(d.rescuePerSec).toBeCloseTo((1 * (2 + 10)) / 60 * 5, 10);
     expect(d.offlineCapSec).toBeCloseTo((BASE_OFFLINE_HOURS + per('bigger_jar') * 4) * 3600, 6);
-    expect(d.prestigeGain).toBe(Math.floor(1024 ** PRESTIGE_EXPONENT));
+    expect(d.prestigeGain).toBe(Math.floor(1024 ** PRESTIGE_EXP_EARLY));
   });
 
   it('clamps discounts at 0.25', async () => {

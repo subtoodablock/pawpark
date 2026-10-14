@@ -25,7 +25,7 @@ describe('save', () => {
     expect(deserialize('42')).toBeNull();
     expect(deserialize('null')).toBeNull();
     expect(deserialize('{}')).toBeNull();
-    expect(deserialize(JSON.stringify({ ...newState(), version: 5 }))).toBeNull();
+    expect(deserialize(JSON.stringify({ ...newState(), version: 6 }))).toBeNull();
     expect(deserialize('{"version":2,"mailCount":"x"}')).toBeNull();
     expect(deserialize('{"version":1,"cash":"lots"}')).toBeNull();
     expect(deserialize('{"version":1,"cash":null}')).toBeNull();

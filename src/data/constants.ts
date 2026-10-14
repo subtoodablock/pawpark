@@ -6,10 +6,19 @@ export const START_GOLDEN_BONES = 10;
 // ---- v4 Find eras (docs/08)
 /** Starting cash of a new era = ERA_START_CASH * costScale of the new Find (the first doghouse + bike) */
 export const ERA_START_CASH = 600;
-/** price of tier t in a slot is multiplied by this per OTHER slot already holding tier >= t */
-export const DUPLICATE_GROWTH = 1.35;
-/** FINDS[k].costScale starting shape is (value_k / value_0) * HARDNESS^k */
-export const HARDNESS = 1.6;
+/**
+ * v5: price of tier t in a slot is multiplied by DUPLICATE_GROWTH_BY_TIER[t] per OTHER slot already
+ * holding tier >= t. 1.35 for low tiers, rising to x3..x5 for the top three tiers.
+ * (Indexed by KENNELS tier / VEHICLES tier respectively.)
+ */
+export const DUPLICATE_GROWTH_BY_TIER: readonly number[] = [
+  1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.6, 2, 2.5, 3, 4, 5,
+];
+export const VEHICLE_DUPLICATE_GROWTH_BY_TIER: readonly number[] = [
+  1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.6, 2, 3, 4, 5,
+];
+/** v5: optional cap on the (normally 1) era price tax in FINDS[k].costScale */
+export const MAX_COST_SCALE = 1.5;
 
 export const KENNEL_SLOTS = 4;
 export const BASE_FLEET_SLOTS = 4;
@@ -30,9 +39,20 @@ export const ZOOMIE_DECAY_PER_SEC = 10;
 
 export const BASE_SPIRIT_PAW_BONUS = 0.1;
 export const BASE_COLLAR_BONUS = 1.05;
+/** v5 prestige (docs/10 §2.5): piecewise gain, continuous at PRESTIGE_KNEE (run earnings) */
 export const PRESTIGE_DIVISOR = 1e6;
-export const PRESTIGE_EXPONENT = 0.19;
-export const PARK_VALUE_SECONDS = 3600;
+export const PRESTIGE_KNEE = 1e12;
+export const PRESTIGE_EXP_EARLY = 0.3;
+export const PRESTIGE_EXP_LATE = 0.2;
+/** Park Value tuning constant (docs/10 §2.2) */
+export const PARK_VALUE_SECONDS = 150;
+/** a Find is "discovered" (carousel teaser) once parkValue >= gate / DISCOVER_DIVISOR */
+export const DISCOVER_DIVISOR = 6.5;
+
+// ---- v5 sled cars (docs/10 §2.7)
+export const BASE_MAX_CARS = 5;
+/** adding a car to a slot with c cars costs topTierCost * CAR_COST_GROWTH^c */
+export const CAR_COST_GROWTH = 3;
 
 export const BASE_OFFLINE_HOURS = 8;
 /** offline simulation runs stepSimulation in chunks of at most this many seconds */
@@ -67,7 +87,7 @@ export const MAIL_CASH_SECONDS = 300;
 export const MIN_COST_MULTIPLIER = 0.25;
 export const AUTOSAVE_INTERVAL_SEC = 10;
 export const SAVE_KEY = 'pawpark.save.v1';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 // ---- automation ("The Pack")
 export const AUTOMATION_INTERVAL_SEC = 2;
@@ -86,6 +106,9 @@ export const STAT_MODES: Record<Stat, StatMode> = {
   squirrelRate: 'mult',
   earnings: 'mult',
   mailRate: 'mult',
+  rescueMult: 'mult',
+  offlineRescueMult: 'mult',
+  sledCars: 'add',
   adoptionCap: 'add',
   adoptionRefill: 'add',
   rescueRate: 'add',

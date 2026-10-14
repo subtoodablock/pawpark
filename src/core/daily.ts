@@ -2,6 +2,7 @@ import type {
   ActionResult, DailyTreatReward, DayKey, GameEvent, GameState,
 } from './types';
 import {
+  CALENDAR_COLLAR_STREAK,
   DAILY_DIG_POOL,
   DAILY_MODIFIERS,
   DAILY_TREATS,
@@ -158,6 +159,11 @@ export function claimDailyTreat(
       events.push({ type: 'streakMilestone', streak: m.streak, stars: m.stars });
     }
   }
+  // v5 calendar collar: one Legend Collar per 28 consecutive streak days
+  if (streak > 0 && streak % CALENDAR_COLLAR_STREAK === 0) {
+    state.legendCollars += 1;
+    events.push({ type: 'calendarCollar', streak });
+  }
   return { ok: true, reward, streak, events };
 }
 
@@ -195,10 +201,22 @@ export function shareText(state: GameState, dayKey: DayKey): string {
     d.digsDay === dayKey && d.digs.length > 0
       ? d.digs.map((dig, i) => (dig.claimed || dailyDigProgress(state, i).done ? '✅' : '⬜')).join('')
       : '⬜'.repeat(DIGS_PER_DAY);
-  return [
+  const lines = [
     `🐾 Paw Park — Lv ${s.parkLevel} · ${s.parkTitle}${badge}`,
     `${find.icon} ${find.name} · 🔥 ${d.streak}-day streak`,
     `🐾 ${formatNumber(state.spiritPaws)} Spirit Paws · 🏆 ${state.trophies.length}/${TROPHIES.length}`,
     `📅 ${date} Daily Digs: ${marks}`,
-  ].join('\n');
+  ];
+  // Dog Show: live medals while a show runs, otherwise the most recent result
+  const show = state.show;
+  const medals = show
+    ? show.goals.filter((g) => (show.park.stats.findsDelivered ?? 0) >= g.target).length
+    : state.showHistory?.length
+      ? state.showHistory[state.showHistory.length - 1].medals
+      : null;
+  if (medals !== null) {
+    const icons = ['🥉', '🥈', '🥇'];
+    lines.push(`🏆 Dog Show: ${icons.map((ic, i) => (i < medals ? ic : '⬜')).join('')}`);
+  }
+  return lines.join('\n');
 }

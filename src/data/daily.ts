@@ -16,6 +16,8 @@ export const STREAK_MILESTONES: { streak: number; stars: number }[] = [
   { streak: 365, stars: 25 },
 ];
 
+/** v5: every Nth consecutive streak day grants a Legend Collar */
+export const CALENDAR_COLLAR_STREAK = 28;
 export const DIGS_PER_DAY = 3;
 export const DIG_BONUS_BONES = 6;
 export const DIG_BONUS_STARS = 5;

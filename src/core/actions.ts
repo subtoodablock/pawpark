@@ -2,7 +2,9 @@ import type { ActionResult, AutomationKey, FindDef, GameState, RewardResult, Rng
 import {
   ACADEMY,
   AUTO_PRESTIGE_THRESHOLDS,
-  DUPLICATE_GROWTH,
+  CAR_COST_GROWTH,
+  DUPLICATE_GROWTH_BY_TIER,
+  VEHICLE_DUPLICATE_GROWTH_BY_TIER,
   ERA_START_CASH,
   FINDS,
   KENNELS,
@@ -19,7 +21,7 @@ import {
   TREATS,
   VEHICLES,
 } from '../data';
-import { computeStats, costMultiplier } from './stats';
+import { computeStats, costMultiplier, TOP_VEHICLE_TIER } from './stats';
 import { bumpCounter } from './counters';
 import { resetForPrestige, resetPark } from './state';
 
@@ -74,13 +76,13 @@ export function eraCostScale(state: GameState): number {
 }
 
 /** n = how many OTHER slots already hold tier >= `tier` (docs/08 §3.3). */
-function duplicateFactor(slots: (number | null)[], slot: number, tier: number): number {
+function duplicateFactor(slots: (number | null)[], slot: number, tier: number, growth: readonly number[]): number {
   let n = 0;
   for (let i = 0; i < slots.length; i++) {
     const t = slots[i];
     if (i !== slot && t !== null && t !== undefined && t >= tier) n++;
   }
-  return Math.pow(DUPLICATE_GROWTH, n);
+  return Math.pow(growth[tier] ?? growth[growth.length - 1], n);
 }
 
 /** Cash price of putting kennel tier `tier` into `slot` (era scale, duplicates, discount). */
@@ -88,7 +90,7 @@ export function kennelTierCost(state: GameState, slot: number, tier: number): nu
   return (
     KENNELS[tier].cost *
     eraCostScale(state) *
-    duplicateFactor(state.kennels, slot, tier) *
+    duplicateFactor(state.kennels, slot, tier, DUPLICATE_GROWTH_BY_TIER) *
     costMultiplier(state, 'kennelDiscount')
   );
 }
@@ -98,7 +100,7 @@ export function vehicleTierCost(state: GameState, slot: number, tier: number): n
   return (
     VEHICLES[tier].cost *
     eraCostScale(state) *
-    duplicateFactor(state.vehicles, slot, tier) *
+    duplicateFactor(state.vehicles, slot, tier, VEHICLE_DUPLICATE_GROWTH_BY_TIER) *
     costMultiplier(state, 'fleetDiscount')
   );
 }
@@ -121,6 +123,21 @@ export function vehicleUpgradeCost(state: GameState, slot: number): number | nul
   const next = nextTier(state.vehicles[slot], VEHICLES.length);
   if (next === null) return null;
   return vehicleTierCost(state, slot, next);
+}
+
+/** v5: price of adding one more car to the Sled Express in `slot` (null if not a full-length top-tier slot). */
+export function sledCarCost(state: GameState, slot: number): number | null {
+  const s = computeStats(state);
+  if (!isSlot(slot, s.fleetSlots)) return null;
+  if (state.vehicles[slot] !== TOP_VEHICLE_TIER) return null;
+  const cars = Math.max(1, state.vehicleCars[slot] ?? 0);
+  if (cars >= s.maxCars) return null;
+  return (
+    VEHICLES[TOP_VEHICLE_TIER].cost *
+    eraCostScale(state) *
+    costMultiplier(state, 'fleetDiscount') *
+    Math.pow(CAR_COST_GROWTH, cars)
+  );
 }
 
 export function trainingCost(state: GameState, id: string): number | null {
@@ -180,6 +197,7 @@ function buySlot(
   state.cash -= cost;
   const cur = slots[slot];
   slots[slot] = cur === null || cur === undefined ? 0 : cur + 1;
+  if (slots === state.vehicles) state.vehicleCars[slot] = slots[slot] === TOP_VEHICLE_TIER ? 1 : 0;
   bumpCounter(state, 'buildings');
   return OK;
 }
@@ -193,6 +211,18 @@ export function buyVehicle(state: GameState, slot: number): ActionResult {
   if (!isSlot(slot, state.vehicles.length)) return fail('No such fleet slot.');
   if (slot >= computeStats(state).fleetSlots) return fail('Fleet slot locked. Buy Fleet Expansion training.');
   return buySlot(state, state.vehicles, slot, vehicleUpgradeCost(state, slot), 'Vehicle');
+}
+
+export function buySledCar(state: GameState, slot: number): ActionResult {
+  if (!isSlot(slot, state.vehicles.length)) return fail('No such fleet slot.');
+  if (state.vehicles[slot] !== TOP_VEHICLE_TIER) return fail('Only the Sled Express can add cars.');
+  const cost = sledCarCost(state, slot);
+  if (cost === null) return fail('This sled is already at its maximum length.');
+  if (state.cash < cost) return fail('Not enough cash for another car.');
+  state.cash -= cost;
+  state.vehicleCars[slot] = Math.max(1, state.vehicleCars[slot] ?? 0) + 1;
+  bumpCounter(state, 'buildings');
+  return OK;
 }
 
 export function buyTraining(state: GameState, id: string, levels = 1): ActionResult {

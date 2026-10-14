@@ -14,6 +14,7 @@ export const ACADEMY: AcademyDef[] = [
   // power
   { id: 'epic_digging', name: 'Epic Digging', icon: '⛏️', description: 'Permanent dig rate boost.', stat: 'layRate', perLevel: 0.05, maxLevel: 50, baseCost: 5, costGrowth: 1.18 },
   { id: 'epic_kibble', name: 'Epic Kibble', icon: '🍖', description: 'Permanent find value boost.', stat: 'findValue', perLevel: 0.05, maxLevel: 50, baseCost: 5, costGrowth: 1.18 },
+  { id: 'calm_kennels', name: 'Calm Kennels', icon: '🧘', description: 'Rescues are 20% faster per level while you are away (x3 at max).', stat: 'offlineRescueMult', perLevel: 0.2, maxLevel: 10, baseCost: 25, costGrowth: 1.22 },
   { id: 'spirit_bond', name: 'Spirit Bond', icon: '👻', description: 'Each Spirit Paw is worth more.', stat: 'spiritPawBonus', perLevel: 0.005, maxLevel: 40, baseCost: 20, costGrowth: 1.15 },
   { id: 'legend_lore', name: 'Legend Lore', icon: '📜', description: 'Legend Collars compound harder.', stat: 'collarBonus', perLevel: 0.005, maxLevel: 30, baseCost: 40, costGrowth: 1.17 },
   { id: 'max_zoomies', name: 'Max Zoomies', icon: '💨', description: 'Higher zoomies cap.', stat: 'maxZoomies', perLevel: 2, maxLevel: 25, baseCost: 8, costGrowth: 1.17 },
