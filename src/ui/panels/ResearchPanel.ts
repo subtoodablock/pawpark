@@ -22,7 +22,9 @@ import {
 import type { AcademyDef, AutomationKey, TrainingDef, UpgradeDef } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setHidden, setMeter, setText, type Meter } from '../dom';
-import { burst, textPop, type BurstKind } from '../motion';
+import { textPop } from '../motion';
+import { artImg } from '../gameArt';
+import { icon, rich, setRich, statIcon, type IconName } from '../icons';
 import { describeStat, formatTreatDuration, statTotal } from '../labels';
 import { setBtn, type Panel } from './common';
 
@@ -30,20 +32,14 @@ export type ResearchTab = 'common' | 'epic';
 
 export interface ResearchPanel extends Panel {
   showTab(t: ResearchTab): void;
+  scrollToTreats(): void;
 }
 
-function burstKind(label: string): BurstKind {
-  return label.includes('\u{1F9B4}') ? 'bones' : label.includes('⭐') ? 'stars' : 'coins';
-}
-
-/** Click handler for a buy button: burst + pop only when the buy worked (the button may vanish when maxed). */
+/** Click handler for a buy button: a quiet number flash only when the buy worked. */
 function onBuyClick(btn: HTMLButtonElement, buy: () => boolean | void, pops: HTMLElement[]): void {
   btn.addEventListener('click', () => {
-    const r = btn.getBoundingClientRect();
-    const kind = burstKind(btn.textContent ?? '');
     const ok = buy();
     if (ok === false) return;
-    burst({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, kind, 8);
     for (const p of pops) textPop(p);
   });
 }
@@ -57,19 +53,19 @@ interface LevelCard {
 }
 
 /** An Egg Inc style research card: icon + max pill, caps name, effect text, progress + total, buy / check. */
-function levelCard(def: UpgradeDef, buy: () => boolean): LevelCard {
+function levelCard(def: UpgradeDef, art: Node, buy: () => boolean): LevelCard {
   const d = describeStat(def.stat, def.perLevel);
   const pill = h('div', { cls: 'rcard-max', text: `×${def.maxLevel}`, attrs: { title: 'Max level' } });
   const bar = meter('rbar');
   const total = h('span', { cls: 'rcard-total' });
   const btn = h('button', { cls: 'btn buy', attrs: { type: 'button' } });
-  const check = h('div', { cls: 'rcard-check', text: '✓', attrs: { role: 'img', 'aria-label': 'Maxed' } });
+  const check = h('div', { cls: 'rcard-check', attrs: { role: 'img', 'aria-label': 'Maxed' } }, icon('check-square', { size: 34 }));
   check.hidden = true;
   onBuyClick(btn, buy, [total, pill]);
   const el = h(
     'div',
     { cls: 'rcard', attrs: { title: def.description } },
-    h('div', { cls: 'rcard-ico' }, h('div', { cls: 'rcard-icon', text: def.icon }), pill),
+    h('div', { cls: 'rcard-ico' }, h('div', { cls: 'rcard-icon' }, art), pill),
     h(
       'div',
       { cls: 'rcard-main' },
@@ -96,7 +92,7 @@ function sectionHead(title: string, sub = ''): { el: HTMLElement; lock: HTMLElem
 
 interface PackDef {
   key: AutomationKey;
-  icon: string;
+  icon: IconName;
   name: string;
   desc: string;
   /** Academy stat that unlocks it (undefined = free) */
@@ -104,11 +100,11 @@ interface PackDef {
 }
 
 const PACK: PackDef[] = [
-  { key: 'find', icon: '\u{1F50D}', name: 'Find Scout', desc: 'Upgrades your find as soon as the park can afford it.' },
-  { key: 'build', icon: '\u{1F528}', name: 'Foreman Pup', desc: 'Buys kennel and vehicle upgrades.', stat: 'autoBuild' },
-  { key: 'training', icon: '\u{1F393}', name: 'Head Trainer', desc: 'Buys Training levels.', stat: 'autoTraining' },
-  { key: 'whistle', icon: '\u{1F4EF}', name: 'Volunteer Walkers', desc: 'Adopt pups from your stock automatically.', stat: 'autoWhistle' },
-  { key: 'prestige', icon: '\u{1F3DE}️', name: 'Retirement Planner', desc: 'Opens a new park when the Spirit Paw gain is big enough.', stat: 'autoPrestige' },
+  { key: 'find', icon: 'magnifying-glass', name: 'Find Scout', desc: 'Upgrades your find as soon as the park can afford it.' },
+  { key: 'build', icon: 'hammer', name: 'Foreman Pup', desc: 'Buys kennel and vehicle upgrades.', stat: 'autoBuild' },
+  { key: 'training', icon: 'graduation-cap', name: 'Head Trainer', desc: 'Buys Training levels.', stat: 'autoTraining' },
+  { key: 'whistle', icon: 'dog', name: 'Volunteer Walkers', desc: 'Adopt pups from your stock automatically.', stat: 'autoWhistle' },
+  { key: 'prestige', icon: 'tree', name: 'Retirement Planner', desc: 'Opens a new park when the Spirit Paw gain is big enough.', stat: 'autoPrestige' },
 ];
 
 const ACADEMY_GROUPS: { title: string; sub: string; test: (d: AcademyDef) => boolean }[] = [
@@ -157,7 +153,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   const tip = h(
     'div',
     { cls: 'tip-card' },
-    h('div', { cls: 'tip-ico', text: '\u{1F4A1}' }),
+    h('div', { cls: 'tip-ico' }, icon('lightbulb', { size: 34, color: '#fff' })),
     h(
       'div',
       { cls: 'tip-text' },
@@ -165,12 +161,12 @@ export function createResearchPanel(c: GameController): ResearchPanel {
       h('div', { cls: 'tip-eg' }, 'For example: (+100% & +100% = +300%)'),
       h('div', { cls: 'tip-now' }, 'Right now: dig ', tipDig, ' • find value ', tipValue),
     ),
-    h('div', { cls: 'tip-ico', text: '\u{1F4A1}' }),
+    h('div', { cls: 'tip-ico' }, icon('lightbulb', { size: 34, color: '#fff' })),
   );
   TRAINING_TIERS.forEach((t, ti) => {
     const head = sectionHead(`TIER ${t.tier}`, t.name);
     const rows = TRAINING.filter((d) => d.tier === t.tier).map((def) => {
-      const card = levelCard(def, () => {
+      const card = levelCard(def, artImg('training', def.id, 56), () => {
         const ok = c.check(buyTraining(c.state, def.id, maxMode ? Infinity : 1));
         update();
         return ok;
@@ -185,7 +181,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   // ---------------------------------------------------------------- EPIC (Pack, Academy, Treats)
   const epic = h('div', { cls: 'research-body tone-purple' });
   const bonesLine = h('div', { cls: 'r-balance' });
-  epic.append(h('div', { cls: 'r-toolbar' }, h('span', { text: 'Epic research is permanent and paid in \u{1F9B4} Golden Bones.' }), bonesLine));
+  epic.append(h('div', { cls: 'r-toolbar' }, h('span', null, ...rich('Epic research is permanent and paid in {bone} Golden Bones.', 15)), bonesLine));
 
   // -- the Pack
   const packStatus = h('div', { cls: 'r-note' });
@@ -205,7 +201,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     const el = h(
       'div',
       { cls: 'rcard pack' },
-      h('div', { cls: 'rcard-ico' }, h('div', { cls: 'rcard-icon', text: def.icon })),
+      h('div', { cls: 'rcard-ico' }, h('div', { cls: 'rcard-icon' }, icon(def.icon, { size: 30, color: 'var(--purple)' }))),
       h(
         'div',
         { cls: 'rcard-main' },
@@ -257,7 +253,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     epic.append(head.el);
     for (const def of defs) {
       placed.add(def.id);
-      const card = levelCard(def, () => {
+      const card = levelCard(def, icon(statIcon(def.stat), { size: 30, color: 'var(--purple)' }), () => {
         const ok = c.check(buyAcademy(c.state, def.id));
         update();
         return ok;
@@ -268,7 +264,8 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   });
 
   // -- Treats
-  epic.append(sectionHead('TREATS', 'Timed boosts').el);
+  const treatsHead = sectionHead('TREATS', 'Timed boosts');
+  epic.append(treatsHead.el);
   const trRows = TREATS.map((def) => {
     const stat = h('div', { cls: 'rcard-prog stack' });
     const btn = h('button', { cls: 'btn buy', attrs: { type: 'button' } });
@@ -296,7 +293,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     const el = h(
       'div',
       { cls: 'rcard treat' },
-      h('div', { cls: 'rcard-ico' }, h('div', { cls: 'rcard-icon', text: def.icon })),
+      h('div', { cls: 'rcard-ico' }, h('div', { cls: 'rcard-icon' }, artImg('treat', def.id, 56))),
       h(
         'div',
         { cls: 'rcard-main' },
@@ -313,6 +310,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   epic.hidden = true;
 
   function showTab(t: ResearchTab): void {
+    if (t !== tab && el.parentElement) el.parentElement.scrollTop = 0;
     tab = t;
     setClass(tabCommon, 'on', t === 'common');
     setClass(tabEpic, 'on', t === 'epic');
@@ -330,7 +328,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     for (const t of tiers) {
       const unlocked = isTrainingTierUnlocked(s, t.tier);
       const need = Math.max(0, t.unlockAt - total);
-      setText(t.head.lock, unlocked ? '' : `\u{1F512} Buy ${formatNumber(need)} more upgrade${need === 1 ? '' : 's'} to unlock`);
+      setRich(t.head.lock, unlocked ? '' : `{lock} Buy ${formatNumber(need)} more upgrade${need === 1 ? '' : 's'} to unlock`);
       setClass(t.head.el, 'locked', !unlocked);
       for (const { def, card } of t.rows) {
         const lvl = s.training[def.id] ?? 0;
@@ -362,12 +360,12 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   function updateEpic(): void {
     const s = c.state;
     const d = computeStats(s);
-    setText(bonesLine, `\u{1F9B4} ${formatNumber(Math.floor(s.goldenBones))}`);
+    setRich(bonesLine, `{bone} ${formatNumber(Math.floor(s.goldenBones))}`, 22);
     for (const r of packRows) {
       const unlocked = d.automationUnlocked[r.def.key];
       const on = unlocked && s.automation[r.def.key];
       setClass(r.el, 'locked', !unlocked);
-      setText(r.stateEl, !unlocked ? '\u{1F512} LOCKED' : on ? 'ON' : 'OFF');
+      setRich(r.stateEl, !unlocked ? '{lock} LOCKED' : on ? 'ON' : 'OFF', 16);
       setClass(r.stateEl, 'on', on);
       setClass(r.stateEl, 'off', !on);
       if (unlocked) {
@@ -378,7 +376,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
         const item = ACADEMY.find((a) => a.stat === r.def.stat);
         const cost = item ? academyCost(s, item.id) : null;
         setHidden(r.hintEl, false);
-        setText(r.hintEl, item ? `Unlock: ${item.icon} ${item.name}` + (cost !== null ? ` • \u{1F9B4} ${formatNumber(cost)}` : '') : 'Locked');
+        setRich(r.hintEl, item ? `Unlock: ${item.name}` + (cost !== null ? ` \u00b7 {bone} ${formatNumber(cost)}` : '') : 'Locked', 15);
         setBtn(r.btn, 'Academy', true);
       }
     }
@@ -397,14 +395,14 @@ export function createResearchPanel(c: GameController): ResearchPanel {
         continue;
       }
       setMaxed(card, false);
-      setBtn(card.btn, `\u{1F9B4} ${formatNumber(cost)}`, s.goldenBones >= cost);
+      setBtn(card.btn, `{bone} ${formatNumber(cost)}`, s.goldenBones >= cost);
     }
     for (const { def, stat, btn, star } of trRows) {
       const active = s.treats.find((t) => t.id === def.id);
-      setText(stat, active ? `⏱ Active: ${formatDuration(active.remaining)} left` : `×${def.multiplier} for ${formatTreatDuration(def.durationSec)}`);
+      setRich(stat, active ? `{timer} Active: ${formatDuration(active.remaining)} left` : `\u00d7${def.multiplier} for ${formatTreatDuration(def.durationSec)}`, 16);
       setClass(stat, 'on', !!active);
-      setBtn(btn, `\u{1F9B4} ${formatNumber(def.cost)}`, s.goldenBones >= def.cost);
-      setBtn(star, `⭐ ${formatNumber(def.starCost)}`, s.premium.stars >= def.starCost);
+      setBtn(btn, `{bone} ${formatNumber(def.cost)}`, s.goldenBones >= def.cost);
+      setBtn(star, `{star} ${formatNumber(def.starCost)}`, s.premium.stars >= def.starCost);
     }
   }
 
@@ -413,5 +411,12 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     else updateEpic();
   }
 
-  return { el, update, showTab };
+  return {
+    el,
+    update,
+    showTab,
+    scrollToTreats() {
+      treatsHead.el.scrollIntoView({ block: 'start' });
+    },
+  };
 }

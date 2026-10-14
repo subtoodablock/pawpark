@@ -19,7 +19,7 @@ import {
 } from './dogSprite';
 import type { Particles } from './particles';
 import { type Sprite, type SpriteCache, blit } from './SpriteCache';
-import { contactShadow, clamp } from './shade';
+import { clamp } from './shade';
 import { type Layout, depthScale } from './world';
 
 export const enum St {
@@ -50,7 +50,7 @@ export interface SimEnv {
 
 const TAU = Math.PI * 2;
 const SHADOW_W = 64;
-const SHADOW_H = 24;
+const SHADOW_H = 22;
 
 // tail anchor lookup (computed lazily, no per-frame allocation)
 const TA_X = new Float32Array(10 * 6 * 8 * 2);
@@ -329,7 +329,8 @@ export class Flock {
     } else if (r < 95) {
       a.state = St.Nap;
       a.dur = 4 + Math.random() * 5;
-      a.sfx = 0.6;
+      // at most one small z per nap, and only about one nap in four
+      a.sfx = Math.random() < 0.25 ? 1.5 + Math.random() * 2 : 1e9;
     } else {
       // play: chase another idle pup
       let b: PupActor | null = null;
@@ -492,8 +493,7 @@ export class Flock {
           wagF = 3;
           a.sfx -= dt;
           if (a.sfx <= 0) {
-            // one slow little z at a time per sleeper (life < interval, so they never stack)
-            a.sfx = 2.7 + Math.random() * 0.8;
+            a.sfx = 1e9;
             env.particles.z(a.x + a.face * 9 * ds, a.y - 17 * ds, a.face);
           }
           if (a.t > a.dur) this.choose(a, env);
@@ -529,11 +529,7 @@ export class Flock {
               desVY = (dy / dist) * sp * 0.75;
               moving = true;
             }
-            a.sfx -= dt;
-            if (a.sfx <= 0 && dist < 26) {
-              a.sfx = 0.7;
-              env.particles.heart(a.x, a.y - 22 * ds);
-            }
+            a.sfx = 0;
           }
           wagT = 0.5;
           wagF = 20;
@@ -700,7 +696,21 @@ export function getTailSprite(cache: SpriteCache, breed: number, pup: boolean): 
 }
 
 export function getShadowSprite(cache: SpriteCache): Sprite {
-  return cache.get('shadow:dog', SHADOW_W, SHADOW_H, (ctx) => contactShadow(ctx, SHADOW_W / 2, SHADOW_H / 2, SHADOW_W / 2 - 1, SHADOW_H / 2 - 1, 0.24));
+  // crisp contact shadow: a flat ellipse with a 1px soft edge
+  return cache.get('shadow:dog', SHADOW_W, SHADOW_H, (ctx) => {
+    ctx.save();
+    ctx.translate(SHADOW_W / 2, SHADOW_H / 2);
+    ctx.scale(1, (SHADOW_H / 2 - 1) / (SHADOW_W / 2 - 1));
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, SHADOW_W / 2 - 1);
+    g.addColorStop(0, 'rgba(28,20,52,0.30)');
+    g.addColorStop(0.86, 'rgba(28,20,52,0.26)');
+    g.addColorStop(1, 'rgba(28,20,52,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, SHADOW_W / 2 - 1, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  });
 }
 
 /** contact shadow pass (drawn for every actor before any actor body, so bodies never get shadowed by neighbours) */
@@ -709,14 +719,14 @@ export function drawPupShadow(ctx: CanvasRenderingContext2D, dpr: number, cache:
   const ds = depthScale(L, a.y);
   const b = BREEDS[a.breed];
   const sz = b.size * (a.puppy ? 0.74 : 1);
-  const len = (b.bodyL + b.bodyH + 9) * DOG_K * sz;
+  const len = (b.bodyL + b.bodyH + b.headR + b.snoutL * 0.6 + 1) * DOG_K * sz;
   const lift = clamp(1 - a.z / 40, 0.55, 1);
   const w = len * ds * lift;
-  const h = w * (SHADOW_H / SHADOW_W) * (a.state === St.Nap ? 1.15 : 1);
+  const h = w * (SHADOW_H / SHADOW_W) * (a.state === St.Nap ? 1.2 : 1) * 0.9;
   const al = a.alpha * (a.state === St.Nap ? 1 : 1);
   if (al < 0.99) ctx.globalAlpha = al;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.drawImage(sh.c, a.x - w / 2 + 1.5 * ds, a.y - h * 0.5 + 2, w, h);
+  ctx.drawImage(sh.c, a.x - w / 2 + 2.5 * ds, a.y - h * 0.5 + 0.5, w, h);
   if (al < 0.99) ctx.globalAlpha = 1;
 }
 

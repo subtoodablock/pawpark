@@ -3,6 +3,8 @@ import type { TrophyDef, TrophyKind } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { confirmEraUpgrade, eraProgress } from '../eraUpgrade';
+import { artImg, setArt } from '../gameArt';
+import { icon, rich, setRich } from '../icons';
 import { reducedMotion, restart } from '../motion';
 import type { Panel } from './common';
 
@@ -15,17 +17,17 @@ export interface FindPanel extends Panel {
 
 const TAGS: Record<CardState, string> = {
   current: 'CURRENT',
-  completed: '✓ COMPLETED',
+  completed: 'COMPLETED',
   next: 'NEXT ERA',
   discovered: 'DISCOVERED',
   unknown: '',
 };
 
 const KIND_TITLES: Record<TrophyKind, string> = {
-  pups: '\u{1F415} Pups',
-  lifetimeEarnings: '\u{1F4B0} Lifetime earnings',
-  prestiges: '\u{1F3DE}️ Parks opened',
-  find: '\u{1F9B4} Finds',
+  pups: '{dog} Pups',
+  lifetimeEarnings: '{coins} Lifetime earnings',
+  prestiges: '{tree} Parks opened',
+  find: '{bone} Finds',
 };
 
 function thresholdLabel(t: TrophyDef): string {
@@ -38,15 +40,15 @@ function thresholdLabel(t: TrophyDef): string {
       return `${formatNumber(t.threshold)} park${t.threshold === 1 ? '' : 's'}`;
     case 'find': {
       const f = FINDS[t.threshold];
-      return f ? `${f.icon} ${f.name}` : `Find #${t.threshold + 1}`;
+      return f ? f.name : `Find #${t.threshold + 1}`;
     }
   }
 }
 
 function rewardLabel(t: TrophyDef): string {
   const parts: string[] = [];
-  if (t.collars > 0) parts.push(`+${t.collars}\u{1F3F7}️`);
-  if (t.goldenBones > 0) parts.push(`+${formatNumber(t.goldenBones)}\u{1F9B4}`);
+  if (t.collars > 0) parts.push(`+${t.collars} Collar${t.collars === 1 ? '' : 's'}`);
+  if (t.goldenBones > 0) parts.push(`+${formatNumber(t.goldenBones)} {bone}`);
   return parts.join(' ');
 }
 
@@ -61,7 +63,7 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
   const tabs = h('div', { cls: 'big-tabs', attrs: { role: 'tablist' } }, tabPark, tabTro);
 
   // ---- hero: glossy art + name/value/flavor
-  const discIcon = h('span', { cls: 'find-disc-ico' });
+  const discIcon = artImg('find', 0, 132, 'find-disc-ico');
   const disc = h('div', { cls: 'find-disc' }, discIcon);
   const tag = h('span', { cls: 'find-tag' });
   const nameEl = h('div', { cls: 'find-name' });
@@ -70,15 +72,15 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
   const hero = h('div', { cls: 'find-hero' }, disc, h('div', { cls: 'find-info' }, tag, nameEl, valueEl, flavorEl));
 
   // ---- carousel nav
-  const prevBtn = h('button', { cls: 'round-btn', text: '‹', attrs: { type: 'button', 'aria-label': 'Previous find' }, on: { click: () => go(view - 1) } });
-  const nextBtn = h('button', { cls: 'round-btn', text: '›', attrs: { type: 'button', 'aria-label': 'Next find' }, on: { click: () => go(view + 1) } });
+  const prevBtn = h('button', { cls: 'round-btn', attrs: { type: 'button', 'aria-label': 'Previous find' }, on: { click: () => go(view - 1) } }, icon('caret-left-bold', { size: 20 }));
+  const nextBtn = h('button', { cls: 'round-btn', attrs: { type: 'button', 'aria-label': 'Next find' }, on: { click: () => go(view + 1) } }, icon('caret-right-bold', { size: 20 }));
   const dots = FINDS.map((f, i) => h('button', { cls: 'dot', attrs: { type: 'button', 'aria-label': `Find ${i + 1}: ${f.name}` }, on: { click: () => go(i) } }, h('i')));
   const dotsEl = h('div', { cls: 'find-dots' }, ...dots);
   const nav = h('div', { cls: 'find-nav' }, prevBtn, dotsEl, nextBtn);
 
   // ---- park value + info popover
   const pvVal = h('b');
-  const infoBtn = h('button', { cls: 'info-btn', text: 'i', attrs: { type: 'button', 'aria-label': 'About Park Value', 'aria-expanded': 'false' } });
+  const infoBtn = h('button', { cls: 'info-btn', attrs: { type: 'button', 'aria-label': 'About Park Value', 'aria-expanded': 'false' } }, icon('info-bold', { size: 14, color: '#fff' }));
   const pop = h('div', {
     cls: 'find-pop',
     text: "Park Value is roughly an hour of your earnings. Reach the next Find's value to start its era.",
@@ -94,17 +96,16 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
   // ---- action area: start button or locked progress
   const startBtn = h('button', {
     cls: 'btn primary find-go',
-    text: 'START NEXT ERA →',
     attrs: { type: 'button' },
     on: { click: () => confirmEraUpgrade(c, refreshAfterEra) },
-  });
+  }, ...rich('START NEXT ERA {arrow}', 20));
   const lockMeter = meter('find-lock-meter');
   const lockText = h('span', { cls: 'find-lock-text' });
   const lockBar = h('div', { cls: 'find-lock' }, lockMeter.el, lockText);
   const hint = h('div', { cls: 'find-hint' });
   const action = h('div', { cls: 'find-action' }, startBtn, lockBar, hint);
 
-  const prestigeBar = h('button', { cls: 'btn purple find-prestige', text: 'PRESTIGE INFO →', attrs: { type: 'button' }, on: { click: () => opts.onPrestigeInfo() } });
+  const prestigeBar = h('button', { cls: 'btn purple find-prestige', attrs: { type: 'button' }, on: { click: () => opts.onPrestigeInfo() } }, ...rich('PRESTIGE INFO {arrow}', 20));
 
   const parkCard = h('div', { cls: 'find-card' }, hero, nav, pv, pop, action, prestigeBar);
 
@@ -136,10 +137,10 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
     const e = h(
       'div',
       { cls: 'trophy' },
-      h('div', { cls: 'trophy-icon', text: t.icon }),
+      h('div', { cls: 'trophy-icon' }, icon('trophy', { size: 34 })),
       h('div', { cls: 'trophy-name', text: t.name }),
       h('div', { cls: 'row-meta', text: thresholdLabel(t) }),
-      h('div', { cls: 'row-meta', text: rewardLabel(t) }),
+      h('div', { cls: 'row-meta' }, ...rich(rewardLabel(t), 13)),
     );
     return { t, e };
   });
@@ -148,7 +149,7 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
   for (const kind of ['pups', 'lifetimeEarnings', 'prestiges', 'find'] as TrophyKind[]) {
     const items = trophyEls.filter((x) => x.t.kind === kind).sort((x, y) => x.t.threshold - y.t.threshold);
     if (!items.length) continue;
-    trophyGroups.push(h('div', { cls: 'trophy-group', text: KIND_TITLES[kind] }), h('div', { cls: 'trophies' }, ...items.map((x) => x.e)));
+    trophyGroups.push(h('div', { cls: 'trophy-group' }, ...rich(KIND_TITLES[kind], 18)), h('div', { cls: 'trophies' }, ...items.map((x) => x.e)));
   }
   const trophyView = h('div', { cls: 'find-trophies' }, collars, ...trophyGroups);
   trophyView.hidden = true;
@@ -189,7 +190,7 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
   function update(): void {
     const s = c.state;
     if (tab === 'trophies') {
-      setText(collars, `\u{1F3F7}️ Legend Collars: ${s.legendCollars} (×${computeStats(s).collarMult.toFixed(3)} paw bonus)`);
+      setText(collars, `Legend Collars: ${s.legendCollars}  (\u00d7${computeStats(s).collarMult.toFixed(3)} paw bonus)`);
       for (const { t, e } of trophyEls) setClass(e, 'owned', s.trophies.includes(t.id));
       return;
     }
@@ -199,7 +200,7 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
     const st = stateOf(view);
     const unknown = st === 'unknown';
 
-    setText(discIcon, f.icon);
+    setArt(discIcon, 'find', view, 132);
     setClass(disc, 'silhouette', unknown);
     setClass(disc, 'dim', st === 'discovered');
     for (const k of Object.keys(TAGS) as CardState[]) setClass(tag, k, k === st);
@@ -239,11 +240,11 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
       setText(lockText, `Unlocks at Park Value ${formatMoney(nf.unlockParkValue)}`);
     }
     let hintText = '';
-    if (st === 'next' && f.unlockReward > 0 && s.highestFindIndex < view) hintText = `First time: +${formatNumber(f.unlockReward)} \u{1F9B4} Golden Bones`;
-    else if (st === 'discovered') hintText = `Reach the ${FINDS[view - 1].icon} ${FINDS[view - 1].name} Era first.`;
+    if (st === 'next' && f.unlockReward > 0 && s.highestFindIndex < view) hintText = `First time: +${formatNumber(f.unlockReward)} {bone} Golden Bones`;
+    else if (st === 'discovered') hintText = `Reach the ${FINDS[view - 1].name} Era first.`;
     else if (st === 'unknown') hintText = 'Locked. Keep climbing the eras.';
     else if (st === 'current' && !nf) hintText = 'Every find discovered!';
-    setText(hint, hintText);
+    setRich(hint, hintText, 15);
     setHidden(hint, hintText === '');
   }
 

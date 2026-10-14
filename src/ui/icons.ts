@@ -184,6 +184,8 @@ const TOKENS: Record<string, IconName> = {
   shovel: 'shovel',
   search: 'magnifying-glass',
   cart: 'storefront',
+  arrow: 'arrow-right-bold',
+  info: 'info-bold',
 };
 
 const TOKEN_RE = /\{([a-z]+)\}/g;

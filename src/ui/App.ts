@@ -43,7 +43,7 @@ export function startApp(root: HTMLElement): GameController {
     { id: 'park', icon: 'tree', label: 'Park', tone: 'green', panel: park },
     { id: 'find', icon: 'magnifying-glass', label: 'Finds', tone: 'blue', ownHeader: true, panel: createFindPanel(controller, { onPrestigeInfo: () => showPrestigeInfo(controller) }) },
     { id: 'level', icon: 'medal', label: 'Park Level', tone: 'green', panel: createLevelPanel(controller) },
-    { id: 'store', icon: 'diamond', label: 'Kennel Club', tone: 'purple', panel: createStorePanel(controller, new MockProvider()) },
+    { id: 'store', icon: 'storefront', label: 'Kennel Club', tone: 'purple', panel: createStorePanel(controller, new MockProvider()) },
   ]);
   hud.onOpenFind = () => sheet.openById('find');
   hud.onOpenLevel = () => sheet.openById('level');

@@ -85,7 +85,7 @@ export class DogSheet {
         // ground shadow
         ctx.fillStyle = 'rgba(30,18,50,0.22)';
         ctx.beginPath();
-        ctx.ellipse(x0 + DOG_AX * s * 0.86, y0 + DOG_AY * s * 0.92 + 1 * s, 15 * s, 4.5 * s, 0, 0, Math.PI * 2);
+        ctx.ellipse(x0 + DOG_AX * s * 0.86, y0 + DOG_AY * s * 0.92 + 1 * s, 11 * s, 3.2 * s, 0, 0, Math.PI * 2);
         ctx.fill();
         // tail (rest angle)
         const ta = tailAnchor(BREEDS[b], pose, f, pup);

@@ -72,7 +72,7 @@ function makeChip(tag: 'span' | 'button', cls: string, glyph: IconName | null, t
 const NAV: { id: NavId; glyph: IconName; label: string }[] = [
   { id: 'research', glyph: 'flask', label: 'Research' },
   { id: 'treats', glyph: 'lightning', label: 'Treats and boosts' },
-  { id: 'store', glyph: 'diamond', label: 'Kennel Club shop' },
+  { id: 'store', glyph: 'storefront', label: 'Kennel Club shop' },
   { id: 'menu', glyph: 'squares-four', label: 'Menu' },
 ];
 
@@ -95,7 +95,7 @@ export class HUD {
   private badgeFill = svg('circle', { class: 'badge-fill', cx: '32', cy: '32', r: String(BADGE_R) });
   private badge = h('button', { cls: 'find-badge', attrs: { type: 'button', 'aria-label': 'Open Finds', title: 'Finds' } });
   private upgradePill = h('button', { cls: 'btn primary sm pill', text: 'UPGRADE', attrs: { type: 'button' } });
-  private shopBtn = h('button', { cls: 'shop-btn', attrs: { type: 'button', 'aria-label': 'Kennel Club shop', title: 'Kennel Club' } }, icon('diamond', { size: 24, color: '#fff' }));
+  private shopBtn = h('button', { cls: 'shop-btn', attrs: { type: 'button', 'aria-label': 'Kennel Club shop', title: 'Kennel Club' } }, icon('storefront', { size: 24, color: '#fff' }));
 
   private whistle = h('button', {
     cls: 'whistle',

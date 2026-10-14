@@ -92,7 +92,7 @@ export class GameController {
     if (cash > 0) parts.push(formatReward({ kind: 'cash', amount: cash }));
     if (bones > 0) parts.push(formatReward({ kind: 'goldenBones', amount: bones }));
     for (const t of treats) parts.push(formatReward(t));
-    toast(`\u{1F4EC} ${rewards.length} letter${rewards.length === 1 ? '' : 's'}: ${parts.join(', ')}`, 'good', 4500);
+    toast(`{mail} ${rewards.length} letter${rewards.length === 1 ? '' : 's'}: ${parts.join(', ')}`, 'good', 4500);
     return rewards;
   }
 
@@ -167,44 +167,44 @@ export class GameController {
         const tr = TROPHIES.find((x) => x.id === e.trophyId);
         const rewards: string[] = [];
         if (e.collars > 0) rewards.push(`+${e.collars} Legend Collar${e.collars === 1 ? '' : 's'}`);
-        if (e.goldenBones > 0) rewards.push(`+${formatNumber(e.goldenBones)} \u{1F9B4}`);
-        toast(`${tr?.icon ?? '\u{1F3C6}'} Trophy: ${tr?.name ?? e.trophyId}! ${rewards.join(' ')}`, 'gold', 5000);
+        if (e.goldenBones > 0) rewards.push(`+${formatNumber(e.goldenBones)} {bone}`);
+        toast(`{trophy} Trophy: ${tr?.name ?? e.trophyId}! ${rewards.join(' ')}`, 'gold', 5000);
         break;
       }
       case 'findUnlocked': {
         const f = FINDS[e.findIndex];
         if (e.auto) {
           this.session.autoFinds++;
-          if (f) toast(`Find Scout started the ${f.icon} ${f.name} Era`, 'good', 4500);
+          if (f) toast(`Find Scout started the ${f.name} Era`, 'good', 4500);
         }
         break;
       }
       case 'autoPrestige':
         this.session.autoPrestiges++;
-        toast(`Opened a new park: +${formatNumber(e.gained)} \u{1F43E}`, 'gold', 5000);
+        toast(`Opened a new park: +${formatNumber(e.gained)} {paw}`, 'gold', 5000);
         break;
       case 'squirrelHound':
         this.session.houndCatches++;
-        toast(`\u{1F415} Hound caught a squirrel: ${formatReward(e.reward)}`, 'good');
+        toast(`{dog} Hound caught a squirrel: ${formatReward(e.reward)}`, 'good');
         break;
       case 'findUpgradeAvailable': {
         const f = FINDS[e.findIndex];
-        if (f) toast(`${f.icon} ${f.name} is ready to dig! Tap Upgrade.`, 'good', 5000);
+        if (f) toast(`${f.name} is ready to dig! Tap Upgrade.`, 'good', 5000);
         break;
       }
       case 'mailArrived':
-        toast('\u{1F4EC} You’ve got mail!', 'info');
+        toast('{mail} You’ve got mail!', 'info');
         break;
       case 'treatExpired': {
         const t = TREATS.find((x) => x.id === e.treatId);
-        toast(`${t?.icon ?? ''} ${t?.name ?? 'Treat'} wore off.`, 'info');
+        toast(`${t?.name ?? 'Treat'} wore off.`, 'info');
         break;
       }
       case 'dailyDigComplete':
-        toast('Daily Dig done! Claim it \u{1F9B4}', 'good', 4500);
+        toast('Daily Dig done! Claim it {bone}', 'good', 4500);
         break;
       case 'streakMilestone':
-        toast(`\u{1F525} ${e.streak}-day streak! +${e.stars} \u2B50`, 'gold', 5000);
+        toast(`{fire} ${e.streak}-day streak! +${e.stars} {star}`, 'gold', 5000);
         break;
       default:
         break;

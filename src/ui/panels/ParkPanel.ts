@@ -10,6 +10,8 @@ import {
   nextFind,
 } from '../../core';
 import type { GameController } from '../GameController';
+import { artImg, setArt } from '../gameArt';
+import { setRich } from '../icons';
 import { h, meter, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
@@ -19,27 +21,31 @@ import { createShareCard } from '../share';
 import { getDayNight, setDayNight } from '../prefs';
 import { section, type Panel } from './common';
 
-export function createParkPanel(c: GameController, openFind: () => void): Panel {
+export interface ParkPanel extends Panel {
+  scrollToSettings(): void;
+}
+
+export function createParkPanel(c: GameController, openFind: () => void): ParkPanel {
   const el = h('div', { cls: 'panel' });
 
   // ---- current find / next era: the full carousel lives in the Find panel
-  const nfDisc = h('div', { cls: 'find-disc mini' }, h('span', { cls: 'find-disc-ico' }));
-  const nfIcon = nfDisc.firstElementChild as HTMLElement;
+  const nfIcon = artImg('find', 0, 56, 'find-disc-ico');
+  const nfDisc = h('div', { cls: 'find-disc mini' }, nfIcon);
   const nfTitle = h('div', { cls: 'row-title' });
   const nfDesc = h('div', { cls: 'row-desc' });
   const nfMeter = meter('find-progress');
-  const nfBtn = h('button', { cls: 'btn', text: 'Open Finds \u2192', attrs: { type: 'button' }, on: { click: () => openFind() } });
+  const nfBtn = h('button', { cls: 'btn', text: 'OPEN FINDS', attrs: { type: 'button' }, on: { click: () => openFind() } });
   const nfCard = h('div', { cls: 'card find-mini' }, h('div', { cls: 'find-mini-row' }, nfDisc, h('div', { cls: 'row-main' }, nfTitle, nfDesc)), nfMeter.el, nfBtn);
-  el.append(section('\u{1F9B4} Finds', nfCard));
+  el.append(section('{bone} Finds', nfCard));
 
   const shareCard = createShareCard(c);
-  el.append(section('\u{1F4E4} Share', shareCard.el));
+  el.append(section('{share} Share', shareCard.el));
 
   // ---- prestige
   const prInfo = h('div', { cls: 'row-desc' });
   const prBonus = h('div', { cls: 'row-meta' });
   const prBtn = h('button', { cls: 'btn primary', on: { click: () => confirmPrestige(c) } });
-  el.append(section('\u{1F3DE}\uFE0F Open a New Park', h('div', { cls: 'card' }, prInfo, prBonus, prBtn)));
+  el.append(section('{tree} Open a New Park', h('div', { cls: 'card' }, prInfo, prBonus, prBtn)));
 
   // ---- stats
   const statsList = h('div', { cls: 'stats' });
@@ -49,7 +55,7 @@ export function createParkPanel(c: GameController, openFind: () => void): Panel 
     statsList.append(h('div', { cls: 'stat-line' }, h('span', { text: k }), v));
     return v;
   });
-  el.append(section('\u{1F4CA} Stats', statsList));
+  el.append(section('{chart} Stats', statsList));
 
   // ---- settings
   const box = h('textarea', { cls: 'save-box', attrs: { rows: '3', placeholder: 'Export appears here; paste a save here to import', spellcheck: 'false' } });
@@ -115,7 +121,8 @@ export function createParkPanel(c: GameController, openFind: () => void): Panel 
   dnInput.checked = getDayNight();
   dnInput.addEventListener('change', () => setDayNight(dnInput.checked));
   const dnRow = h('label', { cls: 'pref-row' }, h('span', { text: 'Day/night follows your clock' }), dnInput);
-  el.append(section('⚙️ Settings', dnRow, box, h('div', { cls: 'btn-row' }, exportBtn, importBtn, resetBtn)));
+  const settings = section('{gear} Settings', dnRow, box, h('div', { cls: 'btn-row' }, exportBtn, importBtn, resetBtn));
+  el.append(settings);
 
   function update(): void {
     const s = c.state;
@@ -124,11 +131,11 @@ export function createParkPanel(c: GameController, openFind: () => void): Panel 
     // current find + progress to the next era
     const cf = FINDS[s.findIndex];
     const nf = nextFind(s);
-    setText(nfIcon, cf?.icon ?? '');
+    setArt(nfIcon, 'find', s.findIndex, 56);
     setText(nfTitle, `${cf?.name ?? '?'} Era`);
     if (nf) {
       const ready = d.parkValue >= nf.unlockParkValue;
-      setText(nfDesc, ready ? `${nf.icon} ${nf.name} is ready to dig!` : `Next: ${nf.icon} ${nf.name} at Park Value ${formatMoney(nf.unlockParkValue)}`);
+      setText(nfDesc, ready ? `${nf.name} is ready to dig!` : `Next: ${nf.name} at Park Value ${formatMoney(nf.unlockParkValue)}`);
       setMeter(nfMeter, eraProgress(s, d.parkValue));
       setHidden(nfMeter.el, false);
     } else {
@@ -142,7 +149,7 @@ export function createParkPanel(c: GameController, openFind: () => void): Panel 
     const pr = prestigeSummary(c);
     setText(prInfo, pr.line);
     setText(prBonus, `Earnings bonus: ×${formatNumber(pr.now)} → ×${formatNumber(pr.after)}  •  run earnings ${formatMoney(s.runEarnings)}`);
-    setText(prBtn, pr.gain >= 1 ? `Open a New Park (+${formatNumber(pr.gain)} \u{1F43E})` : 'Not enough yet');
+    setRich(prBtn, pr.gain >= 1 ? `Open a New Park (+${formatNumber(pr.gain)} {paw})` : 'Not enough yet', 18);
     setDisabled(prBtn, pr.gain < 1);
 
     // stats
@@ -160,5 +167,11 @@ export function createParkPanel(c: GameController, openFind: () => void): Panel 
     ];
     vals.forEach((v, i) => setText(statVals[i], v));
   }
-  return { el, update };
+  return {
+    el,
+    update,
+    scrollToSettings() {
+      settings.scrollIntoView({ block: 'start' });
+    },
+  };
 }
