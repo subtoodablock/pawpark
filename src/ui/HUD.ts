@@ -17,6 +17,8 @@ import { DampedValue, bump, floatText, reducedMotion } from './motion';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RING_R = 54;
 const RING_C = 2 * Math.PI * RING_R;
+const BADGE_R = 27;
+const BADGE_C = 2 * Math.PI * BADGE_R;
 
 function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string> = {}): SVGElementTagNameMap[K] {
   const el = document.createElementNS(SVG_NS, tag);
@@ -48,6 +50,9 @@ export class HUD {
   private bones = makeChip('span', 'bones', '\u{1F9B4}', 'Golden Bones');
   private paws = makeChip('span', 'paws', '\u{1F43E}', 'Spirit Paws');
   private findLine = h('div', { cls: 'find-text' });
+  private badgeIcon = h('span', { cls: 'badge-ico' });
+  private badgeFill = svg('circle', { class: 'badge-fill', cx: '32', cy: '32', r: String(BADGE_R) });
+  private badge = h('button', { cls: 'find-badge', attrs: { type: 'button', 'aria-label': 'Open Finds', title: 'Finds' } });
   private prestigeChip = h('span', { cls: 'prestige-chip', attrs: { title: 'Spirit Paws you would earn by prestiging now' } });
   private goalIcon = h('span', { cls: 'goal-icon' });
   private goalText = h('span', { cls: 'goal-text' });
@@ -80,6 +85,8 @@ export class HUD {
   private born = performance.now();
 
   constructor(private c: GameController) {
+    this.buildBadge();
+    this.badge.addEventListener('click', () => this.onOpenFind());
     this.level.el.addEventListener('click', () => this.onOpenLevel());
     this.stars.el.addEventListener('click', () => this.onOpenStore());
     this.upgradePill.addEventListener('click', () => {
@@ -91,6 +98,7 @@ export class HUD {
       h(
         'div',
         { cls: 'hud-row' },
+        this.badge,
         h('div', { cls: 'cash-col' }, this.cash, this.income),
         h('div', { cls: 'chips' }, this.level.el, this.bones.el, this.paws.el, this.stars.el),
       ),
@@ -121,10 +129,20 @@ export class HUD {
     );
   }
 
+  onOpenFind: () => void = () => {};
   onOpenLevel: () => void = () => {};
   onOpenStore: () => void = () => {};
   /** hook set by App to celebrate */
   onFindUpgraded: (icon: string) => void = () => {};
+
+  /** Egg Inc style badge: glossy disc with the current Find, ringed by progress to the next era. */
+  private buildBadge(): void {
+    const ring = svg('svg', { class: 'badge-ring', viewBox: '0 0 64 64', 'aria-hidden': 'true' });
+    ring.append(svg('circle', { class: 'badge-track', cx: '32', cy: '32', r: String(BADGE_R) }), this.badgeFill);
+    this.badgeFill.style.strokeDasharray = BADGE_C.toFixed(1);
+    this.badgeFill.style.strokeDashoffset = BADGE_C.toFixed(1);
+    this.badge.append(ring, h('span', { cls: 'badge-disc' }, this.badgeIcon));
+  }
 
   private buildWhistle(): void {
     const ring = svg('svg', { class: 'whistle-ring', viewBox: '0 0 120 120', 'aria-hidden': 'true' });
@@ -227,11 +245,14 @@ export class HUD {
     this.setChip(this.paws, s.spiritPaws, formatNumber(s.spiritPaws));
 
     const f = FINDS[s.findIndex];
+    setText(this.badgeIcon, f?.icon ?? '');
     setText(this.findLine, `${f?.icon ?? ''} ${f?.name ?? '?'} Era · Park ${formatMoney(d.parkValue)}`);
     setText(this.prestigeChip, `+${formatNumber(d.prestigeGain)} \u{1F43E} on prestige`);
     setHidden(this.prestigeChip, !(d.prestigeGain >= 1));
     const nf = nextFind(s);
-    setHidden(this.upgradePill, !(nf && d.parkValue >= nf.unlockParkValue));
+    const ready = !!nf && d.parkValue >= nf.unlockParkValue;
+    setHidden(this.upgradePill, !ready);
+    setClass(this.badge, 'ready', ready);
 
     // next-goal line: log-scale progress from the current find's gate to the next one
     if (nf) {
@@ -243,7 +264,10 @@ export class HUD {
       setMeter(this.goalMeter, frac);
       setText(this.goalText, `${Math.floor(Math.max(0, Math.min(1, frac)) * 100)}%`);
       setHidden(this.goalMeter.el, false);
+      const off = (BADGE_C * (1 - Math.max(0, Math.min(1, ready ? 1 : frac)))).toFixed(1);
+      if (this.badgeFill.style.strokeDashoffset !== off) this.badgeFill.style.strokeDashoffset = off;
     } else {
+      if (this.badgeFill.style.strokeDashoffset !== '0.0') this.badgeFill.style.strokeDashoffset = '0.0';
       setText(this.goalIcon, '\u{1F30C} Endgame reached');
       setText(this.goalText, '');
       setHidden(this.goalMeter.el, true);

@@ -8,17 +8,16 @@ import { h } from './dom';
 import { initModal, showModal } from './Modal';
 import { initToasts } from './Toasts';
 import { confetti } from './fx/confetti';
-import { createAcademyPanel } from './panels/AcademyPanel';
 import { createFleetPanel } from './panels/FleetPanel';
 import { createKennelsPanel } from './panels/KennelsPanel';
-import { createPackPanel } from './panels/PackPanel';
-import type { Panel } from './panels/common';
 import { createLevelPanel } from './panels/LevelPanel';
 import { createStorePanel } from './panels/StorePanel';
 import { createTodayPanel, treatReady } from './panels/TodayPanel';
 import { MockProvider } from './payments/MockProvider';
 import { createParkPanel } from './panels/ParkPanel';
-import { createTrainingPanel } from './panels/TrainingPanel';
+import { createFindPanel } from './panels/FindPanel';
+import { createResearchPanel } from './panels/ResearchPanel';
+import { showPrestigeInfo } from './prestige';
 
 export function startApp(root: HTMLElement): GameController {
   const controller = new GameController();
@@ -26,28 +25,17 @@ export function startApp(root: HTMLElement): GameController {
   const scene = new ParkScene(controller);
   hud.onAdopt = () => scene.bounce();
 
-  const pack = createPackPanel(controller, () => academyEl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  const academy = createAcademyPanel(controller);
-  const academyEl = academy.el;
-  // Pack lives inside the Academy tab (7 tabs do not fit 360px)
-  const packAcademy: Panel = {
-    el: h('div', { cls: 'panel-stack' }, pack.el, academy.el),
-    update: () => {
-      pack.update();
-      academy.update();
-    },
-  };
-
   const sheet: Sheet = new Sheet([
     { id: 'today', icon: '\u{1F4C5}', label: 'Today', panel: createTodayPanel(controller) },
-    { id: 'training', icon: '\u{1F393}', label: 'Training', panel: createTrainingPanel(controller) },
     { id: 'kennels', icon: '\u{1F3E0}', label: 'Kennels', panel: createKennelsPanel(controller) },
     { id: 'fleet', icon: '\u{1F69A}', label: 'Fleet', panel: createFleetPanel(controller) },
-    { id: 'academy', icon: '\u{1F9B4}', label: 'Pack', panel: packAcademy },
-    { id: 'park', icon: '\u{1F3DE}\uFE0F', label: 'Park', panel: createParkPanel(controller) },
+    { id: 'research', icon: '\u{1F9EA}', label: 'Research', panel: createResearchPanel(controller) },
+    { id: 'park', icon: '\u{1F3DE}\uFE0F', label: 'Park', panel: createParkPanel(controller, () => sheet.openById('find')) },
+    { id: 'find', icon: '\u{1F50D}', label: 'Finds', panel: createFindPanel(controller, { onPrestigeInfo: () => showPrestigeInfo(controller) }), hidden: true },
     { id: 'level', icon: '\u{1F3C5}', label: 'Park Level', panel: createLevelPanel(controller), hidden: true },
     { id: 'store', icon: '\u2B50', label: 'Kennel Club', panel: createStorePanel(controller, new MockProvider()), hidden: true },
   ]);
+  hud.onOpenFind = () => sheet.openById('find');
   hud.onOpenLevel = () => sheet.openById('level');
   hud.onOpenStore = () => sheet.openById('store');
 

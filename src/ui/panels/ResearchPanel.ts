@@ -248,13 +248,11 @@ export function createResearchPanel(c: GameController): ResearchPanel {
   epic.append(academyHead.el);
   const placed = new Set<string>();
   const acRows: { def: AcademyDef; card: LevelCard }[] = [];
-  let helpersHead: HTMLElement | null = null;
-  ACADEMY_GROUPS.forEach((g, gi) => {
+  ACADEMY_GROUPS.forEach((g) => {
     const defs = ACADEMY.filter((d) => !placed.has(d.id) && g.test(d));
     if (!defs.length) return;
     const head = sectionHead(g.title, g.sub);
     head.el.classList.add('sub');
-    if (gi === 0) helpersHead = head.el;
     epic.append(head.el);
     for (const def of defs) {
       placed.add(def.id);
@@ -267,7 +265,6 @@ export function createResearchPanel(c: GameController): ResearchPanel {
       epic.append(card.el);
     }
   });
-  void helpersHead;
 
   // -- Treats
   epic.append(sectionHead('TREATS', 'Timed boosts').el);
