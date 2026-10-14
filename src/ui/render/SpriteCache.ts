@@ -24,6 +24,8 @@ export class SpriteCache {
   private tick = 0;
   /** sprites baked since the last call to `resetBudget` */
   baked = 0;
+  /** ms spent baking since the last `nextFrame` */
+  bakeMs = 0;
   constructor(private max = 900) {}
 
   get size(): number {
@@ -49,9 +51,28 @@ export class SpriteCache {
     return this.map.get(key);
   }
 
+  touch(s: Sprite): void {
+    s.used = this.tick;
+  }
+
   nextFrame(): void {
     this.tick++;
     this.baked = 0;
+    this.bakeMs = 0;
+  }
+
+  /** Like `get`, but returns null (and bakes nothing) once this frame's bake budget (ms) is spent. */
+  getOrNull(key: string, w: number, h: number, drawFn: (ctx: SCtx, w: number, h: number, dpr: number) => void, budget = 2.5): Sprite | null {
+    const s = this.map.get(key);
+    if (s) {
+      s.used = this.tick;
+      return s;
+    }
+    if (this.bakeMs >= budget) return null;
+    const t0 = performance.now();
+    const r = this.get(key, w, h, drawFn);
+    this.bakeMs += performance.now() - t0;
+    return r;
   }
 
   /** Get (or bake) a sprite of logical size w x h. drawFn draws in logical px (already scaled by dpr). */

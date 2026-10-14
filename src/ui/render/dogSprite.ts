@@ -29,7 +29,7 @@ export const TAIL_W = 44;
 export const TAIL_AX = 22;
 export const TAIL_AY = 22;
 /** unit -> css px */
-const K = 0.86;
+const K = 0.8;
 const PUP = 0.74;
 const OW = 1.7;
 

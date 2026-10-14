@@ -206,7 +206,7 @@ export function rimLight(ctx: Ctx, path: Path2D, light: string, dark: string, la
   for (const [col, a, dx, dy] of passes) {
     tc.setTransform(1, 0, 0, 1, 0, 0);
     tc.globalCompositeOperation = 'source-over';
-    tc.clearRect(0, 0, t.cv.width, t.cv.height);
+    tc.clearRect(0, 0, W, H);
     tc.setTransform(m);
     tc.fillStyle = '#000';
     tc.fill(path);

@@ -1,0 +1,23 @@
+<!doctype html><html><body style="margin:0;background:#7fd35b">
+<canvas id="c" style="display:block"></canvas>
+<script type="module">
+import { drawKennelBody, drawKennelShadow, BLD_W, BLD_H, KENNEL_COUNT, drawAdoptionCenter, drawAdoptionShadow, drawMailShadow, ADOPT_W, ADOPT_H, drawMailbox, drawMailFlag, MAIL_W, MAIL_H } from '/src/ui/render/buildings.ts';
+const q = new URLSearchParams(location.search);
+const Z = +(q.get('z')||2), lit = q.get('lit')==='1';
+const cols = 6, rows = 3;
+const c = document.getElementById('c'); const dpr=2;
+c.width = cols*BLD_W*Z*dpr; c.height = (rows*BLD_H+ADOPT_H)*Z*dpr; c.style.width=c.width/dpr+'px'; c.style.height=c.height/dpr+'px';
+const ctx = c.getContext('2d');
+for (let t=0;t<KENNEL_COUNT;t++){
+  const off = new OffscreenCanvas(BLD_W*dpr*Z, BLD_H*dpr*Z); const o = off.getContext('2d'); o.scale(dpr*Z,dpr*Z);
+  drawKennelShadow(o,t,dpr*Z); drawKennelBody(o,t,lit);
+  ctx.drawImage(off,(t%cols)*BLD_W*Z*dpr, Math.floor(t/cols)*BLD_H*Z*dpr);
+}
+{
+ const off = new OffscreenCanvas(ADOPT_W*dpr*Z, ADOPT_H*dpr*Z); const o = off.getContext('2d'); o.scale(dpr*Z,dpr*Z);
+ drawAdoptionShadow(o,dpr*Z); drawAdoptionCenter(o,lit); ctx.drawImage(off,0, rows*BLD_H*Z*dpr);
+ const m = new OffscreenCanvas(MAIL_W*dpr*Z, MAIL_H*dpr*Z); const mo = m.getContext('2d'); mo.scale(dpr*Z,dpr*Z);
+ drawMailShadow(mo,dpr*Z); drawMailbox(mo); drawMailFlag(mo); ctx.drawImage(m, 400*Z*dpr, rows*BLD_H*Z*dpr);
+}
+window.done = true;
+</script></body></html>

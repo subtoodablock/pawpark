@@ -341,7 +341,7 @@ export const BREEDS: Breed[] = [
     eye: 1.3,
     body: [{ k: 'e', x: 1, y: 7, rx: 15, ry: 4.6, col: '#f6dcb4' }],
     head: [
-      { k: 'e', x: 5.4, y: 2.6, rx: 6, ry: 5.2, col: '#4d3d35' },
+      { k: 'e', x: 7.2, y: 4.6, rx: 5.2, ry: 3.8, col: '#4d3d35' },
       { k: 'e', x: -3, y: -6.4, rx: 4.5, ry: 1.0, col: 'rgba(150,100,60,0.45)' },
     ],
   },

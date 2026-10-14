@@ -1,0 +1,25 @@
+<!doctype html><html><body>
+<script type="module">
+import { BREEDS } from '/src/ui/render/breeds.ts';
+import { drawDogFrame, drawTail, DOG_W, DOG_H, TAIL_W } from '/src/ui/render/dogSprite.ts';
+import { drawKennelBody, drawKennelShadow, BLD_W, BLD_H } from '/src/ui/render/buildings.ts';
+import { drawVehicle, VEH_W, VEH_H } from '/src/ui/render/vehicles.ts';
+import { drawTree, TREE_W, TREE_H, drawGround, computeLayout, drawSky } from '/src/ui/render/world.ts';
+import { drawSquirrel, SQ_W, SQ_H } from '/src/ui/render/squirrel.ts';
+const dpr = 2;
+const mk=(w,h)=>{const c=new OffscreenCanvas(Math.ceil(w*dpr),Math.ceil(h*dpr)); const x=c.getContext('2d'); x.scale(dpr,dpr); return x;};
+const out = {};
+const time=(name,fn,n=1)=>{ const t=performance.now(); for(let i=0;i<n;i++) fn(i); out[name]=(performance.now()-t)/n; };
+time('dog walk (avg 10 breeds)', i=>drawDogFrame(mk(DOG_W,DOG_H),BREEDS[i%10],'walk',i%8,false),20);
+time('dog warm second pass', i=>drawDogFrame(mk(DOG_W,DOG_H),BREEDS[i%10],'run',i%4,false),20);
+time('tail', i=>drawTail(mk(TAIL_W,TAIL_W),BREEDS[i%10],false),20);
+time('kennel body', i=>drawKennelBody(mk(BLD_W,BLD_H),i%18,false),18);
+time('kennel shadow', i=>drawKennelShadow(mk(BLD_W,BLD_H),i%18,dpr),18);
+time('vehicle', i=>drawVehicle(mk(VEH_W,VEH_H),i%13),13);
+time('tree', i=>drawTree(mk(TREE_W,TREE_H),i%3),3);
+time('squirrel', i=>drawSquirrel(mk(SQ_W,SQ_H),['sit','stretch','crouch'][i%3]),3);
+const L = computeLayout(390,470,4);
+time('ground', ()=>drawGround(mk(390,470),L,dpr),3);
+time('sky', ()=>drawSky(mk(390,200),L,false),3);
+document.title = JSON.stringify(out); window.done=true;
+</script></body></html>
