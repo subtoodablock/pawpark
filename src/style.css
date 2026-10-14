@@ -287,6 +287,32 @@ button {
   font-weight: 800;
 }
 
+/* ---------- next goal */
+.goal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 16px;
+}
+.goal-icon {
+  flex: none;
+}
+.goal-row .meter {
+  flex: 1;
+  height: 8px;
+}
+.goal-text {
+  flex: none;
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.meter.goal .meter-fill {
+  background: var(--gold);
+}
+
 /* ---------- tabs */
 .tabbar {
   flex: none;
@@ -312,11 +338,15 @@ button {
   min-width: 0;
 }
 .tab-icon {
-  font-size: 20px;
+  font-size: 19px;
 }
 .tab-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 .tab.on {
   background: var(--wood-d);
@@ -589,7 +619,7 @@ button {
 /* ---------- toasts / modal */
 .toasts {
   position: absolute;
-  top: 112px;
+  top: 132px;
   left: 0;
   right: 0;
   z-index: 20;
@@ -691,4 +721,58 @@ button {
     gap: 3px;
     padding: 5px 12px;
   }
+}
+
+/* ---------- pack / reports (v2) */
+.pack-state {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.pack-state.on {
+  color: var(--grass-d);
+}
+.pack-state.off {
+  color: var(--muted);
+}
+.row .segs {
+  margin-top: 4px;
+}
+.seg.small {
+  padding: 4px 8px;
+  min-height: 32px;
+  font-size: 12px;
+}
+.report-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.report-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.report-list li b {
+  text-align: right;
+}
+.report-warn {
+  background: #fff1d6;
+  color: #7a4a00;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 6px 0;
+}
+.trophy-group {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
 }

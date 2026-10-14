@@ -1,7 +1,7 @@
 import { ACADEMY, TREATS, academyCost, buyAcademy, buyTreat, formatDuration, formatNumber } from '../../core';
 import type { GameController } from '../GameController';
 import { h, setText } from '../dom';
-import { statLabel } from '../labels';
+import { formatTreatDuration, statLabel } from '../labels';
 import { makeRow, setBtn, type Panel } from './common';
 
 export function createAcademyPanel(c: GameController): Panel {
@@ -37,7 +37,7 @@ export function createAcademyPanel(c: GameController): Panel {
     }
     for (const { def, row } of trRows) {
       const active = s.treats.find((t) => t.id === def.id);
-      setText(row.desc, `${def.description} (×${def.multiplier} for ${formatDuration(def.durationSec)})`);
+      setText(row.desc, `${def.description} (×${def.multiplier} for ${formatTreatDuration(def.durationSec)})`);
       setText(row.meta, active ? `⏱ Active: ${formatDuration(active.remaining)} left` : 'Not active');
       setBtn(row.btn, `\u{1F9B4} ${formatNumber(def.cost)}`, s.goldenBones >= def.cost);
     }

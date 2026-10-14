@@ -48,6 +48,11 @@ export class Sheet {
     t.panel.update();
   }
 
+  openById(id: string): void {
+    const t = this.tabs.find((x) => x.id === id);
+    if (t) this.open(t);
+  }
+
   /** Refresh only the visible panel. */
   update(): void {
     if (this.active) this.active.panel.update();

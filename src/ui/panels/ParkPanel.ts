@@ -12,6 +12,7 @@ import {
   prestige,
   upgradeFind,
 } from '../../core';
+import type { TrophyDef, TrophyKind } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
@@ -76,12 +77,51 @@ export function createParkPanel(c: GameController): Panel {
   }
 
   // ---- trophies
+  const KIND_TITLES: Record<TrophyKind, string> = {
+    pups: '\u{1F415} Pups',
+    lifetimeEarnings: '\u{1F4B0} Lifetime earnings',
+    prestiges: '\u{1F3DE}️ Parks opened',
+    find: '\u{1F9B4} Finds',
+  };
+  function thresholdLabel(t: TrophyDef): string {
+    switch (t.kind) {
+      case 'pups':
+        return `${formatNumber(t.threshold)} pups`;
+      case 'lifetimeEarnings':
+        return `${formatMoney(t.threshold)} earned`;
+      case 'prestiges':
+        return `${formatNumber(t.threshold)} park${t.threshold === 1 ? '' : 's'}`;
+      case 'find': {
+        const f = FINDS[t.threshold];
+        return f ? `${f.icon} ${f.name}` : `Find #${t.threshold + 1}`;
+      }
+    }
+  }
+  function rewardLabel(t: TrophyDef): string {
+    const parts: string[] = [];
+    if (t.collars > 0) parts.push(`+${t.collars}\u{1F3F7}️`);
+    if (t.goldenBones > 0) parts.push(`+${formatNumber(t.goldenBones)}\u{1F9B4}`);
+    return parts.join(' ');
+  }
   const trophyEls = TROPHIES.map((t) => {
-    const e = h('div', { cls: 'trophy' }, h('div', { cls: 'trophy-icon', text: t.icon }), h('div', { cls: 'trophy-name', text: t.name }), h('div', { cls: 'row-meta', text: `${formatNumber(t.pupsRequired)} pups • +${t.collars}\u{1F3F7}️` }));
+    const e = h(
+      'div',
+      { cls: 'trophy' },
+      h('div', { cls: 'trophy-icon', text: t.icon }),
+      h('div', { cls: 'trophy-name', text: t.name }),
+      h('div', { cls: 'row-meta', text: thresholdLabel(t) }),
+      h('div', { cls: 'row-meta', text: rewardLabel(t) }),
+    );
     return { t, e };
   });
   const collars = h('div', { cls: 'row-meta' });
-  el.append(section('\u{1F3C6} Trophies', collars, h('div', { cls: 'trophies' }, ...trophyEls.map((x) => x.e))));
+  const trophyGroups: Node[] = [];
+  for (const kind of ['pups', 'lifetimeEarnings', 'prestiges', 'find'] as TrophyKind[]) {
+    const items = trophyEls.filter((x) => x.t.kind === kind).sort((x, y) => x.t.threshold - y.t.threshold);
+    if (!items.length) continue;
+    trophyGroups.push(h('div', { cls: 'trophy-group', text: KIND_TITLES[kind] }), h('div', { cls: 'trophies' }, ...items.map((x) => x.e)));
+  }
+  el.append(section('\u{1F3C6} Trophies', collars, ...trophyGroups));
 
   // ---- stats
   const statsList = h('div', { cls: 'stats' });

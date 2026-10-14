@@ -23,6 +23,10 @@ export class HUD {
   private bones = h('span', { cls: 'chip', attrs: { title: 'Golden Bones' } });
   private paws = h('span', { cls: 'chip', attrs: { title: 'Spirit Paws' } });
   private findLine = h('div', { cls: 'find-text' });
+  private goalIcon = h('span', { cls: 'goal-icon' });
+  private goalText = h('span', { cls: 'goal-text' });
+  private goalMeter = meter('goal');
+  private goalRow = h('div', { cls: 'goal-row' });
   private upgradePill = h('button', { cls: 'pill', text: 'Upgrade!' });
 
   private popLabel = h('div', { cls: 'pop-label' });
@@ -53,7 +57,9 @@ export class HUD {
       { cls: 'hud-top' },
       h('div', { cls: 'hud-row' }, h('div', { cls: 'cash-col' }, this.cash, this.income), h('div', { cls: 'chips' }, this.bones, this.paws)),
       h('div', { cls: 'find-row' }, this.findLine, this.upgradePill),
+      this.goalRow,
     );
+    this.goalRow.append(this.goalIcon, this.goalMeter.el, this.goalText);
 
     this.whistle.append(h('span', { cls: 'whistle-icon', text: '\u{1F4EF}' }), h('span', { cls: 'whistle-text', text: 'WHISTLE' }), this.whistleSub);
     this.setupWhistle();
@@ -127,6 +133,22 @@ export class HUD {
     setText(this.findLine, `${f?.icon ?? ''} ${f?.name ?? '?'} • Park ${formatMoney(d.parkValue)}`);
     const nf = nextFind(s);
     setHidden(this.upgradePill, !(nf && d.parkValue >= nf.unlockParkValue));
+
+    // next-goal line: log-scale progress from the current find's gate to the next one
+    if (nf) {
+      const cur = Math.max(1, FINDS[s.findIndex]?.unlockParkValue ?? 1);
+      const next = Math.max(cur * 1.0001, nf.unlockParkValue);
+      const pv = Math.max(1, d.parkValue);
+      const frac = (Math.log(pv) - Math.log(cur)) / (Math.log(next) - Math.log(cur));
+      setText(this.goalIcon, `Next ${nf.icon}`);
+      setMeter(this.goalMeter, frac);
+      setText(this.goalText, `${Math.floor(Math.max(0, Math.min(1, frac)) * 100)}%`);
+      setHidden(this.goalMeter.el, false);
+    } else {
+      setText(this.goalIcon, '\u{1F30C} Endgame reached');
+      setText(this.goalText, '');
+      setHidden(this.goalMeter.el, true);
+    }
 
     const pups = Math.floor(s.pups);
     const full = d.kennelCapacity - s.pups < 1;

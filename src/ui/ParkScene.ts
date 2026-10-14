@@ -6,7 +6,6 @@ import {
   SQUIRREL_LIFETIME_SEC,
   catchSquirrel,
   computeStats,
-  openMail,
 } from '../core';
 import type { RewardResult, Squirrel } from '../core';
 import type { GameController } from './GameController';
@@ -94,7 +93,8 @@ export class ParkScene {
     this.canvas.style.height = this.hgt + 'px';
     for (const p of this.pups) {
       p.x = Math.min(p.x, this.w - 10);
-      p.y = Math.min(p.y, this.roadY() - 20);
+      p.y = Math.min(p.y, this.lawnBottom());
+      p.ty = Math.min(p.ty, this.lawnBottom());
     }
   }
 
@@ -152,11 +152,11 @@ export class ParkScene {
       if (rew) this.celebrate(rew, p.x, p.y, '\u{1F43F}️ Caught! ');
       return;
     }
-    if (s.mailReady) {
+    if (s.mailCount > 0) {
       const m = this.mailPos();
       if ((m.x - px) ** 2 + (m.y - py) ** 2 < 40 * 40) {
-        const rew = openMail(s);
-        if (rew) this.celebrate(rew, m.x, m.y, '\u{1F4EC} Mail: ');
+        const rewards = this.c.collectMail();
+        if (rewards.length) this.floater(`\u{1F4EC} ×${rewards.length}`, m.x - 20, m.y, '#fff6c2');
       }
     }
   }
@@ -175,17 +175,31 @@ export class ParkScene {
     return Math.min(Math.ceil(p), Math.ceil(Math.min(60, Math.sqrt(p) * 2)));
   }
 
-  private newPup(): Pup {
+  private lawnTop(): number {
+    return GRASS_TOP + 8;
+  }
+  private lawnBottom(): number {
+    return Math.max(this.lawnTop() + 10, this.roadY() - 14);
+  }
+  /** perspective scale: smaller near the fence, larger near the road */
+  private scaleAt(y: number): number {
+    const t = (y - this.lawnTop()) / Math.max(1, this.lawnBottom() - this.lawnTop());
+    return 0.8 + 0.4 * Math.max(0, Math.min(1, t));
+  }
+
+  private newPup(scatter = false): Pup {
     const slot = Math.floor(Math.random() * KENNEL_SLOTS);
     const x = (this.w * (slot + 0.5)) / KENNEL_SLOTS;
+    const sx = scatter ? 20 + Math.random() * Math.max(10, this.w - 40) : x;
+    const sy = scatter ? this.lawnTop() + Math.random() * (this.lawnBottom() - this.lawnTop()) : KENNEL_Y + 24;
     return {
-      x,
-      y: KENNEL_Y + 24,
-      tx: x,
-      ty: GRASS_TOP + 10,
+      x: sx,
+      y: sy,
+      tx: sx,
+      ty: scatter ? sy : GRASS_TOP + 10,
       emoji: DOGS[Math.floor(Math.random() * DOGS.length)],
       speed: 22 + Math.random() * 22,
-      wait: Math.random(),
+      wait: scatter ? Math.random() * 3 : Math.random(),
       bounce: 0,
       face: 1,
     };
@@ -193,7 +207,7 @@ export class ParkScene {
 
   private pickTarget(p: Pup): void {
     p.tx = 20 + Math.random() * (this.w - 40);
-    p.ty = GRASS_TOP + 8 + Math.random() * Math.max(10, this.roadY() - GRASS_TOP - 36);
+    p.ty = this.lawnTop() + Math.random() * (this.lawnBottom() - this.lawnTop());
   }
 
   frame(dt: number): void {
@@ -203,7 +217,8 @@ export class ParkScene {
     const d = computeStats(s);
 
     const want = this.targetCount();
-    while (this.pups.length < want) this.pups.push(this.newPup());
+    const scatter = want - this.pups.length > 3;
+    while (this.pups.length < want) this.pups.push(this.newPup(scatter));
     if (this.pups.length > want) this.pups.length = want;
 
     const zoom = 1 + Math.min(3, s.zoomies / 6);
@@ -342,7 +357,7 @@ export class ParkScene {
       const bob = p.wait > 0 ? 0 : Math.abs(Math.sin(this.t * 10 + p.x)) * 2;
       const hop = p.bounce > 0 ? Math.sin(p.bounce * Math.PI) * 14 : 0;
       // faces left by default; flip when moving right
-      this.emoji(p.emoji, p.x, p.y - bob - hop, 22, p.face);
+      this.emoji(p.emoji, p.x, p.y - bob - hop, 22 * this.scaleAt(p.y), p.face);
     }
 
     // vehicles
@@ -370,7 +385,7 @@ export class ParkScene {
     }
 
     // mail
-    if (s.mailReady) {
+    if (s.mailCount > 0) {
       const m = this.mailPos();
       ctx.save();
       ctx.globalAlpha = 0.3 + 0.2 * Math.sin(this.t * 5);
@@ -380,6 +395,18 @@ export class ParkScene {
       ctx.fill();
       ctx.restore();
       this.emoji('\u{1F4EC}', m.x, m.y, 30);
+      const label = String(s.mailCount);
+      ctx.save();
+      ctx.fillStyle = '#e0452d';
+      ctx.beginPath();
+      ctx.arc(m.x + 14, m.y - 12, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, m.x + 14, m.y - 12);
+      ctx.restore();
     }
 
     // floaters

@@ -39,8 +39,18 @@ export function statLabel(stat: Stat, perLevel: number): string {
       return `+${pct(perLevel)} per Legend Collar`;
     case 'offlineHours':
       return `+${trim(perLevel)}h Treat Jar`;
-    case 'offlineRescue':
-      return `+${pct(perLevel)} offline rescue`;
+    case 'mailCapacity':
+      return `+${trim(perLevel)} mailbox slot${perLevel === 1 ? '' : 's'}`;
+    case 'squirrelHound':
+      return `+${pct(perLevel)} hound catch chance`;
+    case 'autoWhistle':
+      return `+${pct(perLevel)} auto-whistle`;
+    case 'autoBuild':
+      return 'Unlocks Auto-Build';
+    case 'autoTraining':
+      return 'Unlocks Auto-Training';
+    case 'autoPrestige':
+      return 'Unlocks Auto-Prestige';
     case 'researchDiscount':
       return `-${pct(perLevel)} training cost`;
     case 'kennelDiscount':
@@ -51,6 +61,15 @@ export function statLabel(stat: Stat, perLevel: number): string {
   return `${stat} ${perLevel}`;
 }
 
+/** Duration for treats / jars: whole hours when long, otherwise formatDuration. */
+export function formatTreatDuration(sec: number): string {
+  if (sec >= 3600) {
+    const hrs = sec / 3600;
+    return (Number.isInteger(hrs) ? String(hrs) : hrs.toFixed(1)) + 'h';
+  }
+  return formatDuration(sec);
+}
+
 export function formatReward(r: RewardResult): string {
   switch (r.kind) {
     case 'cash':
@@ -59,7 +78,7 @@ export function formatReward(r: RewardResult): string {
       return `+${formatNumber(r.amount)} \u{1F9B4}`;
     case 'treat': {
       const t = TREATS.find((x) => x.id === r.treatId);
-      return `${t ? t.icon + ' ' + t.name : 'Treat'} (${formatDuration(r.durationSec)})`;
+      return `${t ? t.icon + ' ' + t.name : 'Treat'} (${formatTreatDuration(r.durationSec)})`;
     }
   }
 }

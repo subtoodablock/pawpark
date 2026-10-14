@@ -1,4 +1,5 @@
-import { formatDuration, formatMoney, formatNumber } from '../core';
+import { FINDS, TROPHIES, computeStats, formatDuration, formatMoney, formatNumber } from '../core';
+import type { OfflineReport } from '../core';
 import { GameController } from './GameController';
 import { HUD } from './HUD';
 import { ParkScene } from './ParkScene';
@@ -9,6 +10,7 @@ import { initToasts, toast } from './Toasts';
 import { createAcademyPanel } from './panels/AcademyPanel';
 import { createFleetPanel } from './panels/FleetPanel';
 import { createKennelsPanel } from './panels/KennelsPanel';
+import { createPackPanel } from './panels/PackPanel';
 import { createParkPanel } from './panels/ParkPanel';
 import { createTrainingPanel } from './panels/TrainingPanel';
 
@@ -19,10 +21,11 @@ export function startApp(root: HTMLElement): GameController {
   hud.onAdopt = () => scene.bounce();
   hud.onFindUpgraded = (icon) => toast(`${icon} New find unlocked!`, 'gold');
 
-  const sheet = new Sheet([
+  const sheet: Sheet = new Sheet([
     { id: 'training', icon: '\u{1F393}', label: 'Training', panel: createTrainingPanel(controller) },
     { id: 'kennels', icon: '\u{1F3E0}', label: 'Kennels', panel: createKennelsPanel(controller) },
     { id: 'fleet', icon: '\u{1F69A}', label: 'Fleet', panel: createFleetPanel(controller) },
+    { id: 'pack', icon: '\u{1F415}‍\u{1F9BA}', label: 'Pack', panel: createPackPanel(controller, () => sheet.openById('academy')) },
     { id: 'academy', icon: '\u{1F9B4}', label: 'Academy', panel: createAcademyPanel(controller) },
     { id: 'park', icon: '\u{1F3DE}️', label: 'Park', panel: createParkPanel(controller) },
   ]);
@@ -34,18 +37,11 @@ export function startApp(root: HTMLElement): GameController {
 
   controller.subscribe((e) => {
     if (e.type === 'mailArrived') scene.floater('\u{1F4EC}', scene.el.clientWidth - 32, 100);
+    if (e.type === 'endgame') showEndgame(controller);
   });
   controller.onOffline((r) => {
-    showModal(
-      'Welcome back! \u{1F415}',
-      [
-        h('p', { text: `You were away for ${formatDuration(r.elapsedSec)}.` }),
-        r.simulatedSec < r.elapsedSec - 1 ? h('p', { cls: 'muted', text: `Your Treat Jar held ${formatDuration(r.simulatedSec)} of progress.` }) : null,
-        h('p', { cls: 'big', text: `+${formatMoney(r.earned)}` }),
-        r.pupsGained >= 1 ? h('p', { text: `\u{1F43E} ${formatNumber(Math.floor(r.pupsGained))} pups were rescued.` }) : null,
-      ],
-      [{ label: 'Yay!', primary: true }],
-    );
+    showWelcomeBack(r);
+    if (r.endgame) showEndgame(controller);
   });
 
   let acc = 0;
@@ -61,4 +57,68 @@ export function startApp(root: HTMLElement): GameController {
   hud.update();
   controller.start();
   return controller;
+}
+
+function showWelcomeBack(r: OfflineReport): void {
+  const rows: [string, string][] = [];
+  const add = (label: string, value: string, show: boolean): void => {
+    if (show) rows.push([label, value]);
+  };
+  add('\u{1F4B0} Cash earned', `+${formatMoney(r.earned)}`, r.earned > 0);
+  const pups = Math.round(r.pupsGained);
+  add('\u{1F415} Pups', `${pups > 0 ? '+' : ''}${formatNumber(pups)}`, pups !== 0);
+  add('\u{1F528} Automation purchases', formatNumber(r.purchases), r.purchases > 0);
+  add('\u{1F3DE}️ New parks opened', `${r.prestiges} (+${formatNumber(r.spiritPawsGained)} \u{1F43E})`, r.prestiges > 0);
+  add('\u{1F9B4} Golden Bones', `+${formatNumber(r.goldenBonesGained)}`, r.goldenBonesGained > 0);
+  add('\u{1F43F}️ Squirrels caught by hound', formatNumber(r.squirrelsCaught), r.squirrelsCaught > 0);
+  add('\u{1F4EC} Letters waiting', formatNumber(r.mailWaiting), r.mailWaiting > 0);
+
+  const finds = r.findsUnlocked.map((i) => FINDS[i]?.icon ?? '?').join(' ');
+  const trophies = r.trophies.map((id) => TROPHIES.find((t) => t.id === id)).map((t) => t?.icon ?? '\u{1F3C6}').join(' ');
+
+  showModal(
+    'Welcome back! \u{1F415}',
+    [
+      h('p', { text: `You were away for ${formatDuration(r.elapsedSec)}.` }),
+      r.lostSec > 0
+        ? h('div', {
+            cls: 'report-warn',
+            text: `Treat Jar full — lost ${formatDuration(r.lostSec)}. Upgrade Bigger Treat Jar in the Academy.`,
+          })
+        : null,
+      h(
+        'ul',
+        { cls: 'report-list' },
+        ...rows.map(([k, v]) => h('li', null, h('span', { text: k }), h('b', { text: v }))),
+        r.findsUnlocked.length ? h('li', null, h('span', { text: '\u{1F50D} Finds unlocked' }), h('b', { text: finds })) : null,
+        r.trophies.length ? h('li', null, h('span', { text: '\u{1F3C6} Trophies earned' }), h('b', { text: trophies })) : null,
+      ),
+    ],
+    [{ label: 'Yay!', primary: true }],
+  );
+}
+
+function showEndgame(controller: GameController): void {
+  const s = controller.state;
+  const d = computeStats(s);
+  showModal(
+    '\u{1F30C} Paw Park Legend!',
+    [
+      h('p', { text: 'Congratulations! You dug up the Cosmic Bone and became a Paw Park Legend.' }),
+      h(
+        'ul',
+        { cls: 'report-list' },
+        h('li', null, h('span', { text: 'Lifetime earnings' }), h('b', { text: formatMoney(s.lifetimeEarnings) })),
+        h('li', null, h('span', { text: 'Parks opened' }), h('b', { text: formatNumber(s.prestigeCount) })),
+        h('li', null, h('span', { text: 'Pups adopted' }), h('b', { text: formatNumber(s.stats.totalAdopted) })),
+        h('li', null, h('span', { text: 'Squirrels caught' }), h('b', { text: formatNumber(s.stats.squirrelsCaught) })),
+        h('li', null, h('span', { text: 'Legend Collars' }), h('b', { text: formatNumber(s.legendCollars) })),
+        h('li', null, h('span', { text: 'Trophies' }), h('b', { text: `${s.trophies.length} / ${TROPHIES.length}` })),
+        h('li', null, h('span', { text: 'Time played' }), h('b', { text: formatDuration(s.stats.totalPlaySec) })),
+        h('li', null, h('span', { text: 'Income' }), h('b', { text: `${formatMoney(d.incomePerSec)}/s` })),
+      ),
+      h('p', { cls: 'muted', text: 'The game keeps going. Keep opening parks and collecting everything!' }),
+    ],
+    [{ label: 'Keep playing', primary: true }],
+  );
 }

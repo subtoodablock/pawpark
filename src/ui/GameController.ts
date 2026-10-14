@@ -5,11 +5,14 @@ import {
   TROPHIES,
   applyOfflineProgress,
   createInitialState,
+  formatNumber,
   loadGame,
+  openAllMail,
   saveGame,
   tick,
 } from '../core';
-import type { ActionResult, GameEvent, GameState, OfflineReport } from '../core';
+import type { ActionResult, GameEvent, GameState, OfflineReport, RewardResult } from '../core';
+import { formatReward } from './labels';
 import { toast } from './Toasts';
 
 const STEP = 0.1;
@@ -28,6 +31,8 @@ export class GameController {
   private running = false;
   /** set during hard reset so unload handlers don't re-save */
   suppressSave = false;
+  /** Automation activity since this page was loaded (shown in the Pack panel). */
+  readonly session = { autoFinds: 0, autoPrestiges: 0, houndCatches: 0 };
 
   constructor() {
     this._state = loadGame(localStorage) ?? createInitialState(Date.now());
@@ -69,10 +74,42 @@ export class GameController {
     this.sinceSave = 0;
   }
 
-  /** Apply offline progress; fires offline callbacks if earnings > 0. */
+  /** Open every letter and show one summarizing toast. Returns the rewards. */
+  collectMail(): RewardResult[] {
+    const rewards = openAllMail(this._state);
+    if (!rewards.length) return rewards;
+    let cash = 0;
+    let bones = 0;
+    const treats: RewardResult[] = [];
+    for (const r of rewards) {
+      if (r.kind === 'cash') cash += r.amount;
+      else if (r.kind === 'goldenBones') bones += r.amount;
+      else treats.push(r);
+    }
+    const parts: string[] = [];
+    if (cash > 0) parts.push(formatReward({ kind: 'cash', amount: cash }));
+    if (bones > 0) parts.push(formatReward({ kind: 'goldenBones', amount: bones }));
+    for (const t of treats) parts.push(formatReward(t));
+    toast(`\u{1F4EC} ${rewards.length} letter${rewards.length === 1 ? '' : 's'}: ${parts.join(', ')}`, 'good', 4500);
+    return rewards;
+  }
+
+  /** Apply offline progress; fires offline callbacks when something noteworthy happened. */
   catchUpOffline(): void {
     const report = applyOfflineProgress(this._state, Date.now());
-    if (report && report.earned > 0) for (const cb of this.offlineCbs) cb(report);
+    if (!report || report.elapsedSec < 60) return;
+    const happened =
+      report.earned > 0 ||
+      report.lostSec > 0 ||
+      report.purchases > 0 ||
+      report.findsUnlocked.length > 0 ||
+      report.prestiges > 0 ||
+      report.goldenBonesGained > 0 ||
+      report.squirrelsCaught > 0 ||
+      report.trophies.length > 0 ||
+      report.mailWaiting > 0 ||
+      report.endgame;
+    if (happened) for (const cb of this.offlineCbs) cb(report);
   }
 
   start(): void {
@@ -113,13 +150,28 @@ export class GameController {
     switch (e.type) {
       case 'trophy': {
         const tr = TROPHIES.find((x) => x.id === e.trophyId);
-        toast(
-          `${tr?.icon ?? '\u{1F3C6}'} Trophy: ${tr?.name ?? e.trophyId}! +${e.collars} Legend Collar${e.collars === 1 ? '' : 's'}`,
-          'gold',
-          5000,
-        );
+        const rewards: string[] = [];
+        if (e.collars > 0) rewards.push(`+${e.collars} Legend Collar${e.collars === 1 ? '' : 's'}`);
+        if (e.goldenBones > 0) rewards.push(`+${formatNumber(e.goldenBones)} \u{1F9B4}`);
+        toast(`${tr?.icon ?? '\u{1F3C6}'} Trophy: ${tr?.name ?? e.trophyId}! ${rewards.join(' ')}`, 'gold', 5000);
         break;
       }
+      case 'findUnlocked': {
+        const f = FINDS[e.findIndex];
+        if (e.auto) {
+          this.session.autoFinds++;
+          if (f) toast(`Find Scout upgraded to ${f.icon} ${f.name}`, 'good', 4500);
+        }
+        break;
+      }
+      case 'autoPrestige':
+        this.session.autoPrestiges++;
+        toast(`Opened a new park: +${formatNumber(e.gained)} \u{1F43E}`, 'gold', 5000);
+        break;
+      case 'squirrelHound':
+        this.session.houndCatches++;
+        toast(`\u{1F415} Hound caught a squirrel: ${formatReward(e.reward)}`, 'good');
+        break;
       case 'findUpgradeAvailable': {
         const f = FINDS[e.findIndex];
         if (f) toast(`${f.icon} ${f.name} is ready to dig! Tap Upgrade.`, 'good', 5000);
