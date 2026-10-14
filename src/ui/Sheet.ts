@@ -98,11 +98,12 @@ export class Sheet {
     window.clearTimeout(this.closeTimer);
     this.title.textContent = `${t.icon} ${t.label}`;
     this.body.replaceChildren(t.panel.el);
-    this.body.scrollTop = 0;
     t.panel.update();
     this.stagger();
 
     const wasOpen = !this.sheet.hidden && this.sheet.classList.contains('open');
+    if (!wasOpen) this.sheet.hidden = false; // scrollTop is a no-op while display:none
+    this.body.scrollTop = 0;
     this.sheet.classList.remove('closing');
     this.panelEl.style.transform = '';
     this.panelEl.classList.remove('dragging', 'settle');

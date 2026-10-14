@@ -120,7 +120,7 @@ export function createTodayPanel(c: GameController): Panel {
     return { row, icon, title, m, meta, btn };
   });
   const bonusBtn = h('button', {
-    cls: 'btn primary',
+    cls: 'btn primary dig-bonus',
     attrs: { type: 'button' },
     on: {
       click: () => {

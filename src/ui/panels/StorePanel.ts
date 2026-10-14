@@ -18,7 +18,6 @@ import type { PaymentProvider } from '../payments/PaymentProvider';
 import { formatPrice } from '../payments/PaymentProvider';
 import { toast } from '../Toasts';
 import { burst } from '../motion';
-import { statLabel } from '../labels';
 import { makeRow, section, setBtn, type Panel } from './common';
 
 export function createStorePanel(c: GameController, provider: PaymentProvider): Panel {
@@ -102,7 +101,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
     update();
     return ok;
   }, 'Saves your Daily Treat streak when you miss a day.');
-  el.append(section('\u{1F9CA} Consumables', fRow.el, h('div', { cls: 'row-desc', text: 'Treats can also be bought with ⭐ in the Academy tab.' })));
+  el.append(section('\u{1F9CA} Consumables', fRow.el, h('div', { cls: 'row-desc', text: 'Treats can also be bought with ⭐ in the Pack tab.' })));
 
   function update(): void {
     const s = c.state;
@@ -138,7 +137,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
     for (const { def, row } of shopRows) {
       const lvl = s.premium.shop[def.id] ?? 0;
       const locked = tier < def.requiredTier;
-      setText(row.desc, `${statLabel(def.stat, def.perLevel)}${def.maxLevel === 1 ? '' : ' per level'} • ${def.description}`);
+      setText(row.desc, def.description);
       setText(row.meta, locked ? `\u{1F512} Requires ${VIP_TIERS[def.requiredTier]?.name ?? 'higher'} tier` : `Lv ${lvl}/${def.maxLevel}`);
       setClass(row.el, 'locked', locked);
       const cost = premiumCost(s, def.id);

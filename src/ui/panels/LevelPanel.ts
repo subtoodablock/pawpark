@@ -10,7 +10,7 @@ export function createLevelPanel(c: GameController): Panel {
   const title = h('div', { cls: 'row-title' });
   const m = meter('goal');
   const meta = h('div', { cls: 'row-meta' });
-  el.append(section('\u{1F3C5} Park Level', h('div', { cls: 'card' }, big, title, m.el, meta, h('div', { cls: 'row-desc', text: 'Based on lifetime earnings. It never goes down, even when you open a new park.' }))));
+  el.append(section('Your level', h('div', { cls: 'card' }, big, title, m.el, meta, h('div', { cls: 'row-desc', text: 'Based on lifetime earnings. It never goes down, even when you open a new park.' }))));
 
   // titles list: derived through parkTitle so the data shape does not matter
   const maxLevel = PARK_LEVEL_THRESHOLDS.length;

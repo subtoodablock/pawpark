@@ -1842,3 +1842,9 @@ strong {
   height: 22px;
   accent-color: var(--accent, #4a8fe7);
 }
+
+.btn.dig-bonus {
+  display: block;
+  width: 100%;
+  margin-top: var(--sp-3);
+}
