@@ -1,4 +1,4 @@
-import type { DerivedStats, GameState, Stat, StatMode, TreatEffect, UpgradeDef } from './types';
+import type { AutomationKey, DerivedStats, GameState, Stat, StatMode, TreatEffect, UpgradeDef } from './types';
 import {
   ACADEMY,
   BASE_ADOPTION_CAP,
@@ -6,6 +6,8 @@ import {
   BASE_COLLAR_BONUS,
   BASE_DIG_PER_MIN,
   BASE_FLEET_SLOTS,
+  BASE_MAIL_CAPACITY,
+  BASE_RESCUE_PER_MIN,
   BASE_MAX_ZOOMIES,
   BASE_OFFLINE_HOURS,
   BASE_SPIRIT_PAW_BONUS,
@@ -74,6 +76,8 @@ function treatMultFor(state: GameState): Record<TreatEffect, number> {
   return m;
 }
 
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
 export function computeStats(state: GameState): DerivedStats {
   const treatMult = treatMultFor(state);
 
@@ -129,10 +133,22 @@ export function computeStats(state: GameState): DerivedStats {
   const adoptionRefill =
     (BASE_ADOPTION_REFILL + statValue(state, 'adoptionRefill')) * treatMult.adoption;
   const rescuePerSec =
-    ((builtKennels * statValue(state, 'rescueRate')) / SECONDS_PER_MIN) * treatMult.adoption;
+    ((builtKennels * (BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate'))) / SECONDS_PER_MIN) *
+    treatMult.adoption;
 
   const offlineCapSec =
     (BASE_OFFLINE_HOURS + statValue(state, 'offlineHours')) * SECONDS_PER_HOUR;
+
+  const mailCapacity = BASE_MAIL_CAPACITY + Math.floor(statValue(state, 'mailCapacity'));
+  const squirrelHoundChance = clamp01(statValue(state, 'squirrelHound'));
+  const autoWhistleFrac = clamp01(statValue(state, 'autoWhistle'));
+  const automationUnlocked: Record<AutomationKey, boolean> = {
+    find: true,
+    build: statValue(state, 'autoBuild') >= 1,
+    training: statValue(state, 'autoTraining') >= 1,
+    whistle: autoWhistleFrac > 0,
+    prestige: statValue(state, 'autoPrestige') >= 1,
+  };
 
   const prestigeGain = Math.floor(
     Math.pow(Math.max(0, state.runEarnings) / PRESTIGE_DIVISOR, PRESTIGE_EXPONENT),
@@ -161,6 +177,10 @@ export function computeStats(state: GameState): DerivedStats {
     adoptionRefill,
     rescuePerSec,
     offlineCapSec,
+    mailCapacity,
+    squirrelHoundChance,
+    autoWhistleFrac,
+    automationUnlocked,
     totalTrainingLevels: totalTrainingLevels(state),
     prestigeGain,
   };

@@ -8,7 +8,8 @@ export {
   costMultiplier,
   totalTrainingLevels,
 } from './stats';
-export { tick } from './tick';
+export { tick, stepSimulation } from './tick';
+export { runAutomation } from './automation';
 export { applyOfflineProgress } from './offline';
 export {
   adopt,
@@ -27,6 +28,9 @@ export {
   buyTreat,
   catchSquirrel,
   openMail,
+  openAllMail,
+  setAutomation,
+  setAutoPrestigeThreshold,
   prestige,
 } from './actions';
 export {

@@ -8,7 +8,7 @@ describe('stat modes', () => {
     expect(statMode('squirrelRate')).toBe('mult');
     expect(statMode('fleetSlots')).toBe('add');
     expect(statMode('fleetDiscount')).toBe('add');
-    expect(Object.keys(STAT_MODES)).toHaveLength(18);
+    expect(Object.keys(STAT_MODES)).toHaveLength(23);
   });
 });
 
@@ -92,9 +92,9 @@ describe('computeStats', () => {
     s.runEarnings = PRESTIGE_DIVISOR * 1024; // (1024)^0.4 = 16
     const d = computeStats(s);
     expect(d.adoptionCap).toBe(90);
-    expect(d.adoptionRefill).toBeCloseTo((1 + 1) * 10, 10);
-    expect(d.rescuePerSec).toBeCloseTo((1 * 10) / 60 * 10, 10);
-    expect(d.offlineCapSec).toBeCloseTo(3 * 3600, 6);
+    expect(d.adoptionRefill).toBeCloseTo((1 + 1) * 5, 10);
+    expect(d.rescuePerSec).toBeCloseTo((1 * (2 + 10)) / 60 * 5, 10);
+    expect(d.offlineCapSec).toBeCloseTo(16 * 3600, 6);
     expect(d.prestigeGain).toBe(16);
   });
 

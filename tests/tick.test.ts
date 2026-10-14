@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats, tick, TROPHIES } from '../src/core';
+import { BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC, START_GOLDEN_BONES, computeStats, tick } from '../src/core';
 import type { GameState } from '../src/core';
 import { constRng, newState, seeded } from './helpers';
 
@@ -76,17 +76,34 @@ describe('tick', () => {
     expect(s.treats).toHaveLength(0);
   });
 
-  it('arrives mail once and does not stack', () => {
+  it('accumulates mail up to the mailbox capacity', () => {
     const s = newState();
     s.squirrelTimer = 1e9;
     s.mailTimer = 1;
     const ev = tick(s, 2, constRng(0.5));
     expect(ev).toContainEqual({ type: 'mailArrived' });
-    expect(s.mailReady).toBe(true);
-    expect(s.mailTimer).toBe(300);
+    expect(s.mailCount).toBe(1);
+    expect(s.mailTimer).toBeCloseTo(MAIL_INTERVAL_SEC - 1, 8);
+    for (let i = 0; i < 5; i++) {
+      s.mailTimer = 1;
+      tick(s, 2, constRng(0.5));
+    }
+    expect(s.mailCount).toBe(BASE_MAIL_CAPACITY);
     s.mailTimer = 1;
     expect(tick(s, 2, constRng(0.5)).some((e) => e.type === 'mailArrived')).toBe(false);
-    expect(s.mailReady).toBe(true);
+    s.academy = { bigger_mailbox: 2 };
+    s.mailTimer = 1;
+    tick(s, 2, constRng(0.5));
+    expect(s.mailCount).toBe(BASE_MAIL_CAPACITY + 1);
+  });
+
+  it('delivers several letters for one long step', () => {
+    const s = newState();
+    s.squirrelTimer = 1e9;
+    s.mailTimer = 10;
+    tick(s, 2 * MAIL_INTERVAL_SEC + 10, constRng(0.5));
+    expect(s.mailCount).toBe(3);
+    expect(s.mailTimer).toBeCloseTo(MAIL_INTERVAL_SEC, 6);
   });
 
   it('awards trophies once, with collars', () => {
@@ -94,11 +111,12 @@ describe('tick', () => {
     s.squirrelTimer = 1e9;
     s.mailTimer = 1e9;
     s.kennels = [17, 17, 17, 17];
-    s.pups = TROPHIES[1].pupsRequired + 1; // 100k: first two trophies
+    s.pups = 1e5 + 1; // pack_1k, pack_10k, pack_100k
     const ev = tick(s, 0.1, constRng(0.5));
-    expect(ev.filter((e) => e.type === 'trophy')).toHaveLength(2);
-    expect(s.trophies).toEqual(['pack_10k', 'pack_100k']);
+    expect(ev.filter((e) => e.type === 'trophy')).toHaveLength(3);
+    expect(s.trophies).toEqual(['pack_1k', 'pack_10k', 'pack_100k']);
     expect(s.legendCollars).toBe(2);
+    expect(s.goldenBones).toBe(START_GOLDEN_BONES + 5);
     expect(tick(s, 0.1, constRng(0.5)).filter((e) => e.type === 'trophy')).toHaveLength(0);
     expect(s.legendCollars).toBe(2);
   });
@@ -151,7 +169,7 @@ describe('squirrels', () => {
     expect(s.squirrels[0].reward).toEqual({ kind: 'goldenBones', amount: 3 });
     s.squirrelTimer = 0;
     tick(s, 0.1, constRng(0.99, 0, 0.5)); // treat 0 -> bacon at half duration
-    expect(s.squirrels[1].reward).toEqual({ kind: 'treat', treatId: 'bacon_strip', durationSec: 900 });
+    expect(s.squirrels[1].reward).toEqual({ kind: 'treat', treatId: 'bacon_strip', durationSec: 7200 });
   });
 
   it('respects the active squirrel limit and expires old ones', () => {

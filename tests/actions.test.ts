@@ -188,10 +188,10 @@ describe('academy', () => {
     expect(buyAcademy(s, 'epic_digging').ok).toBe(true);
     expect(s.goldenBones).toBe(5);
     expect(s.academy.epic_digging).toBe(1);
-    expect(academyCost(s, 'epic_digging')).toBe(7); // ceil(6.5)
+    expect(academyCost(s, 'epic_digging')).toBe(6); // ceil(5.9)
     s.goldenBones = 1e9;
-    for (let i = 0; i < 30; i++) buyAcademy(s, 'epic_digging');
-    expect(s.academy.epic_digging).toBe(20);
+    for (let i = 0; i < 60; i++) buyAcademy(s, 'epic_digging');
+    expect(s.academy.epic_digging).toBe(50);
     expect(academyCost(s, 'epic_digging')).toBeNull();
     expect(buyAcademy(s, 'epic_digging').ok).toBe(false);
   });
@@ -209,20 +209,20 @@ describe('treats', () => {
     const s = newState();
     s.goldenBones = 100;
     expect(buyTreat(s, 'bacon_strip').ok).toBe(true);
-    expect(s.goldenBones).toBe(75);
-    expect(s.treats).toEqual([{ id: 'bacon_strip', remaining: 1800 }]);
+    expect(s.goldenBones).toBe(60);
+    expect(s.treats).toEqual([{ id: 'bacon_strip', remaining: 14400 }]);
     s.treats[0].remaining = 100;
     buyTreat(s, 'bacon_strip');
-    expect(s.treats).toEqual([{ id: 'bacon_strip', remaining: 1900 }]);
+    expect(s.treats).toEqual([{ id: 'bacon_strip', remaining: 14500 }]);
     expect(computeStats(s).treatMult.earnings).toBe(2);
   });
   it('fails when unaffordable or unknown', () => {
     const s = newState();
-    s.goldenBones = 24;
+    s.goldenBones = 39;
     expect(buyTreat(s, 'bacon_strip').ok).toBe(false);
     expect(buyTreat(s, 'nope').ok).toBe(false);
     expect(s.treats).toEqual([]);
-    expect(s.goldenBones).toBe(24);
+    expect(s.goldenBones).toBe(39);
     expect(TREATS).toHaveLength(3);
   });
 });
@@ -303,17 +303,16 @@ describe('mail', () => {
   });
   it('rolls bones, cash, treat', () => {
     const s = newState();
-    s.mailReady = true;
+    s.mailCount = 3;
     expect(openMail(s, constRng(0.1, 0.999))).toEqual({ kind: 'goldenBones', amount: 10 });
     expect(s.goldenBones).toBe(20);
-    expect(s.mailReady).toBe(false);
+    expect(s.mailCount).toBe(2);
     expect(s.stats.mailOpened).toBe(1);
-    s.mailReady = true;
     expect(openMail(s, constRng(0.6))).toEqual({ kind: 'cash', amount: 300 });
     expect(s.cash).toBe(300);
-    s.mailReady = true;
-    expect(openMail(s, constRng(0.9, 0.5))).toEqual({ kind: 'treat', treatId: 'peanut_kong', durationSec: 600 });
+    expect(openMail(s, constRng(0.9, 0.5))).toEqual({ kind: 'treat', treatId: 'peanut_kong', durationSec: 14400 });
     expect(s.treats).toHaveLength(1);
+    expect(s.mailCount).toBe(0);
     expect(openMail(s)).toBeNull();
   });
 });
@@ -347,8 +346,10 @@ describe('prestige', () => {
     s.spiritPaws = 4;
     s.legendCollars = 2;
     s.trophies = ['pack_10k'];
-    s.mailReady = true;
+    s.mailCount = 2;
     s.mailTimer = 42;
+    s.runTimeSec = 5000;
+    s.automation = { find: true, build: true, training: false, whistle: false, prestige: true, prestigeThreshold: 1 };
     s.stats.totalAdopted = 999;
     s.notifiedFinds = [4];
 
@@ -376,8 +377,11 @@ describe('prestige', () => {
     expect(s.highestFindIndex).toBe(5);
     expect(s.lifetimeEarnings).toBe(5e10);
     expect(s.stats.totalAdopted).toBe(999);
-    expect(s.mailReady).toBe(true);
+    expect(s.mailCount).toBe(2);
     expect(s.mailTimer).toBe(42);
+    expect(s.runTimeSec).toBe(0);
+    expect(s.automation.build).toBe(true);
+    expect(s.automation.prestigeThreshold).toBe(1);
   });
   it('earnings bonus rises after prestige', () => {
     const s = newState();

@@ -1,6 +1,7 @@
-import type { GameState } from './types';
+import type { AutomationKey, GameState } from './types';
 import {
   ACADEMY,
+  AUTO_PRESTIGE_THRESHOLDS,
   FINDS,
   KENNELS,
   KENNEL_SLOTS,
@@ -12,6 +13,7 @@ import {
   VEHICLES,
 } from '../data';
 import { createInitialState } from './state';
+import { computeStats } from './stats';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -20,7 +22,7 @@ const NUMERIC_KEYS = [
   'cash', 'pups', 'adoptionStock', 'findIndex', 'highestFindIndex', 'goldenBones',
   'spiritPaws', 'legendCollars', 'zoomies', 'zoomieIdle', 'squirrelTimer',
   'nextSquirrelId', 'mailTimer', 'runEarnings', 'lifetimeEarnings', 'prestigeCount',
-  'createdAt', 'lastSaved',
+  'createdAt', 'lastSaved', 'mailCount', 'runTimeSec', 'automationTimer',
 ] as const;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -58,15 +60,16 @@ export function deserialize(json: string): GameState | null {
   } catch {
     return null;
   }
-  if (!isObj(parsed) || parsed.version !== SAVE_VERSION) return null;
+  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 1)) return null;
   for (const k of NUMERIC_KEYS) {
     if (k in parsed && !isNum(parsed[k])) return null;
   }
 
+  const fromV1 = parsed.version === 1;
   const base = createInitialState(Date.now());
   const merged = { ...base, ...parsed } as GameState;
 
-  merged.version = SAVE_VERSION as 1;
+  merged.version = SAVE_VERSION as 2;
   merged.kennels = cleanSlots(parsed.kennels ?? base.kennels, KENNEL_SLOTS, KENNELS.length);
   merged.vehicles = cleanSlots(parsed.vehicles ?? base.vehicles, MAX_FLEET_SLOTS, VEHICLES.length);
   merged.training = cleanLevels(parsed.training, TRAINING);
@@ -97,7 +100,28 @@ export function deserialize(json: string): GameState | null {
           typeof q.reward.kind === 'string',
       ) as unknown as GameState['squirrels'])
     : [];
-  merged.mailReady = parsed.mailReady === true;
+  delete (merged as unknown as Record<string, unknown>).mailReady;
+  merged.mailCount = fromV1
+    ? parsed.mailReady === true ? 1 : 0
+    : Math.max(0, Math.floor(isNum(parsed.mailCount) ? parsed.mailCount : 0));
+  merged.mailCount = Math.min(merged.mailCount, computeStats(merged).mailCapacity);
+  merged.runTimeSec = fromV1 ? 0 : Math.max(0, merged.runTimeSec);
+  merged.automationTimer = fromV1 ? 0 : merged.automationTimer;
+  merged.endgameReached = parsed.endgameReached === true;
+
+  // automation: defaults for v1; for v2 take valid booleans. Locked keys are forced off.
+  const unlocked = computeStats(merged).automationUnlocked;
+  const rawAuto = isObj(parsed.automation) ? parsed.automation : {};
+  const auto = { ...base.automation };
+  for (const k of ['find', 'build', 'training', 'whistle', 'prestige'] as AutomationKey[]) {
+    auto[k] = typeof rawAuto[k] === 'boolean' ? (rawAuto[k] as boolean) : unlocked[k];
+    if (fromV1) auto[k] = unlocked[k];
+    if (!unlocked[k]) auto[k] = false;
+  }
+  if (isNum(rawAuto.prestigeThreshold) && AUTO_PRESTIGE_THRESHOLDS.includes(rawAuto.prestigeThreshold)) {
+    auto.prestigeThreshold = rawAuto.prestigeThreshold;
+  }
+  merged.automation = auto;
   merged.stats = { ...base.stats, ...(isObj(parsed.stats) ? parsed.stats : {}) };
   for (const k of Object.keys(base.stats) as (keyof GameState['stats'])[]) {
     if (!isNum(merged.stats[k])) merged.stats[k] = base.stats[k];

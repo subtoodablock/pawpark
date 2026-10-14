@@ -1,6 +1,8 @@
-import type { GameState } from './types';
+import type { AutomationSettings, GameState } from './types';
 import {
+  AUTOMATION_INTERVAL_SEC,
   BASE_ADOPTION_CAP,
+  DEFAULT_AUTO_PRESTIGE_THRESHOLD,
   KENNEL_SLOTS,
   MAIL_INTERVAL_SEC,
   MAX_FLEET_SLOTS,
@@ -17,9 +19,20 @@ function emptySlots(n: number): (number | null)[] {
   return slots;
 }
 
+export function defaultAutomation(): AutomationSettings {
+  return {
+    find: true,
+    build: false,
+    training: false,
+    whistle: false,
+    prestige: false,
+    prestigeThreshold: DEFAULT_AUTO_PRESTIGE_THRESHOLD,
+  };
+}
+
 export function createInitialState(now: number): GameState {
   return {
-    version: SAVE_VERSION as 1,
+    version: SAVE_VERSION as 2,
     cash: START_CASH,
     pups: 0,
     adoptionStock: BASE_ADOPTION_CAP,
@@ -40,7 +53,11 @@ export function createInitialState(now: number): GameState {
     squirrelTimer: SQUIRREL_INTERVAL_MIN,
     nextSquirrelId: 1,
     mailTimer: MAIL_INTERVAL_SEC,
-    mailReady: false,
+    mailCount: 0,
+    automation: defaultAutomation(),
+    automationTimer: AUTOMATION_INTERVAL_SEC,
+    runTimeSec: 0,
+    endgameReached: false,
     notifiedFinds: [],
     runEarnings: 0,
     lifetimeEarnings: 0,
@@ -62,6 +79,7 @@ export function resetForPrestige(state: GameState): void {
   state.zoomies = 0;
   state.zoomieIdle = 0;
   state.runEarnings = 0;
+  state.runTimeSec = 0;
   state.treats = [];
   state.squirrels = [];
   state.notifiedFinds = [];

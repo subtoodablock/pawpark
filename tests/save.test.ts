@@ -25,7 +25,8 @@ describe('save', () => {
     expect(deserialize('42')).toBeNull();
     expect(deserialize('null')).toBeNull();
     expect(deserialize('{}')).toBeNull();
-    expect(deserialize(JSON.stringify({ ...newState(), version: 2 }))).toBeNull();
+    expect(deserialize(JSON.stringify({ ...newState(), version: 3 }))).toBeNull();
+    expect(deserialize('{"version":2,"mailCount":"x"}')).toBeNull();
     expect(deserialize('{"version":1,"cash":"lots"}')).toBeNull();
     expect(deserialize('{"version":1,"cash":null}')).toBeNull();
     expect(deserialize('{"version":1,"pups":1e999}')).toBeNull();
@@ -40,7 +41,7 @@ describe('save', () => {
     expect(g.vehicles.slice(0, 4)).toEqual([2, 0, 1, null]);
     expect(g.goldenBones).toBe(10);
     expect(g.stats.totalTaps).toBe(0);
-    expect(g.mailTimer).toBe(300);
+    expect(g.mailTimer).toBe(1800);
     const long = deserialize(JSON.stringify({ ...newState(), kennels: [0, 0, 0, 0, 0, 0] }))!;
     expect(long.kennels).toHaveLength(KENNEL_SLOTS);
   });

@@ -1,6 +1,7 @@
-import type { ActionResult, FindDef, GameState, RewardResult, Rng } from './types';
+import type { ActionResult, AutomationKey, FindDef, GameState, RewardResult, Rng } from './types';
 import {
   ACADEMY,
+  AUTO_PRESTIGE_THRESHOLDS,
   FINDS,
   KENNELS,
   KENNEL_SLOTS,
@@ -177,6 +178,14 @@ export function buyTraining(state: GameState, id: string, levels = 1): ActionRes
   return OK;
 }
 
+/** Academy stats whose first level unlocks (and switches on) an automation. */
+const AUTOMATION_UNLOCK_STATS: Partial<Record<string, AutomationKey>> = {
+  autoBuild: 'build',
+  autoTraining: 'training',
+  autoWhistle: 'whistle',
+  autoPrestige: 'prestige',
+};
+
 export function buyAcademy(state: GameState, id: string): ActionResult {
   const def = ACADEMY.find((d) => d.id === id);
   if (!def) return fail('Unknown academy course.');
@@ -184,7 +193,10 @@ export function buyAcademy(state: GameState, id: string): ActionResult {
   if (cost === null) return fail('Already at max level.');
   if (state.goldenBones < cost) return fail('Not enough Golden Bones.');
   state.goldenBones -= cost;
-  state.academy[id] = (state.academy[id] ?? 0) + 1;
+  const level = (state.academy[id] ?? 0) + 1;
+  state.academy[id] = level;
+  const key = AUTOMATION_UNLOCK_STATS[def.stat];
+  if (key && level === 1) state.automation[key] = true;
   return OK;
 }
 
@@ -232,8 +244,8 @@ export function catchSquirrel(state: GameState, squirrelId: number): RewardResul
 }
 
 export function openMail(state: GameState, rng: Rng = Math.random): RewardResult | null {
-  if (!state.mailReady) return null;
-  state.mailReady = false;
+  if (!(state.mailCount > 0)) return null;
+  state.mailCount -= 1;
   state.stats.mailOpened += 1;
   const roll = rng();
   if (roll < MAIL_BONES_CHANCE) {
@@ -249,6 +261,34 @@ export function openMail(state: GameState, rng: Rng = Math.random): RewardResult
   const def = TREATS[Math.floor(rng() * TREATS.length)];
   addTreat(state, def.id, def.durationSec);
   return { kind: 'treat', treatId: def.id, durationSec: def.durationSec };
+}
+
+export function openAllMail(state: GameState, rng: Rng = Math.random): RewardResult[] {
+  const out: RewardResult[] = [];
+  while (state.mailCount > 0) {
+    const r = openMail(state, rng);
+    if (!r) break;
+    out.push(r);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- automation settings
+
+const AUTOMATION_KEYS: readonly AutomationKey[] = ['find', 'build', 'training', 'whistle', 'prestige'];
+
+export function setAutomation(state: GameState, key: AutomationKey, enabled: boolean): ActionResult {
+  if (!AUTOMATION_KEYS.includes(key)) return fail('Unknown automation.');
+  if (typeof enabled !== 'boolean') return fail('Invalid setting.');
+  if (!computeStats(state).automationUnlocked[key]) return fail('This helper is not unlocked yet.');
+  state.automation[key] = enabled;
+  return OK;
+}
+
+export function setAutoPrestigeThreshold(state: GameState, t: number): ActionResult {
+  if (!AUTO_PRESTIGE_THRESHOLDS.includes(t)) return fail('Invalid threshold.');
+  state.automation.prestigeThreshold = t;
+  return OK;
 }
 
 // ---------------------------------------------------------------- prestige
