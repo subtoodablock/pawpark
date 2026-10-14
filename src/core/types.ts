@@ -90,6 +90,8 @@ export interface FindDef {
   unlockParkValue: number;
   /** Golden Bones granted the first time this find is ever reached */
   unlockReward: number;
+  /** v4: multiplier on every cash price (training, kennels, vehicles) during this Find's era. Stick = 1 */
+  costScale: number;
 }
 
 export type TreatEffect = 'earnings' | 'layRate' | 'adoption';
@@ -161,7 +163,7 @@ export interface GameStats {
 }
 
 export interface GameState {
-  version: 3;
+  version: 4;
   cash: number;
   pups: number;
   adoptionStock: number;
@@ -240,6 +242,8 @@ export interface DerivedStats {
   parkLevel: number;
   parkTitle: string;
   vipTier: number; // 0..VIP_TIERS.length-1
+  // v4
+  costScale: number; // FINDS[findIndex].costScale
   modifier: DailyModifierDef | null;
   totalTrainingLevels: number;
   prestigeGain: number; // spirit paws if prestiged now

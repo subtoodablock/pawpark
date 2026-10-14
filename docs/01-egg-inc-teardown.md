@@ -71,8 +71,11 @@ whole active-play skill, and it is simple to read.
 ### 2.6 Egg types (value ladder / "eras")
 - Edible → Superfood → Medical → Rocket Fuel → … → Universe egg. Each step is
   ~×4–5 in value.
-- Each next egg unlocks when **Farm Value** passes a threshold. Upgrading keeps
-  your chickens and habs, and income jumps.
+- Each next egg unlocks when **Farm Value** passes a threshold. Upgrading
+  **restarts the farm** on the new egg: you rebuild with the same habs,
+  vehicles and research, at higher prices, but each egg sells for much more.
+  (This doc said earlier that upgrading keeps the farm. That was wrong; see
+  `08-find-eras.md`.)
 - Each egg is a mini-era with new visuals and a new milestone, which keeps the
   sense of progress going.
 
