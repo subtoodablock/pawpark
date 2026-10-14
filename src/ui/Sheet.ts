@@ -6,6 +6,8 @@ export interface TabDef {
   icon: string;
   label: string;
   panel: Panel;
+  /** no tab-bar button; opened via openById (e.g. from a HUD chip) */
+  hidden?: boolean;
 }
 
 /** Bottom tab bar + slide-up sheet. */
@@ -23,6 +25,7 @@ export class Sheet {
     this.sheet.hidden = true;
     this.tabbar = h('nav', { cls: 'tabbar' });
     for (const t of tabs) {
+      if (t.hidden) continue;
       const b = h(
         'button',
         { cls: 'tab', attrs: { type: 'button' }, on: { click: () => this.open(this.active === t ? null : t) } },
@@ -36,7 +39,10 @@ export class Sheet {
 
   open(t: TabDef | null): void {
     this.active = t;
-    for (const tab of this.tabs) setClass(this.buttons.get(tab.id)!, 'on', tab === t);
+    for (const tab of this.tabs) {
+      const b = this.buttons.get(tab.id);
+      if (b) setClass(b, 'on', tab === t);
+    }
     if (!t) {
       this.sheet.hidden = true;
       return;
@@ -46,6 +52,11 @@ export class Sheet {
     this.sheet.hidden = false;
     this.body.scrollTop = 0;
     t.panel.update();
+  }
+
+  setBadge(id: string, on: boolean): void {
+    const b = this.buttons.get(id);
+    if (b) setClass(b, 'badge', on);
   }
 
   openById(id: string): void {

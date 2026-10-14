@@ -17,6 +17,7 @@ import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
+import { createShareCard } from '../share';
 import { section, type Panel } from './common';
 
 export function createParkPanel(c: GameController): Panel {
@@ -44,6 +45,9 @@ export function createParkPanel(c: GameController): Panel {
     return { i, row, meta, f };
   });
   el.append(section('\u{1F9B4} Finds', nfCard, h('div', { cls: 'ladder' }, ...ladder.map((l) => l.row))));
+
+  const shareCard = createShareCard(c);
+  el.append(section('\u{1F4E4} Share', shareCard.el));
 
   // ---- prestige
   const prInfo = h('div', { cls: 'row-desc' });
@@ -224,6 +228,8 @@ export function createParkPanel(c: GameController): Panel {
       setClass(l.row, 'unseen', !seen && !cur);
       setText(l.meta, cur ? 'current' : seen ? `${formatMoney(l.f.value)}` : `Park ${formatMoney(l.f.unlockParkValue)}`);
     }
+
+    shareCard.update();
 
     // prestige
     const gain = d.prestigeGain;

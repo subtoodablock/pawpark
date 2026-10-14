@@ -57,7 +57,7 @@ export function createTrainingPanel(c: GameController): Panel {
       setText(t.lock, unlocked ? '' : `\u{1F512} Buy ${formatNumber(Math.max(0, t.unlockAt - total))} more levels to unlock`);
       for (const { def, row } of t.rows) {
         const lvl = s.training[def.id] ?? 0;
-        setText(row.desc, `${statLabel(def.stat, def.perLevel)} per level • ${def.description}`);
+        setText(row.desc, `${statLabel(def.stat, def.perLevel)}${def.maxLevel === 1 ? '' : ' per level'} • ${def.description}`);
         setText(row.meta, `Lv ${lvl}/${def.maxLevel}`);
         setClass(row.el, 'locked', !unlocked);
         setHidden(row.btn, false);

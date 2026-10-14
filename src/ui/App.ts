@@ -11,6 +11,11 @@ import { createAcademyPanel } from './panels/AcademyPanel';
 import { createFleetPanel } from './panels/FleetPanel';
 import { createKennelsPanel } from './panels/KennelsPanel';
 import { createPackPanel } from './panels/PackPanel';
+import type { Panel } from './panels/common';
+import { createLevelPanel } from './panels/LevelPanel';
+import { createStorePanel } from './panels/StorePanel';
+import { createTodayPanel, treatReady } from './panels/TodayPanel';
+import { MockProvider } from './payments/MockProvider';
 import { createParkPanel } from './panels/ParkPanel';
 import { createTrainingPanel } from './panels/TrainingPanel';
 
@@ -21,14 +26,30 @@ export function startApp(root: HTMLElement): GameController {
   hud.onAdopt = () => scene.bounce();
   hud.onFindUpgraded = (icon) => toast(`${icon} New find unlocked!`, 'gold');
 
+  const pack = createPackPanel(controller, () => academyEl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  const academy = createAcademyPanel(controller);
+  const academyEl = academy.el;
+  // Pack lives inside the Academy tab (7 tabs do not fit 360px)
+  const packAcademy: Panel = {
+    el: h('div', { cls: 'panel-stack' }, pack.el, academy.el),
+    update: () => {
+      pack.update();
+      academy.update();
+    },
+  };
+
   const sheet: Sheet = new Sheet([
+    { id: 'today', icon: '\u{1F4C5}', label: 'Today', panel: createTodayPanel(controller) },
     { id: 'training', icon: '\u{1F393}', label: 'Training', panel: createTrainingPanel(controller) },
     { id: 'kennels', icon: '\u{1F3E0}', label: 'Kennels', panel: createKennelsPanel(controller) },
     { id: 'fleet', icon: '\u{1F69A}', label: 'Fleet', panel: createFleetPanel(controller) },
-    { id: 'pack', icon: '\u{1F415}‍\u{1F9BA}', label: 'Pack', panel: createPackPanel(controller, () => sheet.openById('academy')) },
-    { id: 'academy', icon: '\u{1F9B4}', label: 'Academy', panel: createAcademyPanel(controller) },
-    { id: 'park', icon: '\u{1F3DE}️', label: 'Park', panel: createParkPanel(controller) },
+    { id: 'academy', icon: '\u{1F9B4}', label: 'Pack', panel: packAcademy },
+    { id: 'park', icon: '\u{1F3DE}\uFE0F', label: 'Park', panel: createParkPanel(controller) },
+    { id: 'level', icon: '\u{1F3C5}', label: 'Park Level', panel: createLevelPanel(controller), hidden: true },
+    { id: 'store', icon: '\u2B50', label: 'Kennel Club', panel: createStorePanel(controller, new MockProvider()), hidden: true },
   ]);
+  hud.onOpenLevel = () => sheet.openById('level');
+  hud.onOpenStore = () => sheet.openById('store');
 
   const app = h('div', { cls: 'game' }, hud.top, scene.el, hud.controls, sheet.sheet, sheet.tabbar);
   root.replaceChildren(app);
@@ -52,10 +73,12 @@ export function startApp(root: HTMLElement): GameController {
     if (acc >= 0.25) {
       acc = 0;
       sheet.update();
+      sheet.setBadge('today', treatReady(controller));
     }
   });
   hud.update();
   controller.start();
+  sheet.setBadge('today', treatReady(controller));
   return controller;
 }
 

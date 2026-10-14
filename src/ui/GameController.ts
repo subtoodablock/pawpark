@@ -5,9 +5,11 @@ import {
   TROPHIES,
   applyOfflineProgress,
   createInitialState,
+  dayKeyOf,
   formatNumber,
   loadGame,
   openAllMail,
+  refreshDaily,
   saveGame,
   tick,
 } from '../core';
@@ -94,6 +96,16 @@ export class GameController {
     return rewards;
   }
 
+  /** Local calendar day key. */
+  today(): string {
+    return dayKeyOf(new Date());
+  }
+
+  /** Roll the daily state over to today (digs, modifier) and route any events. */
+  refreshDaily(): void {
+    for (const e of refreshDaily(this._state, this.today())) this.dispatch(e);
+  }
+
   /** Apply offline progress; fires offline callbacks when something noteworthy happened. */
   catchUpOffline(): void {
     const report = applyOfflineProgress(this._state, Date.now());
@@ -116,6 +128,8 @@ export class GameController {
     if (this.running) return;
     this.running = true;
     this.catchUpOffline();
+    this.refreshDaily();
+    window.setInterval(() => this.refreshDaily(), 60_000);
     this.last = performance.now();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
@@ -124,6 +138,7 @@ export class GameController {
         this.acc = 0;
         this.last = performance.now();
         this.catchUpOffline();
+        this.refreshDaily();
       }
     });
     window.addEventListener('beforeunload', () => this.save());
@@ -185,6 +200,12 @@ export class GameController {
         toast(`${t?.icon ?? ''} ${t?.name ?? 'Treat'} wore off.`, 'info');
         break;
       }
+      case 'dailyDigComplete':
+        toast('Daily Dig done! Claim it \u{1F9B4}', 'good', 4500);
+        break;
+      case 'streakMilestone':
+        toast(`\u{1F525} ${e.streak}-day streak! +${e.stars} \u2B50`, 'gold', 5000);
+        break;
       default:
         break;
     }

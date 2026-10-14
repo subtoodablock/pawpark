@@ -20,6 +20,8 @@ export class HUD {
 
   private cash = h('div', { cls: 'cash' });
   private income = h('div', { cls: 'income' });
+  private level = h('button', { cls: 'chip chip-btn', attrs: { type: 'button', title: 'Park Level' } });
+  private stars = h('button', { cls: 'chip chip-btn', attrs: { type: 'button', title: 'Kennel Club: Pup Stars' } });
   private bones = h('span', { cls: 'chip', attrs: { title: 'Golden Bones' } });
   private paws = h('span', { cls: 'chip', attrs: { title: 'Spirit Paws' } });
   private findLine = h('div', { cls: 'find-text' });
@@ -48,6 +50,8 @@ export class HUD {
   private holdTimer: number | null = null;
 
   constructor(private c: GameController) {
+    this.level.addEventListener('click', () => this.onOpenLevel());
+    this.stars.addEventListener('click', () => this.onOpenStore());
     this.upgradePill.addEventListener('click', () => {
       const f = nextFind(c.state);
       if (c.check(upgradeFind(c.state)) && f) this.onFindUpgraded(f.icon);
@@ -55,7 +59,7 @@ export class HUD {
     this.top = h(
       'header',
       { cls: 'hud-top' },
-      h('div', { cls: 'hud-row' }, h('div', { cls: 'cash-col' }, this.cash, this.income), h('div', { cls: 'chips' }, this.bones, this.paws)),
+      h('div', { cls: 'hud-row' }, h('div', { cls: 'cash-col' }, this.cash, this.income), h('div', { cls: 'chips' }, this.level, this.bones, this.paws, this.stars)),
       h('div', { cls: 'find-row' }, this.findLine, this.upgradePill),
       this.goalRow,
     );
@@ -75,6 +79,8 @@ export class HUD {
     );
   }
 
+  onOpenLevel: () => void = () => {};
+  onOpenStore: () => void = () => {};
   /** hook set by App to celebrate */
   onFindUpgraded: (icon: string) => void = () => {};
 
@@ -127,6 +133,8 @@ export class HUD {
     setText(this.cash, formatMoney(s.cash));
     setText(this.income, `+${formatMoney(d.incomePerSec)}/s` + (d.zoomieMult > 1.001 ? ` • ⚡×${d.zoomieMult.toFixed(2)}` : ''));
     setText(this.bones, `\u{1F9B4} ${formatNumber(Math.floor(s.goldenBones))}`);
+    setText(this.level, `Lv ${d.parkLevel}`);
+    setText(this.stars, `\u2B50 ${formatNumber(Math.floor(s.premium.stars))}`);
     setText(this.paws, `\u{1F43E} ${formatNumber(s.spiritPaws)}`);
 
     const f = FINDS[s.findIndex];
