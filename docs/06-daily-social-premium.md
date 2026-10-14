@@ -255,13 +255,13 @@ on day ≥ 10 (its cost went 500 → 600 🦴).
 | Dino Fossil | day 12.6 | 9–16 |
 | Crystal Bone | day 25.2 | 17–28 |
 | Meteorite | day 30.0 | 29–42 |
-| Ancient Relic | day 51.6 | 43–58 |
-| Moon Rock | day 62.6 | 59–75 |
-| Time Bone | day 85.6 | 76–95 |
+| Ancient Relic | day 49.6 | 43–58 |
+| Moon Rock | day 64.8 | 59–75 |
+| Time Bone | day 89.6 | 76–95 |
 | **Cosmic Bone** | **day 110.6** | **95–125** |
-| Retirement Planner bought | day 11.2 | 10–20 |
-| Longest drought | 1.81 d @ day 94.8 | ≤ 3 d |
-| Longest Academy drought | 1.81 d | ≤ 2 d |
+| Retirement Planner bought | day 11.6 | 10–20 |
+| Longest drought | 2.00 d @ day 73.6 | ≤ 3 d |
+| Longest Academy drought | 2.00 d | ≤ 2 d |
 | Free ⭐ earned by day 30 | 115 | ~100–300 |
 
 Everything passes. Free stars: 115 by day 30 (4 × 20 from streak-day-7 bundles,
@@ -272,11 +272,11 @@ buys 1 Star Kibble/Beds level at 100 ⭐ in the first month and 3–4 more later
 | Profile | Cosmic Bone | ratio to AFK+Daily | cap | mean of seeds 1–4 |
 |---|---|---|---|---|
 | AFK+Daily | day 110.6 | 1.00 | day 95–125 | n/a |
-| AFK (no dailies, info) | day 141.0 | 1.28 | none | n/a |
+| AFK (no dailies, info) | day 146.0 | 1.32 | none | n/a |
 | Daily (1 check-in) | day 155.1 | 1.40 | ≤ 1.5 | 1.39 (1.31–1.48) |
-| Active | day 91.2 | 0.82 | ≥ 0.70 | 0.86 |
-| Minnow ($4.99) | day 116.0 | 1.05 | ≥ 0.92 | 1.00 |
-| Whale ($250.96) | day 86.6 | 0.78 | ≥ 0.75 | 0.77 (0.76–0.78) |
+| Active | day 92.6 | 0.84 | ≥ 0.70 | 0.86 |
+| Minnow ($4.99) | day 115.6 | 1.05 | ≥ 0.92 | 1.00 |
+| Whale ($250.96) | day 87.6 | 0.79 | ≥ 0.75 | 0.77 (0.76–0.78) |
 
 Per-find days (seed 12345):
 | Find | AFK+Daily | Daily | Active | Minnow | Whale |
@@ -286,10 +286,10 @@ Per-find days (seed 12345):
 | Dino Fossil | 12.6 | 24.1 | 9.6 | 11.8 | 10.6 |
 | Crystal Bone | 25.2 | 31.1 | 17.0 | 22.6 | 17.0 |
 | Meteorite | 30.0 | 47.1 | 26.8 | 29.8 | 22.2 |
-| Ancient Relic | 51.6 | 65.1 | 35.6 | 44.2 | 33.0 |
-| Moon Rock | 62.6 | 81.1 | 47.6 | 58.8 | 41.2 |
-| Time Bone | 85.6 | 105.1 | 64.6 | 82.6 | 62.6 |
-| Cosmic Bone | 110.6 | 155.1 | 91.2 | 116.0 | 86.6 |
+| Ancient Relic | 49.6 | 66.1 | 36.2 | 47.8 | 35.0 |
+| Moon Rock | 64.8 | 81.1 | 49.6 | 58.6 | 43.0 |
+| Time Bone | 89.6 | 106.1 | 64.6 | 82.8 | 62.6 |
+| Cosmic Bone | 110.6 | 155.1 | 92.6 | 115.6 | 87.6 |
 
 The Whale margin is thin (0.76–0.78). The Minnow is as fast as a free player
 within noise: $4.99 is cosmetic-sized, as intended.
@@ -314,6 +314,6 @@ days.
 | `daily.ts` | modifier multipliers unchanged | Park of the Day alone is worth ≈ −8% days; kept as designed |
 | `daily.ts` PARK_LEVEL_THRESHOLDS / PARK_TITLES | re-fit, 120 levels, 11 titles | §6 |
 | `academy.ts` retirement_planner | baseCost 500 → 600 | Planner was on day 7–9 with the daily bones |
-| `finds.ts` gates 5–12 | 1.1e20→1.62e20, 1e23→1.11e23, 3.3e24→3.6e24, 6e25→5.88e25, 6.6e26→9.78e26, 1.1e28→1.78e28, 3.1e29→4.64e29, 6e30→1.58e31 | re-calibrated to the AFK+Daily pacing |
+| `finds.ts` gates 5–12 | 1.1e20→1.62e20, 1e23→1.11e23, 3.3e24→3.6e24, 6e25→5.88e25, 6.6e26→9.78e26, 1.1e28→2.2e28, 3.1e29→4.64e29, 6e30→1.58e31 | re-calibrated to the AFK+Daily pacing |
 | `premium.ts` VIP earnings | 2/4/6/8/10% → 1/2/3/4/5% | Whale cap |
 | `premium.ts` shop | Kibble/Beds 0.05 → 0.03, Hound 0.1 → 0.03, Spirit 0.005 → 0.002 per level | Whale cap (the squirrel Hound compounds through bones) |
