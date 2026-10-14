@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyOfflineProgress, computeStats, BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC } from '../src/core';
+import { applyOfflineProgress, computeStats, BASE_MAIL_CAPACITY, BASE_OFFLINE_HOURS, MAIL_INTERVAL_SEC } from '../src/core';
 import type { GameState } from '../src/core';
 import { lockGates, newState } from './helpers';
 
@@ -42,14 +42,15 @@ describe('applyOfflineProgress', () => {
 
   it('caps at the Treat Jar size and reports the lost time', () => {
     const s = setup();
-    const r = applyOfflineProgress(s, s.lastSaved + 10 * 3600 * 1000)!;
-    expect(r.elapsedSec).toBe(36000);
-    expect(r.simulatedSec).toBe(8 * 3600);
+    const base = BASE_OFFLINE_HOURS;
+    const r = applyOfflineProgress(s, s.lastSaved + (base + 2) * 3600 * 1000)!;
+    expect(r.elapsedSec).toBe((base + 2) * 3600);
+    expect(r.simulatedSec).toBe(base * 3600);
     expect(r.lostSec).toBe(2 * 3600);
     const t = setup();
     t.academy = { bigger_jar: 4 }; // +8h
-    const r2 = applyOfflineProgress(t, t.lastSaved + 20 * 3600 * 1000)!;
-    expect(r2.simulatedSec).toBe(16 * 3600);
+    const r2 = applyOfflineProgress(t, t.lastSaved + (base + 12) * 3600 * 1000)!;
+    expect(r2.simulatedSec).toBe((base + 8) * 3600);
     expect(r2.lostSec).toBe(4 * 3600);
   });
 

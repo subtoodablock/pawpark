@@ -73,7 +73,7 @@ export const BASE_MAX_CARS = 5;
 /** adding a car to a slot with c cars costs topTierCost * CAR_COST_GROWTH^c */
 export const CAR_COST_GROWTH = 3;
 
-export const BASE_OFFLINE_HOURS = 8;
+export const BASE_OFFLINE_HOURS = 10;
 /** offline simulation runs stepSimulation in chunks of at most this many seconds */
 export const OFFLINE_MAX_CHUNK_SEC = 60;
 export const OFFLINE_MIN_SEC = 5;

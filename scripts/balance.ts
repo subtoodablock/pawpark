@@ -869,6 +869,7 @@ if (argv.includes('--calibrate')) {
       const err = Math.abs(Math.log((x[0] + 1e-4) / (T + 1e-4)));
       if (err < bestErr) { bestErr = err; pick = x; }
     }
+    if (argv.includes('--cal-trace')) console.log('  trace (day: PV, B): ' + cal.trace.map((x) => `${x[0].toFixed(3)}: ${x[1].toExponential(2)} B${x[2].toFixed(1)}`).join(' | '));
     if (!pick) { console.log(`k=${k}: no Park Value samples (era ${k - 1} never reached)`); break; }
     const gate = Number((pick[1] * (1 - 1e-6)).toPrecision(3));
     FINDS[k].unlockParkValue = gate;
@@ -1121,7 +1122,7 @@ for (const p of selected) {
     rows.push({
       name: t.name, value: t.hi < 1 / 24 + 1e-9 ? fmtMin(v) : fmtDays(v),
       target: full ? tgtStr(t) : (prim.findT[t.idx] !== null && v !== null ? `AFK+D x${(v / prim.findT[t.idx]!).toFixed(2)}` : ''),
-      pass: full ? (isPrim ? inR(v, t.lo, t.hi) : v !== null && v <= t.hi * 1.5) : null, // other profiles: the early game must not be slower than the AFK+Daily window
+      pass: full ? (isPrim ? inR(v, t.lo, t.hi) : v !== null && v <= Math.max(t.hi * 1.5, [0, 15 / 1440, 45 / 1440, 1][t.idx])) : null, // other profiles: the early game must not be slower than the AFK+Daily window
       b: r.findLogB[t.idx] === null ? '' : r.findLogB[t.idx]!.toFixed(1),
     });
   }

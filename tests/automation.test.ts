@@ -3,6 +3,7 @@ import {
   applyOfflineProgress,
   AUTOMATION_MAX_BUYS,
   AUTO_PRESTIGE_MIN_RUN_SEC,
+  BASE_OFFLINE_HOURS,
   DEFAULT_AUTO_PRESTIGE_THRESHOLD,
   FINDS,
   MAIL_INTERVAL_SEC,
@@ -443,8 +444,8 @@ describe('long offline with the full Pack', () => {
     const r = applyOfflineProgress(s, s.lastSaved + 72 * 3600 * 1000)!;
     const ms = performance.now() - t0;
     expect(r.elapsedSec).toBe(72 * 3600);
-    expect(r.simulatedSec).toBe(48 * 3600);
-    expect(r.lostSec).toBe(24 * 3600);
+    expect(r.simulatedSec).toBe((BASE_OFFLINE_HOURS + 40) * 3600); // base jar + 20 Bigger Jar levels
+    expect(r.lostSec).toBe((32 - BASE_OFFLINE_HOURS) * 3600);
     expect(r.purchases).toBeGreaterThan(20);
     expect(r.findsUnlocked.length).toBeGreaterThan(0);
     expect(r.prestiges).toBeGreaterThan(0);

@@ -4,7 +4,7 @@ import type { DogShowRewardDef } from '../core/types';
 export const SHOW_REWARDS: DogShowRewardDef[] = [
   { goalFraction: 0.55, goldenBones: 10, collars: 0 },
   { goalFraction: 1.0, goldenBones: 15, treatId: 'bacon_strip', collars: 0 },
-  { goalFraction: 1.55, goldenBones: 25, collars: 1 },
+  { goalFraction: 1.2, goldenBones: 25, collars: 1 },
 ];
 
 export const SHOW_MEDAL_ICONS = ['🥉', '🥈', '🥇'] as const;
