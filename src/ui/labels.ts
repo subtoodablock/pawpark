@@ -191,7 +191,7 @@ export function statTotal(stat: Stat, p: number, level: number): string {
     case 'autoBuild':
     case 'autoTraining':
     case 'autoPrestige':
-      return level >= 1 ? 'ON' : 'OFF';
+      return level >= 1 ? 'Unlocked' : 'Locked';
   }
   return `+${big(t)}`;
 }

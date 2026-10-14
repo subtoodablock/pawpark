@@ -211,7 +211,8 @@ export function createResearchPanel(c: GameController): ResearchPanel {
         { cls: 'rcard-main' },
         h('div', { cls: 'rcard-name', text: def.name }),
         h('div', { cls: 'rcard-desc', text: def.desc }),
-        h('div', { cls: 'rcard-foot' }, h('div', { cls: 'rcard-prog stack' }, stateEl, hintEl), btn),
+        hintEl,
+        h('div', { cls: 'rcard-foot' }, h('div', { cls: 'rcard-prog stack' }, stateEl), btn),
       ),
     );
     epic.append(el);
@@ -300,7 +301,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
         'div',
         { cls: 'rcard-main' },
         h('div', { cls: 'rcard-name', text: def.name }),
-        h('div', { cls: 'rcard-desc' }, `${def.description} `, h('b', { cls: 'hi', text: `×${def.multiplier}` }), ` for ${formatTreatDuration(def.durationSec)}`),
+        h('div', { cls: 'rcard-desc', text: def.description }),
         h('div', { cls: 'rcard-foot' }, stat, h('div', { cls: 'rcard-btns' }, btn, star)),
       ),
     );
@@ -400,7 +401,7 @@ export function createResearchPanel(c: GameController): ResearchPanel {
     }
     for (const { def, stat, btn, star } of trRows) {
       const active = s.treats.find((t) => t.id === def.id);
-      setText(stat, active ? `⏱ Active: ${formatDuration(active.remaining)} left` : 'Not active');
+      setText(stat, active ? `⏱ Active: ${formatDuration(active.remaining)} left` : `×${def.multiplier} for ${formatTreatDuration(def.durationSec)}`);
       setClass(stat, 'on', !!active);
       setBtn(btn, `\u{1F9B4} ${formatNumber(def.cost)}`, s.goldenBones >= def.cost);
       setBtn(star, `⭐ ${formatNumber(def.starCost)}`, s.premium.stars >= def.starCost);

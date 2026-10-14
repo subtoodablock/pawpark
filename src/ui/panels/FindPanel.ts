@@ -243,7 +243,8 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
     }
     let hintText = '';
     if (st === 'next' && f.unlockReward > 0 && s.highestFindIndex < view) hintText = `First time: +${formatNumber(f.unlockReward)} \u{1F9B4} Golden Bones`;
-    else if (st === 'discovered' || st === 'unknown') hintText = `Reach the ${FINDS[view - 1].icon} ${st === 'unknown' ? 'previous' : FINDS[view - 1].name} Era first.`;
+    else if (st === 'discovered') hintText = `Reach the ${FINDS[view - 1].icon} ${FINDS[view - 1].name} Era first.`;
+    else if (st === 'unknown') hintText = 'Locked. Keep climbing the eras.';
     else if (st === 'current' && !nf) hintText = 'Every find discovered!';
     setText(hint, hintText);
     setHidden(hint, hintText === '');
