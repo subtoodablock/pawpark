@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats, statMode, statValue, STAT_MODES, BASE_DIG_PER_MIN, PRESTIGE_DIVISOR } from '../src/core';
+import {
+  ACADEMY, BASE_COLLAR_BONUS, BASE_DIG_PER_MIN, BASE_OFFLINE_HOURS, BASE_SPIRIT_PAW_BONUS, BASE_ZOOMIE_BONUS, FINDS,
+  KENNELS, PRESTIGE_DIVISOR, PRESTIGE_EXPONENT, STAT_MODES, TRAINING, VEHICLES, computeStats, statMode, statValue,
+} from '../src/core';
 import { newState } from './helpers';
+
+/** per-level effect of a training / academy item, read from the data tables */
+const per = (id: string): number => [...TRAINING, ...ACADEMY].find((d) => d.id === id)!.perLevel;
 
 describe('stat modes', () => {
   it('matches the design table', () => {
@@ -17,8 +23,8 @@ describe('statValue', () => {
     const s = newState();
     s.training = { comfy_beds: 5, bigger_holes: 2 };
     s.academy = { epic_digging: 4 };
-    // 1.5 * 1.3 * 1.2
-    expect(statValue(s, 'layRate')).toBeCloseTo(2.34, 10);
+    const expected = (1 + per('comfy_beds') * 5) * (1 + per('bigger_holes') * 2) * (1 + per('epic_digging') * 4);
+    expect(statValue(s, 'layRate')).toBeCloseTo(expected, 10);
   });
   it('sums add sources', () => {
     const s = newState();
@@ -44,23 +50,29 @@ describe('computeStats', () => {
     s.treats = [{ id: 'bacon_strip', remaining: 100 }];
 
     const d = computeStats(s);
-    expect(d.kennelCapacity).toBeCloseTo(750 * 1.5, 8);
+    const lay = (1 + per('comfy_beds') * 5) * (1 + per('bigger_holes') * 2);
+    const fv = 1 + per('premium_kibble') * 3;
+    const paw = BASE_SPIRIT_PAW_BONUS + per('spirit_bond') * 2;
+    const collar = BASE_COLLAR_BONUS ** 2;
+    const bonus = 1 + 10 * paw * collar;
+    const zPer = BASE_ZOOMIE_BONUS + per('zoomie_training') * 3;
+    expect(d.kennelCapacity).toBeCloseTo((KENNELS[0].capacity + KENNELS[1].capacity) * (1 + per('extra_padding') * 10), 8);
     expect(d.builtKennels).toBe(2);
     expect(d.fleetSlots).toBe(4);
-    expect(d.shipPerSec).toBeCloseTo(((300 + 1000) / 60) * 1.2, 8); // 26
-    expect(d.digPerPupPerSec).toBeCloseTo((BASE_DIG_PER_MIN / 60) * 1.95, 10);
-    expect(d.digPerSec).toBeCloseTo(100 * (BASE_DIG_PER_MIN / 60) * 1.95, 8);
+    expect(d.shipPerSec).toBeCloseTo(((VEHICLES[0].capacityPerMin + VEHICLES[1].capacityPerMin) / 60) * (1 + per('tune_ups') * 4), 8);
+    expect(d.digPerPupPerSec).toBeCloseTo((BASE_DIG_PER_MIN / 60) * lay, 10);
+    expect(d.digPerSec).toBeCloseTo(100 * (BASE_DIG_PER_MIN / 60) * lay, 8);
     expect(d.deliveredPerSec).toBeCloseTo(d.digPerSec, 8);
     expect(d.bottleneck).toBe('dig');
-    expect(d.findValue).toBeCloseTo(1.25 * 1.3, 10);
-    expect(d.pawBonus).toBeCloseTo(0.12, 10);
-    expect(d.collarMult).toBeCloseTo(1.1025, 10);
-    expect(d.earningsBonus).toBeCloseTo(1 + 10 * 0.12 * 1.1025, 10); // 2.323
-    expect(d.zoomieBonusPer).toBeCloseTo(0.08, 10);
-    expect(d.zoomieMult).toBeCloseTo(1.8, 10);
+    expect(d.findValue).toBeCloseTo(FINDS[1].value * fv, 10);
+    expect(d.pawBonus).toBeCloseTo(paw, 10);
+    expect(d.collarMult).toBeCloseTo(collar, 10);
+    expect(d.earningsBonus).toBeCloseTo(bonus, 10);
+    expect(d.zoomieBonusPer).toBeCloseTo(zPer, 10);
+    expect(d.zoomieMult).toBeCloseTo(1 + 10 * zPer, 10);
     expect(d.treatMult.earnings).toBe(2);
-    const base = d.digPerSec * 1.625 * 2.323;
-    expect(d.incomePerSec).toBeCloseTo(base * 1.8 * 2, 8);
+    const base = d.digPerSec * FINDS[1].value * fv * bonus;
+    expect(d.incomePerSec).toBeCloseTo(base * (1 + 10 * zPer) * 2, 8);
     expect(d.parkValue).toBeCloseTo(base * 3600, 6);
     expect(d.totalTrainingLevels).toBe(27);
   });
@@ -89,21 +101,21 @@ describe('computeStats', () => {
     s.training = { louder_whistle: 2, quick_refill: 2, rescue_program: 5 };
     s.academy = { bigger_jar: 4 };
     s.treats = [{ id: 'peanut_kong', remaining: 10 }];
-    s.runEarnings = PRESTIGE_DIVISOR * 1024; // (1024)^0.4 = 16
+    s.runEarnings = PRESTIGE_DIVISOR * 1024;
     const d = computeStats(s);
     expect(d.adoptionCap).toBe(90);
     expect(d.adoptionRefill).toBeCloseTo((1 + 1) * 5, 10);
     expect(d.rescuePerSec).toBeCloseTo((1 * (2 + 10)) / 60 * 5, 10);
-    expect(d.offlineCapSec).toBeCloseTo(16 * 3600, 6);
-    expect(d.prestigeGain).toBe(16);
+    expect(d.offlineCapSec).toBeCloseTo((BASE_OFFLINE_HOURS + per('bigger_jar') * 4) * 3600, 6);
+    expect(d.prestigeGain).toBe(Math.floor(1024 ** PRESTIGE_EXPONENT));
   });
 
   it('clamps discounts at 0.25', async () => {
     const { costMultiplier } = await import('../src/core');
     const s = newState();
     s.academy = { kennel_deals: 10 };
-    expect(costMultiplier(s, 'kennelDiscount')).toBeCloseTo(0.5, 10);
-    s.academy = { kennel_deals: 20 };
+    expect(costMultiplier(s, 'kennelDiscount')).toBeCloseTo(1 - per('kennel_deals') * 10, 10);
+    s.academy = { kennel_deals: 1000 };
     expect(costMultiplier(s, 'kennelDiscount')).toBe(0.25);
   });
 

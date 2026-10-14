@@ -6,6 +6,10 @@ import {
   FINDS,
   MAIL_INTERVAL_SEC,
   PRESTIGE_DIVISOR,
+  PRESTIGE_EXPONENT,
+  BASE_MAIL_CAPACITY,
+  SQUIRREL_INTERVAL_MAX,
+  SQUIRREL_INTERVAL_MIN,
   SAVE_KEY,
   buyAcademy,
   computeStats,
@@ -213,17 +217,18 @@ describe('runAutomation: purchases', () => {
 });
 
 describe('auto prestige', () => {
+  const GAIN = Math.floor(1e5 ** PRESTIGE_EXPONENT);
   function ready(): GameState {
     const s = withAutomation({ prestige: true });
-    s.runEarnings = PRESTIGE_DIVISOR * 1e5; // gain 100
+    s.runEarnings = PRESTIGE_DIVISOR * 1e5; // gain GAIN
     s.runTimeSec = AUTO_PRESTIGE_MIN_RUN_SEC;
     return s;
   }
   it('prestiges when gain meets the threshold and the run is old enough', () => {
     const s = ready();
     const ev = runAutomation(s);
-    expect(ev).toContainEqual({ type: 'autoPrestige', gained: 100 });
-    expect(s.spiritPaws).toBe(100);
+    expect(ev).toContainEqual({ type: 'autoPrestige', gained: GAIN });
+    expect(s.spiritPaws).toBe(GAIN);
     expect(s.prestigeCount).toBe(1);
     expect(s.runTimeSec).toBe(0);
     expect(s.automation.prestige).toBe(true);
@@ -236,12 +241,12 @@ describe('auto prestige', () => {
   });
   it('requires gain >= threshold x spiritPaws', () => {
     const s = ready();
-    s.spiritPaws = 400;
-    s.automation.prestigeThreshold = 0.5; // needs 200
+    s.spiritPaws = 4 * GAIN;
+    s.automation.prestigeThreshold = 0.5; // needs 2 x GAIN
     expect(runAutomation(s)).toEqual([]);
-    s.automation.prestigeThreshold = 0.1; // needs 40
-    expect(runAutomation(s)).toContainEqual({ type: 'autoPrestige', gained: 100 });
-    expect(s.spiritPaws).toBe(500);
+    s.automation.prestigeThreshold = 0.1; // needs 0.4 x GAIN
+    expect(runAutomation(s)).toContainEqual({ type: 'autoPrestige', gained: GAIN });
+    expect(s.spiritPaws).toBe(5 * GAIN);
   });
   it('needs at least 1 paw of gain and the toggle on', () => {
     const s = ready();
@@ -303,10 +308,11 @@ describe('mail', () => {
   });
   it('mail accumulates during a long offline stretch up to capacity', () => {
     const s = newState();
-    s.academy = { bigger_mailbox: 2 };
+    s.academy = { bigger_mailbox: 2, bigger_jar: 20 };
     s.mailTimer = MAIL_INTERVAL_SEC;
-    const r = applyOfflineProgress(s, s.lastSaved + 8 * 3600 * 1000)!;
-    expect(r.mailWaiting).toBe(5);
+    expect(48 * 3600 / MAIL_INTERVAL_SEC).toBeGreaterThan(BASE_MAIL_CAPACITY + 2);
+    const r = applyOfflineProgress(s, s.lastSaved + 48 * 3600 * 1000)!;
+    expect(r.mailWaiting).toBe(BASE_MAIL_CAPACITY + 2);
   });
 });
 
@@ -340,17 +346,19 @@ describe('squirrel hound', () => {
   });
   it('resolves squirrels immediately offline', () => {
     const full = newState();
-    full.academy = { squirrel_hound: 10 };
-    const r = applyOfflineProgress(full, full.lastSaved + 3600 * 1000)!;
+    full.academy = { squirrel_hound: 20, bigger_jar: 20 }; // 100% hound, 48 h jar
+    const expected = (48 * 3600) / ((SQUIRREL_INTERVAL_MIN + SQUIRREL_INTERVAL_MAX) / 2);
+    const r = applyOfflineProgress(full, full.lastSaved + 48 * 3600 * 1000)!;
     expect(full.squirrels).toHaveLength(0);
-    expect(r.squirrelsCaught).toBeGreaterThan(30);
-    expect(r.squirrelsCaught).toBeLessThan(90);
+    expect(r.squirrelsCaught).toBeGreaterThan(expected * 0.6);
+    expect(r.squirrelsCaught).toBeLessThan(expected * 1.4);
     expect(full.stats.squirrelsCaught).toBe(r.squirrelsCaught);
     const none = newState();
-    const r0 = applyOfflineProgress(none, none.lastSaved + 3600 * 1000)!;
+    none.academy = { bigger_jar: 20 };
+    const r0 = applyOfflineProgress(none, none.lastSaved + 48 * 3600 * 1000)!;
     expect(r0.squirrelsCaught).toBe(0);
     expect(none.squirrels).toHaveLength(0);
-    expect(none.nextSquirrelId).toBeGreaterThan(30);
+    expect(none.nextSquirrelId).toBeGreaterThan(expected * 0.6);
   });
   it('is deterministic with a seeded rng', () => {
     const run = () => {
@@ -412,7 +420,7 @@ describe('long offline with the full Pack', () => {
     const s = newState();
     s.academy = {
       foreman_pup: 1, head_trainer: 1, retirement_planner: 1, volunteer_walkers: 5,
-      bigger_jar: 20, squirrel_hound: 10,
+      bigger_jar: 20, squirrel_hound: 20,
     };
     s.automation = { find: true, build: true, training: true, whistle: true, prestige: true, prestigeThreshold: 0.5 };
     s.cash = 1000;
@@ -433,8 +441,8 @@ describe('long offline with the full Pack', () => {
     expect(r.prestiges).toBe(s.prestigeCount);
     expect(r.spiritPawsGained).toBe(s.spiritPaws);
     expect(r.goldenBonesGained).toBeGreaterThan(0);
-    expect(r.squirrelsCaught).toBeGreaterThan(1500);
-    expect(r.mailWaiting).toBe(3);
+    expect(r.squirrelsCaught).toBeGreaterThan(((48 * 3600) / SQUIRREL_INTERVAL_MAX) * 0.6);
+    expect(r.mailWaiting).toBe(BASE_MAIL_CAPACITY);
     expect(r.earned).toBeGreaterThan(0);
     expect(r.earned).toBeCloseTo(s.lifetimeEarnings, 3);
     expect(r.trophies.length).toBeGreaterThan(0);
@@ -491,6 +499,6 @@ describe('save migration v1 -> v2', () => {
     expect(SAVE_KEY).toBe('pawpark.save.v1');
   });
   it('clamps mailCount to capacity', () => {
-    expect(deserialize(JSON.stringify({ ...newState(), mailCount: 99 }))!.mailCount).toBe(3);
+    expect(deserialize(JSON.stringify({ ...newState(), mailCount: 99 }))!.mailCount).toBe(BASE_MAIL_CAPACITY);
   });
 });

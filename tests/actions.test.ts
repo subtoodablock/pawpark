@@ -3,8 +3,12 @@ import {
   academyCost, adopt, buyAcademy, buyKennel, buyTraining, buyTreat, buyVehicle,
   catchSquirrel, computeStats, isTrainingTierUnlocked, kennelUpgradeCost, nextFind,
   openMail, prestige, resetForPrestige, trainingCost, trainingMaxBuy, upgradeFind,
-  vehicleUpgradeCost, KENNELS, VEHICLES, FINDS, TRAINING, TREATS, PRESTIGE_DIVISOR,
+  vehicleUpgradeCost, KENNELS, VEHICLES, FINDS, TRAINING, TREATS, PRESTIGE_DIVISOR, PRESTIGE_EXPONENT,
+  BASE_SPIRIT_PAW_BONUS, MAIL_BONES_MAX, MAIL_CASH_SECONDS, ACADEMY,
 } from '../src/core';
+
+const COMFY = TRAINING.find((d) => d.id === 'comfy_beds')!;
+const cost3 = COMFY.baseCost * (1 + COMFY.costGrowth + COMFY.costGrowth ** 2);
 import { constRng, newState } from './helpers';
 
 describe('adopt', () => {
@@ -53,21 +57,21 @@ describe('adopt', () => {
 describe('kennels', () => {
   it('buys the next tier, charging the cost', () => {
     const s = newState();
-    s.cash = 100;
-    expect(kennelUpgradeCost(s, 1)).toBe(50);
+    s.cash = KENNELS[0].cost * 2;
+    expect(kennelUpgradeCost(s, 1)).toBe(KENNELS[0].cost);
     expect(buyKennel(s, 1)).toEqual({ ok: true });
     expect(s.kennels[1]).toBe(0);
-    expect(s.cash).toBe(50);
+    expect(s.cash).toBe(KENNELS[0].cost);
     expect(kennelUpgradeCost(s, 1)).toBe(KENNELS[1].cost);
   });
   it('fails when unaffordable, without mutating', () => {
     const s = newState();
-    s.cash = 49;
+    s.cash = KENNELS[0].cost - 1;
     const r = buyKennel(s, 1);
     expect(r.ok).toBe(false);
     expect(r.reason).toBeTruthy();
     expect(s.kennels[1]).toBeNull();
-    expect(s.cash).toBe(49);
+    expect(s.cash).toBe(KENNELS[0].cost - 1);
   });
   it('fails when maxed or bad slot', () => {
     const s = newState();
@@ -82,7 +86,8 @@ describe('kennels', () => {
   it('applies kennel discount', () => {
     const s = newState();
     s.academy = { kennel_deals: 4 };
-    expect(kennelUpgradeCost(s, 1)).toBeCloseTo(40, 10);
+    const disc = ACADEMY.find((d) => d.id === 'kennel_deals')!.perLevel * 4;
+    expect(kennelUpgradeCost(s, 1)).toBeCloseTo(KENNELS[0].cost * (1 - disc), 10);
   });
 });
 
@@ -119,15 +124,14 @@ describe('training', () => {
   it('buys one level with exponential cost', () => {
     const s = newState();
     s.cash = 1000;
-    expect(trainingCost(s, 'comfy_beds')).toBe(25);
+    expect(trainingCost(s, 'comfy_beds')).toBe(COMFY.baseCost);
     expect(buyTraining(s, 'comfy_beds').ok).toBe(true);
     expect(s.training.comfy_beds).toBe(1);
-    expect(s.cash).toBeCloseTo(975, 10);
-    expect(trainingCost(s, 'comfy_beds')).toBeCloseTo(25 * 1.45, 10);
+    expect(s.cash).toBeCloseTo(1000 - COMFY.baseCost, 10);
+    expect(trainingCost(s, 'comfy_beds')).toBeCloseTo(COMFY.baseCost * COMFY.costGrowth, 10);
   });
   it('buys several levels at once, all or nothing', () => {
     const s = newState();
-    const cost3 = 25 * (1 + 1.45 + 1.45 ** 2);
     s.cash = cost3 - 0.01;
     expect(buyTraining(s, 'comfy_beds', 3).ok).toBe(false);
     expect(s.training.comfy_beds).toBeUndefined();
@@ -138,7 +142,7 @@ describe('training', () => {
   });
   it('Infinity buys as many as affordable, capped by max', () => {
     const s = newState();
-    s.cash = 25 * (1 + 1.45 + 1.45 ** 2) + 1;
+    s.cash = cost3 + 1;
     const preview = trainingMaxBuy(s, 'comfy_beds');
     expect(preview.levels).toBe(3);
     expect(buyTraining(s, 'comfy_beds', Infinity).ok).toBe(true);
@@ -146,7 +150,7 @@ describe('training', () => {
     expect(s.cash).toBeCloseTo(1 + 0, 6);
     s.cash = 1e15;
     buyTraining(s, 'comfy_beds', Infinity);
-    expect(s.training.comfy_beds).toBe(25);
+    expect(s.training.comfy_beds).toBe(COMFY.maxLevel);
     expect(buyTraining(s, 'comfy_beds').ok).toBe(false);
     expect(trainingCost(s, 'comfy_beds')).toBeNull();
     expect(trainingMaxBuy(s, 'comfy_beds')).toEqual({ levels: 0, cost: 0 });
@@ -174,7 +178,8 @@ describe('training', () => {
     expect(buyTraining(s, 'nope').ok).toBe(false);
     expect(trainingCost(s, 'nope')).toBeNull();
     s.academy = { bargain_hunter: 2 };
-    expect(trainingCost(s, 'comfy_beds')).toBeCloseTo(22.5, 10);
+    const disc = ACADEMY.find((d) => d.id === 'bargain_hunter')!.perLevel * 2;
+    expect(trainingCost(s, 'comfy_beds')).toBeCloseTo(COMFY.baseCost * (1 - disc), 10);
   });
   it('every def references a known tier', () => {
     for (const d of TRAINING) expect(d.tier).toBeGreaterThanOrEqual(1);
@@ -232,7 +237,7 @@ describe('find upgrade', () => {
     const s = newState();
     s.pups = 200;
     s.vehicles = [5, 5, 5, 5, ...new Array(8).fill(null)];
-    s.training = { comfy_beds: 25, premium_kibble: 25 };
+    s.training = { comfy_beds: COMFY.maxLevel, premium_kibble: 15 };
     return s;
   }
   it('fails when park value is too low', () => {
@@ -249,12 +254,12 @@ describe('find upgrade', () => {
     expect(upgradeFind(s).ok).toBe(true);
     expect(s.findIndex).toBe(1);
     expect(s.highestFindIndex).toBe(1);
-    expect(s.goldenBones).toBe(bones + 5);
+    expect(s.goldenBones).toBe(bones + FINDS[1].unlockReward);
     // simulate a prestige: back to find 0, record kept
     s.findIndex = 0;
     expect(upgradeFind(s).ok).toBe(true);
     expect(s.findIndex).toBe(1);
-    expect(s.goldenBones).toBe(bones + 5);
+    expect(s.goldenBones).toBe(bones + FINDS[1].unlockReward);
   });
   it('fails at the top find', () => {
     const s = newState();
@@ -304,12 +309,12 @@ describe('mail', () => {
   it('rolls bones, cash, treat', () => {
     const s = newState();
     s.mailCount = 3;
-    expect(openMail(s, constRng(0.1, 0.999))).toEqual({ kind: 'goldenBones', amount: 10 });
-    expect(s.goldenBones).toBe(20);
+    expect(openMail(s, constRng(0.1, 0.999))).toEqual({ kind: 'goldenBones', amount: MAIL_BONES_MAX });
+    expect(s.goldenBones).toBe(10 + MAIL_BONES_MAX);
     expect(s.mailCount).toBe(2);
     expect(s.stats.mailOpened).toBe(1);
-    expect(openMail(s, constRng(0.6))).toEqual({ kind: 'cash', amount: 300 });
-    expect(s.cash).toBe(300);
+    expect(openMail(s, constRng(0.7))).toEqual({ kind: 'cash', amount: MAIL_CASH_SECONDS });
+    expect(s.cash).toBe(MAIL_CASH_SECONDS);
     expect(openMail(s, constRng(0.9, 0.5))).toEqual({ kind: 'treat', treatId: 'peanut_kong', durationSec: 14400 });
     expect(s.treats).toHaveLength(1);
     expect(s.mailCount).toBe(0);
@@ -327,7 +332,8 @@ describe('prestige', () => {
   });
   it('computes gain, resets run state, keeps meta state', () => {
     const s = newState();
-    s.runEarnings = PRESTIGE_DIVISOR * 1e5; // (1e5)^0.4 = 100
+    s.runEarnings = PRESTIGE_DIVISOR * 1e5;
+    const gain = Math.floor(1e5 ** PRESTIGE_EXPONENT);
     s.lifetimeEarnings = 5e10;
     s.cash = 123456;
     s.pups = 200;
@@ -354,8 +360,8 @@ describe('prestige', () => {
     s.notifiedFinds = [4];
 
     const r = prestige(s);
-    expect(r).toEqual({ ok: true, gained: 100 });
-    expect(s.spiritPaws).toBe(104);
+    expect(r).toEqual({ ok: true, gained: gain });
+    expect(s.spiritPaws).toBe(4 + gain);
     expect(s.prestigeCount).toBe(1);
 
     expect(s.cash).toBe(0);
@@ -388,8 +394,8 @@ describe('prestige', () => {
     s.runEarnings = PRESTIGE_DIVISOR * 1e5;
     const before = computeStats(s).earningsBonus;
     const gained = prestige(s).gained!;
-    expect(gained).toBe(Math.floor((1e5) ** 0.4));
-    expect(computeStats(s).earningsBonus).toBeCloseTo(1 + gained * 0.1, 10);
+    expect(gained).toBe(Math.floor((1e5) ** PRESTIGE_EXPONENT));
+    expect(computeStats(s).earningsBonus).toBeCloseTo(1 + gained * BASE_SPIRIT_PAW_BONUS, 10);
     expect(computeStats(s).earningsBonus).toBeGreaterThan(before);
   });
   it('resetForPrestige alone does not award paws', () => {

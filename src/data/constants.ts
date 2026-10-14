@@ -22,8 +22,8 @@ export const ZOOMIE_DECAY_PER_SEC = 10;
 
 export const BASE_SPIRIT_PAW_BONUS = 0.1;
 export const BASE_COLLAR_BONUS = 1.05;
-export const PRESTIGE_DIVISOR = 1e7;
-export const PRESTIGE_EXPONENT = 0.4;
+export const PRESTIGE_DIVISOR = 1e8;
+export const PRESTIGE_EXPONENT = 0.3;
 export const PARK_VALUE_SECONDS = 3600;
 
 export const BASE_OFFLINE_HOURS = 8;
@@ -34,8 +34,8 @@ export const OFFLINE_MIN_CHUNK_SEC = 1;
 export const SECONDS_PER_HOUR = 3600;
 export const SECONDS_PER_MIN = 60;
 
-export const SQUIRREL_INTERVAL_MIN = 45;
-export const SQUIRREL_INTERVAL_MAX = 90;
+export const SQUIRREL_INTERVAL_MIN = 900;
+export const SQUIRREL_INTERVAL_MAX = 1800;
 export const SQUIRREL_LIFETIME_SEC = 7;
 export const MAX_ACTIVE_SQUIRRELS = 2;
 export const MIN_SQUIRREL_CASH_RATE = 1;
@@ -45,15 +45,15 @@ export const SQUIRREL_BONES_CHANCE = 0.95; // 0.6..0.95 = 35% bones, rest treat
 export const SQUIRREL_CASH_SEC_MIN = 30;
 export const SQUIRREL_CASH_SEC_MAX = 90;
 export const SQUIRREL_BONES_MIN = 1;
-export const SQUIRREL_BONES_MAX = 3;
+export const SQUIRREL_BONES_MAX = 4;
 export const SQUIRREL_TREAT_DURATION_FRAC = 0.5;
 
-export const BASE_MAIL_CAPACITY = 3;
-export const MAIL_INTERVAL_SEC = 1800;
-export const MAIL_BONES_CHANCE = 0.5;
+export const BASE_MAIL_CAPACITY = 6;
+export const MAIL_INTERVAL_SEC = 7200;
+export const MAIL_BONES_CHANCE = 0.55;
 export const MAIL_CASH_CHANCE = 0.8; // cumulative; rest = treat
-export const MAIL_BONES_MIN = 3;
-export const MAIL_BONES_MAX = 10;
+export const MAIL_BONES_MIN = 2;
+export const MAIL_BONES_MAX = 7;
 export const MAIL_CASH_SECONDS = 300;
 
 export const MIN_COST_MULTIPLIER = 0.25;

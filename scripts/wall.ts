@@ -14,6 +14,9 @@ const flag = (n: string, d: number) => {
 };
 const MAX_LOG = flag('--maxlog', 15);
 const STEP = flag('--step', 1);
+/** --find f: hold the find at index f (gates beyond it disabled) so the table shows X(B) = parkValue / value_f */
+const HOLD = flag('--find', -1);
+if (HOLD >= 0) for (let i = HOLD + 1; i < FINDS.length; i++) FINDS[i].unlockParkValue = Infinity;
 
 let seed = 777;
 Math.random = () => {
@@ -51,6 +54,7 @@ function freshAutomated(B: number): GameState {
   s.automation.whistle = true;
   s.automation.prestige = false;
   injectBonus(s, B);
+  if (HOLD >= 0) { s.findIndex = HOLD; s.highestFindIndex = HOLD; }
   return s;
 }
 

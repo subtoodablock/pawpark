@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC, START_GOLDEN_BONES, computeStats, tick } from '../src/core';
+import {
+  BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC, SQUIRREL_BONES_MAX, SQUIRREL_INTERVAL_MAX, SQUIRREL_INTERVAL_MIN,
+  START_GOLDEN_BONES, TRAINING, TROPHIES, computeStats, tick,
+} from '../src/core';
 import type { GameState } from '../src/core';
 import { constRng, newState, seeded } from './helpers';
+
+const COMFY_MAX = TRAINING.find((d) => d.id === 'comfy_beds')!.maxLevel;
 
 function productive(): GameState {
   const s = newState();
@@ -115,10 +120,13 @@ describe('tick', () => {
     const ev = tick(s, 0.1, constRng(0.5));
     expect(ev.filter((e) => e.type === 'trophy')).toHaveLength(3);
     expect(s.trophies).toEqual(['pack_1k', 'pack_10k', 'pack_100k']);
-    expect(s.legendCollars).toBe(2);
-    expect(s.goldenBones).toBe(START_GOLDEN_BONES + 5);
+    const earned = ['pack_1k', 'pack_10k', 'pack_100k'].map((id) => TROPHIES.find((t) => t.id === id)!);
+    const collars = earned.reduce((a, t) => a + t.collars, 0);
+    const bones = earned.reduce((a, t) => a + t.goldenBones, 0);
+    expect(s.legendCollars).toBe(collars);
+    expect(s.goldenBones).toBe(START_GOLDEN_BONES + bones);
     expect(tick(s, 0.1, constRng(0.5)).filter((e) => e.type === 'trophy')).toHaveLength(0);
-    expect(s.legendCollars).toBe(2);
+    expect(s.legendCollars).toBe(collars);
   });
 
   it('emits findUpgradeAvailable once per index', () => {
@@ -128,7 +136,7 @@ describe('tick', () => {
     s.runEarnings = 0;
     s.vehicles = [5, 5, 5, 5, ...new Array(8).fill(null)];
     s.pups = 200;
-    s.training = { comfy_beds: 25, premium_kibble: 25 };
+    s.training = { comfy_beds: COMFY_MAX, premium_kibble: 15 };
     expect(computeStats(s).parkValue).toBeGreaterThan(5e4);
     const ev = tick(s, 0.1, constRng(0.5));
     expect(ev).toContainEqual({ type: 'findUpgradeAvailable', findIndex: 1 });
@@ -142,31 +150,31 @@ describe('squirrels', () => {
     const s = newState();
     s.squirrelTimer = 0.5;
     s.mailTimer = 1e9;
-    // reward roll 0.1 -> cash; incomeSeconds rng 0.5 -> 60; interval rng 0 -> 45
+    // reward roll 0.1 -> cash; incomeSeconds rng 0.5 -> 60; interval rng 0 -> the minimum
     const ev = tick(s, 1, constRng(0.1, 0.5, 0));
     expect(ev).toContainEqual({ type: 'squirrelSpawned', squirrelId: 1 });
     expect(s.squirrels).toHaveLength(1);
     expect(s.squirrels[0].reward).toEqual({ kind: 'cash', incomeSeconds: 60 });
     expect(s.squirrels[0].lifetime).toBe(7);
-    expect(s.squirrelTimer).toBeCloseTo(45, 10);
+    expect(s.squirrelTimer).toBeCloseTo(SQUIRREL_INTERVAL_MIN, 10);
     expect(s.nextSquirrelId).toBe(2);
   });
 
   it('timer scales with Squirrel Spotter', () => {
     const s = newState();
-    s.academy = { squirrel_spotter: 10 }; // x2
+    s.academy = { squirrel_spotter: 25 }; // x2
     s.squirrelTimer = 0.5;
     s.mailTimer = 1e9;
     tick(s, 1, constRng(0.1, 0.5, 1));
-    expect(s.squirrelTimer).toBeCloseTo(90 / 2, 6);
+    expect(s.squirrelTimer).toBeCloseTo(SQUIRREL_INTERVAL_MAX / 2, 6);
   });
 
   it('rolls bones and treat rewards', () => {
     const s = newState();
     s.squirrelTimer = 0;
     s.mailTimer = 1e9;
-    tick(s, 0.1, constRng(0.7, 0.99, 0.5)); // bones: randInt(1,3) with .99 -> 3
-    expect(s.squirrels[0].reward).toEqual({ kind: 'goldenBones', amount: 3 });
+    tick(s, 0.1, constRng(0.7, 0.99, 0.5)); // bones: randInt(min, max) with .99 -> max
+    expect(s.squirrels[0].reward).toEqual({ kind: 'goldenBones', amount: SQUIRREL_BONES_MAX });
     s.squirrelTimer = 0;
     tick(s, 0.1, constRng(0.99, 0, 0.5)); // treat 0 -> bacon at half duration
     expect(s.squirrels[1].reward).toEqual({ kind: 'treat', treatId: 'bacon_strip', durationSec: 7200 });

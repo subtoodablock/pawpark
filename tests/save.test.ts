@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clearSave, createInitialState, deserialize, exportSave, importSave, loadGame, saveGame,
-  serialize, SAVE_KEY, KENNEL_SLOTS, MAX_FLEET_SLOTS,
+  serialize, SAVE_KEY, KENNEL_SLOTS, MAX_FLEET_SLOTS, MAIL_INTERVAL_SEC, TRAINING,
 } from '../src/core';
 import { memStorage, newState } from './helpers';
 
@@ -41,7 +41,7 @@ describe('save', () => {
     expect(g.vehicles.slice(0, 4)).toEqual([2, 0, 1, null]);
     expect(g.goldenBones).toBe(10);
     expect(g.stats.totalTaps).toBe(0);
-    expect(g.mailTimer).toBe(1800);
+    expect(g.mailTimer).toBe(MAIL_INTERVAL_SEC);
     const long = deserialize(JSON.stringify({ ...newState(), kennels: [0, 0, 0, 0, 0, 0] }))!;
     expect(long.kennels).toHaveLength(KENNEL_SLOTS);
   });
@@ -55,7 +55,7 @@ describe('save', () => {
       findIndex: 99,
     }))!;
     expect(g.kennels).toEqual([null, null, null, 0]);
-    expect(g.training).toEqual({ comfy_beds: 25 });
+    expect(g.training).toEqual({ comfy_beds: TRAINING.find((d) => d.id === 'comfy_beds')!.maxLevel });
     expect(g.treats).toHaveLength(1);
     expect(g.findIndex).toBe(12);
     expect(g.highestFindIndex).toBe(12);

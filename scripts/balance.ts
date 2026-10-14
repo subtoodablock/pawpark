@@ -18,7 +18,18 @@ const flag = (name: string): string | null => {
 const VERBOSE = argv.includes('--verbose');
 const MAX_DAYS = Number(flag('--days') ?? 200);
 const PROFILE_ARG = flag('--profile') ?? 'all';
-const SEED = 12345;
+const SEED = Number(flag('--seed') ?? 12345);
+/** diagnostic: --hold k disables find gates beyond index k (shows how B(t) grows while parked on find k) */
+const HOLD = Number(flag('--hold') ?? -1);
+if (HOLD >= 0) for (let i = HOLD + 1; i < FINDS.length; i++) FINDS[i].unlockParkValue = Infinity;
+/** diagnostic: --gates "4:1e13,5:Infinity" overrides unlockParkValue (used by the gate calibration loop); --json prints raw results */
+for (const kv of (flag('--gates') ?? '').split(',').filter(Boolean)) {
+  const [k, v] = kv.split(':');
+  FINDS[Number(k)].unlockParkValue = Number(v);
+}
+const JSON_OUT = argv.includes('--json');
+/** diagnostic: stop the profile once this find index is reached (default: the last find) */
+const STOP_AT = Number(flag('--stop') ?? FINDS.length - 1);
 
 const H = 3600;
 const DAY = 86400;
@@ -113,10 +124,11 @@ const fmtDays = (d: number | null) => (d === null ? 'n/a' : d < 1 / 24 ? `${(d *
 const fmtMin = (d: number | null) => (d === null ? 'n/a' : `${(d * 1440).toFixed(1)} min`);
 const sig = (n: number) => (n >= 1e6 ? n.toExponential(2) : n >= 100 ? n.toFixed(0) : n.toFixed(1));
 
-interface DayRow { day: number; log10Income: number; paws: number; find: number; gb: number; prestiges: number; academy: number; cash10: number }
+interface DayRow { day: number; log10B: number; log10Income: number; paws: number; find: number; gb: number; prestiges: number; academy: number; cash10: number }
 interface Result {
   def: ProfileDef;
   findT: (number | null)[]; // days
+  findLogB: (number | null)[]; // log10 earnings bonus when the find was first unlocked
   firstPrestigeT: number | null;
   endT: number; // days simulated
   drought: number; // days
@@ -124,7 +136,13 @@ interface Result {
   rows: DayRow[];
   lastAcademyT: number | null;
   academyLevels: number;
+  academyT: Record<string, number>;
+  maxPups: number;
   maxLadders: number;
+  academySpent: number;
+  nextCheapest: number;
+  academyGap: number;
+  academyGapAt: number;
   academyBuys: number;
   finalPaws: number;
   finalGB: number;
@@ -144,8 +162,10 @@ function simulate(def: ProfileDef): Result {
   Math.random = rng; // applyOfflineProgress uses Math.random: make it deterministic
   const state = createInitialState(0);
   state.lastSaved = 0;
+  for (const kv of (process.env.CHEAT_FOR && process.env.CHEAT_FOR !== def.name ? '' : process.env.CHEAT ?? '').split(',').filter(Boolean)) { const [a, b] = kv.split('='); state.academy[a] = Number(b); }
 
   const findT: (number | null)[] = FINDS.map(() => null);
+  const findLogB: (number | null)[] = FINDS.map(() => null);
   findT[0] = 0;
   let firstPrestigeT: number | null = null;
   const eventsT: number[] = []; // seconds of milestone events
@@ -154,13 +174,17 @@ function simulate(def: ProfileDef): Result {
   let lastTrophies = 0;
   let lastPrestiges = 0;
   let lastAcademyT: number | null = null;
+  const academyT: Record<string, number> = {};
+  const academyTimes: number[] = [];
+  let academySpent = 0;
+  let maxPups = 0;
   let nextLogDay = 0;
   let academyBuys = 0;
   let done = false;
 
   const observe = (t: number) => {
     if (state.highestFindIndex > lastHF) {
-      for (let k = lastHF + 1; k <= state.highestFindIndex; k++) findT[k] = t / DAY;
+      for (let k = lastHF + 1; k <= state.highestFindIndex; k++) { findT[k] = t / DAY; findLogB[k] = Math.log10(computeStats(state).earningsBonus); }
       lastHF = state.highestFindIndex;
       eventsT.push(t);
       if (VERBOSE) console.log(`  [${fmtDays(t / DAY)}] FIND -> ${FINDS[lastHF].name}`);
@@ -171,7 +195,7 @@ function simulate(def: ProfileDef): Result {
       eventsT.push(t);
       if (firstPrestigeT === null) firstPrestigeT = t / DAY;
     }
-    if (state.highestFindIndex >= FINDS.length - 1) done = true;
+    if (state.highestFindIndex >= STOP_AT) done = true;
   };
 
   const logRow = (t: number) => {
@@ -180,7 +204,7 @@ function simulate(def: ProfileDef): Result {
     nextLogDay = Math.floor(day) + 1;
     const s = computeStats(state);
     rows.push({
-      day: Math.floor(day), log10Income: Math.log10(Math.max(s.incomePerSec, 1e-9)), paws: state.spiritPaws,
+      day: Math.floor(day), log10B: Math.log10(s.earningsBonus), log10Income: Math.log10(Math.max(s.incomePerSec, 1e-9)), paws: state.spiritPaws,
       find: state.highestFindIndex, gb: state.goldenBones, prestiges: state.prestigeCount,
       academy: academyTotal(state), cash10: 0,
     });
@@ -188,8 +212,11 @@ function simulate(def: ProfileDef): Result {
 
   /** Academy purchases at a check-in. Priority list; if the top wanted item is unaffordable the bot saves. */
   const academyPhase = (t: number, longestGapSec: number) => {
-    const bought = () => {
+    const bought = (id: string, cost: number) => {
+      academySpent += cost;
+      if (academyT[id] === undefined) academyT[id] = t / DAY;
       academyBuys++;
+      academyTimes.push(t);
       lastAcademyT = t;
       eventsT.push(t);
     };
@@ -209,8 +236,9 @@ function simulate(def: ProfileDef): Result {
         }
       }
       if (target === null) return;
+      const cost = academyCost(state, target) ?? 0;
       if (!buyAcademy(state, target).ok) return; // saving
-      bought();
+      bought(target, cost);
     }
   };
 
@@ -247,6 +275,10 @@ function simulate(def: ProfileDef): Result {
         }
         if (!u.prestige && state.runTimeSec >= 600 && s.prestigeGain >= Math.max(1, 0.5 * state.spiritPaws)) prestige(state);
       }
+      if (VERBOSE && start === 0 && t % 300 === 0 && t <= 3600) {
+        console.log(`  [t+${t / 60}m] pups ${state.pups.toFixed(0)}/${s.kennelCapacity.toFixed(0)} cash ${sig(state.cash)} inc ${sig(s.incomePerSec)}/s dig ${sig(s.digPerSec)} ship ${sig(s.shipPerSec)} PV ${sig(s.parkValue)} k=${state.kennels.join(',')} v=${state.vehicles.filter((x) => x !== null).join(',')} lv=${Object.values(state.training).reduce((a, b) => a + b, 0)}`);
+      }
+      if (state.pups > maxPups) maxPups = state.pups;
       observe(t + dt);
       if (done) { state.lastSaved = (t + dt) * 1000; return; }
     }
@@ -282,11 +314,21 @@ function simulate(def: ProfileDef): Result {
     if (e - prev > drought) { drought = e - prev; droughtAt = prev; }
     prev = e;
   }
+  // longest stretch without an Academy purchase once the Planner is owned (bones must not pile up unspent)
+  const gapFrom = (academyT['retirement_planner'] ?? 0) * DAY;
+  const times = academyTimes.filter((x) => x >= gapFrom);
+  let academyGap = 0;
+  let academyGapAt = 0;
+  let pv = gapFrom;
+  for (const x of [...times, finalT]) {
+    if (x - pv > academyGap) { academyGap = x - pv; academyGapAt = pv; }
+    pv = x;
+  }
   let maxLadders = 0;
   for (const d of ACADEMY) if ((state.academy[d.id] ?? 0) >= d.maxLevel) maxLadders++;
   return {
-    def, findT, firstPrestigeT, endT: finalT / DAY, drought: drought / DAY, droughtAt: droughtAt / DAY, rows,
-    lastAcademyT: lastAcademyT === null ? null : lastAcademyT / DAY, academyLevels: academyTotal(state), maxLadders,
+    def, findT, findLogB, firstPrestigeT, endT: finalT / DAY, drought: drought / DAY, droughtAt: droughtAt / DAY, rows,
+    lastAcademyT: lastAcademyT === null ? null : lastAcademyT / DAY, academyT, maxPups, academyLevels: academyTotal(state), maxLadders, academySpent, nextCheapest: ACADEMY.reduce((m, d) => Math.min(m, academyCost(state, d.id) ?? Infinity), Infinity), academyGap: academyGap / DAY, academyGapAt: academyGapAt / DAY,
     academyBuys: academyBuys, finalPaws: state.spiritPaws, finalGB: state.goldenBones, prestiges: state.prestigeCount,
     secs: (Date.now() - t0) / 1000,
   };
@@ -316,25 +358,29 @@ const results: Record<string, Result> = {};
 const selected = PROFILES.filter((p) => PROFILE_ARG === 'all' || PROFILE_ARG === p.name);
 if (selected.length === 0) { console.error(`unknown profile ${PROFILE_ARG}`); process.exit(2); }
 // Daily/Active comparisons need AFK, so always simulate AFK when comparing
-if (!selected.some((p) => p.name === 'afk') && PROFILE_ARG === 'all') selected.unshift(PROFILES[0]);
+const toSimulate = selected.some((p) => p.name === 'afk') ? selected : [PROFILES[0], ...selected];
 
 const T0 = Date.now();
-for (const p of selected) results[p.name] = simulate(p);
+for (const p of toSimulate) results[p.name] = simulate(p);
 
+if (JSON_OUT) {
+  console.log(JSON.stringify(Object.fromEntries(Object.entries(results).map(([k, r]) => [k, { findT: r.findT, firstPrestigeT: r.firstPrestigeT, endT: r.endT, academyT: r.academyT, paws: r.finalPaws }]))));
+  process.exit(0);
+}
 for (const p of selected) {
   const r = results[p.name];
   const afk = results['afk'];
   console.log(`\n=== Profile: ${p.label}  (seed ${SEED}, simulated ${r.endT.toFixed(1)} days in ${r.secs.toFixed(1)}s) ===`);
-  if (p.name === 'afk') {
-    console.log('\nday  log10inc  paws          find  GB      prestiges  academyLv');
+  if (p.name === 'afk' || VERBOSE) {
+    console.log('\nday  log10B  log10inc  paws          find  GB      prestiges  academyLv');
     for (const row of r.rows) {
       if (!VERBOSE && row.day % 7 !== 0 && row.day !== r.rows[r.rows.length - 1].day) continue;
-      console.log(`${String(row.day).padStart(3)}  ${row.log10Income.toFixed(1).padStart(8)}  ${sig(row.paws).padEnd(12)}  ${String(row.find).padStart(4)}  ${sig(row.gb).padEnd(6)}  ${String(row.prestiges).padStart(9)}  ${String(row.academy).padStart(9)}`);
+      console.log(`${String(row.day).padStart(3)}  ${row.log10B.toFixed(1).padStart(6)}  ${row.log10Income.toFixed(1).padStart(8)}  ${sig(row.paws).padEnd(12)}  ${String(row.find).padStart(4)}  ${sig(row.gb).padEnd(6)}  ${String(row.prestiges).padStart(9)}  ${String(row.academy).padStart(9)}`);
     }
   }
-  console.log('\nMilestone'.padEnd(26) + 'Result'.padEnd(22) + 'Target'.padEnd(22) + '');
+  console.log('\nMilestone'.padEnd(26) + 'Result'.padEnd(22) + 'Target'.padEnd(22) + 'log10 B'.padEnd(9));
   console.log('-'.repeat(76));
-  const rows: { name: string; value: string; target: string; pass: boolean | null }[] = [];
+  const rows: { name: string; value: string; target: string; pass: boolean | null; b?: string }[] = [];
   for (const t of TARGETS) {
     const v = r.findT[t.idx];
     const full = p.name === 'afk' || t.idx <= 3;
@@ -342,14 +388,20 @@ for (const p of selected) {
       name: t.name, value: t.hi < 1 ? fmtMin(v) : fmtDays(v),
       target: full ? tgtStr(t) : (afk.findT[t.idx] !== null && v !== null ? `AFK x${(v / afk.findT[t.idx]!).toFixed(2)}` : ''),
       pass: full ? inR(v, t.lo, t.hi) : null,
+      b: r.findLogB[t.idx] === null ? '' : r.findLogB[t.idx]!.toFixed(1),
     });
   }
   rows.push({ name: 'First prestige', value: fmtDays(r.firstPrestigeT), target: 'day 0-1', pass: inR(r.firstPrestigeT, 0, 1) });
   if (p.name === 'afk') {
+    const at = (id: string) => (r.academyT[id] === undefined ? null : r.academyT[id]);
+    rows.push({ name: 'Foreman Pup bought', value: fmtDays(at('foreman_pup')), target: 'day 0', pass: inR(at('foreman_pup'), 0, 1) });
+    rows.push({ name: 'Head Trainer bought', value: fmtDays(at('head_trainer')), target: 'by day 1', pass: inR(at('head_trainer'), 0, 1.0) });
+    rows.push({ name: 'Retirement Planner bought', value: fmtDays(at('retirement_planner')), target: 'day 10-20', pass: inR(at('retirement_planner'), 10, 20) });
     rows.push({ name: 'Longest drought', value: `${r.drought.toFixed(2)} d @day ${r.droughtAt.toFixed(1)}`, target: '<= 3 days', pass: r.drought <= 3 });
     const lastA = r.lastAcademyT;
     rows.push({ name: 'Academy bought near end', value: lastA === null ? 'n/a' : `last @day ${lastA.toFixed(1)}`, target: 'within 2 d of end', pass: lastA !== null && r.endT - lastA <= 2 });
-    rows.push({ name: 'Academy ladders maxed', value: `${r.maxLadders}/${ACADEMY.length}`, target: '< half', pass: r.maxLadders < ACADEMY.length / 2 });
+    rows.push({ name: 'Longest Academy drought', value: `${r.academyGap.toFixed(2)} d @day ${r.academyGapAt.toFixed(1)}`, target: '<= 2 d after Planner', pass: r.academyGap <= 2 });
+    rows.push({ name: 'Academy ladders maxed (info)', value: `${r.maxLadders}/${ACADEMY.length}`, target: '', pass: null });
   }
   const cosmic = r.findT[12];
   if (p.name === 'daily') {
@@ -363,10 +415,11 @@ for (const p of selected) {
     rows.push({ name: 'Active / AFK days to Cosmic', value: ratio === null ? 'n/a' : ratio.toFixed(2), target: '>= 0.7', pass: ratio !== null && ratio >= 0.7 });
   }
   for (const x of rows) {
-    console.log(x.name.padEnd(26) + x.value.padEnd(22) + x.target.padEnd(22) + (x.pass === null ? '' : x.pass ? 'PASS' : 'FAIL'));
+    console.log(x.name.padEnd(26) + x.value.padEnd(22) + x.target.padEnd(22) + (x.b ?? '').padEnd(9) + (x.pass === null ? '' : x.pass ? 'PASS' : 'FAIL'));
     if (x.pass === false) allPass = false;
   }
-  console.log(`(paws ${sig(r.finalPaws)}, prestiges ${r.prestiges}, academy levels ${r.academyLevels}, unspent GB ${sig(r.finalGB)})`);
+  console.log('first Academy buys (day): ' + Object.entries(r.academyT).map(([k, v]) => `${k}@${v.toFixed(1)}`).join(' '));
+  console.log(`(max pups ${sig(r.maxPups)}, paws ${sig(r.finalPaws)}, prestiges ${r.prestiges}, academy levels ${r.academyLevels}, unspent GB ${sig(r.finalGB)}, Academy spent ${sig(r.academySpent)}, next cheapest ${sig(r.nextCheapest)})`);
 }
 console.log(`\nTotal wall time ${((Date.now() - T0) / 1000).toFixed(1)}s`);
 console.log(`Overall: ${allPass ? 'PASS' : 'FAIL'}`);

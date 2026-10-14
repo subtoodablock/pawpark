@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyOfflineProgress, computeStats, BASE_MAIL_CAPACITY } from '../src/core';
+import { applyOfflineProgress, computeStats, BASE_MAIL_CAPACITY, MAIL_INTERVAL_SEC } from '../src/core';
 import type { GameState } from '../src/core';
 import { newState } from './helpers';
 
@@ -68,7 +68,9 @@ describe('applyOfflineProgress', () => {
 
   it('piles mail up to the mailbox capacity', () => {
     const s = setup();
-    const r = applyOfflineProgress(s, s.lastSaved + 8 * 3600 * 1000)!;
+    s.academy = { bigger_jar: 20 }; // 48 h Treat Jar
+    expect(48 * 3600 / MAIL_INTERVAL_SEC).toBeGreaterThan(BASE_MAIL_CAPACITY);
+    const r = applyOfflineProgress(s, s.lastSaved + 48 * 3600 * 1000)!;
     expect(r.mailWaiting).toBe(BASE_MAIL_CAPACITY);
   });
 
