@@ -13,7 +13,7 @@ export const FINDS: FindDef[] = [
   { id: 'pirate_coin', name: 'Pirate Coin', icon: '🪙', flavor: 'Arr! The pups found the treasure map in the mud.', value: 700, unlockParkValue: 2.19e11, unlockReward: 60, costScale: 8.54e3 },
   { id: 'dino_fossil', name: 'Dino Fossil', icon: '🦕', flavor: 'The ultimate bone. Sixty-five million years old.', value: 2750, unlockParkValue: 1.17e13, unlockReward: 80, costScale: 4.2e4 },
   { id: 'crystal_bone', name: 'Crystal Bone', icon: '💎', flavor: 'Sparkles in the sun. Cannot be chewed. Pups try anyway.', value: 1.1e4, unlockParkValue: 7.53e15, unlockReward: 130, costScale: 2.1e5 },
-  { id: 'meteorite', name: 'Meteorite', icon: '☄️', flavor: 'Fell from the sky, landed in the sandbox.', value: 4.2e4, unlockParkValue: 2.2e15, unlockReward: 180, costScale: 1e6 },
+  { id: 'meteorite', name: 'Meteorite', icon: '☄️', flavor: 'Fell from the sky, landed in the sandbox.', value: 4.2e4, unlockParkValue: 1.31e19, unlockReward: 180, costScale: 1e6 },
   { id: 'ancient_relic', name: 'Ancient Relic', icon: '🏺', flavor: 'Museum curators keep calling. The pups keep ignoring them.', value: 1.65e5, unlockParkValue: 1.26e17, unlockReward: 250, costScale: 4.92e6 },
   { id: 'moon_rock', name: 'Moon Rock', icon: '🌑', flavor: 'Dug all the way through. Good boy.', value: 6.5e5, unlockParkValue: 8.25e18, unlockReward: 350, costScale: 2.42e7 },
   { id: 'time_bone', name: 'Time Bone', icon: '⏳', flavor: 'Was buried tomorrow. Dug up yesterday.', value: 2.5e6, unlockParkValue: 6.5e20, unlockReward: 450, costScale: 1.16e8 },

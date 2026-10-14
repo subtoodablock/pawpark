@@ -98,6 +98,7 @@ export class Sheet {
     window.clearTimeout(this.closeTimer);
     this.title.textContent = `${t.icon} ${t.label}`;
     this.body.replaceChildren(t.panel.el);
+    t.panel.onShow?.();
     t.panel.update();
     this.stagger();
 
