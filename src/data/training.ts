@@ -1,4 +1,5 @@
 import type { TrainingDef, TrainingTierDef } from '../core/types';
+import { TRAINING_TIER_COST_SCALE } from './constants';
 
 export const TRAINING_TIERS: TrainingTierDef[] = [
   { tier: 1, name: 'Puppy School', unlockAt: 0 },
@@ -10,7 +11,7 @@ export const TRAINING_TIERS: TrainingTierDef[] = [
   { tier: 7, name: 'Cosmic Conservatory', unlockAt: 250 },
 ];
 
-export const TRAINING: TrainingDef[] = [
+const BASE_TRAINING: TrainingDef[] = [
   { tier: 1, id: 'comfy_beds', name: 'Comfy Beds', icon: '🛏️', description: 'Well-rested pups dig faster.', stat: 'layRate', perLevel: 0.1, maxLevel: 15, baseCost: 25, costGrowth: 1.5 },
   { tier: 1, id: 'premium_kibble', name: 'Premium Kibble', icon: '🥣', description: 'Fancy food, fancier finds.', stat: 'findValue', perLevel: 0.1, maxLevel: 15, baseCost: 40, costGrowth: 1.5 },
   { tier: 1, id: 'louder_whistle', name: 'Louder Whistle', icon: '📯', description: 'Bigger adoption center stock.', stat: 'adoptionCap', perLevel: 20, maxLevel: 10, baseCost: 60, costGrowth: 1.6 },
@@ -39,7 +40,7 @@ export const TRAINING: TrainingDef[] = [
   { tier: 5, id: 'celebrity_pups', name: 'Celebrity Pups', icon: '🌟', description: 'Famous paws, famous prices.', stat: 'findValue', perLevel: 1, maxLevel: 6, baseCost: 1e17, costGrowth: 3.5 },
   { tier: 5, id: 'hyper_shipping', name: 'Hyper Shipping', icon: '⚡', description: 'Next-nanosecond delivery.', stat: 'shippingCapacity', perLevel: 0.6, maxLevel: 6, baseCost: 3e17, costGrowth: 3.5 },
   { tier: 5, id: 'dimension_kennels', name: 'Dimension Kennels', icon: '🌀', description: 'Bigger on the inside.', stat: 'kennelCapacity', perLevel: 0.6, maxLevel: 6, baseCost: 5e17, costGrowth: 3.5 },
-  { tier: 5, id: 'pup_portals', name: 'Pup Portals', icon: '🌌', description: 'Pups arrive through the portal by the thousand.', stat: 'rescueRate', perLevel: 100, maxLevel: 6, baseCost: 8e17, costGrowth: 3.5 },
+  { tier: 5, id: 'pup_portals', name: 'Pup Portals', icon: '🌌', description: 'Pups arrive through the portal by the thousand.', stat: 'rescueRate', perLevel: 2500, maxLevel: 6, baseCost: 8e17, costGrowth: 3.5 },
   { tier: 5, id: 'rescue_armada', name: 'Rescue Armada', icon: '🛟', description: 'All rescues +100% per level.', stat: 'rescueMult', perLevel: 1, maxLevel: 5, baseCost: 2e18, costGrowth: 4 },
   { tier: 5, id: 'turbo_paws', name: 'Turbo Paws', icon: '🐾', description: 'Dig rate x2 per level.', stat: 'layRate', perLevel: 0, multPerLevel: 2, maxLevel: 3, baseCost: 5e18, costGrowth: 9 },
   { tier: 5, id: 'gravity_sleds', name: 'Gravity Sleds', icon: '🛷', description: 'Shipping capacity x2 per level.', stat: 'shippingCapacity', perLevel: 0, multPerLevel: 2, maxLevel: 2, baseCost: 8e18, costGrowth: 12 },
@@ -57,3 +58,8 @@ export const TRAINING: TrainingDef[] = [
   { tier: 7, id: 'event_horizon_dig', name: 'Event Horizon Dig', icon: '🌀', description: 'Dig rate x2 per level.', stat: 'layRate', perLevel: 0, multPerLevel: 2, maxLevel: 3, baseCost: 2e27, costGrowth: 10 },
   { tier: 7, id: 'infinite_kennels', name: 'Infinite Kennels', icon: '♾️', description: 'Room for every pup in the universe.', stat: 'kennelCapacity', perLevel: 3, maxLevel: 6, baseCost: 3e27, costGrowth: 3.5 },
 ];
+
+/** docs/10 §2.1 balance knob: tiers >= 3 get baseCost x TRAINING_TIER_COST_SCALE^(tier - 2) (1 = the authored costs) */
+export const TRAINING: TrainingDef[] = BASE_TRAINING.map((d) =>
+  d.tier >= 3 && TRAINING_TIER_COST_SCALE !== 1 ? { ...d, baseCost: Number((d.baseCost * TRAINING_TIER_COST_SCALE ** (d.tier - 2)).toPrecision(3)) } : d,
+);

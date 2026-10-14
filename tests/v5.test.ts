@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ACADEMY, BASE_MAX_CARS, BASE_OFFLINE_HOURS, BASE_RESCUE_PER_MIN, CALENDAR_COLLAR_STREAK, CAR_COST_GROWTH,
-  DISCOVER_DIVISOR, DUPLICATE_GROWTH_BY_TIER, FINDS, KENNELS, MAX_FLEET_SLOTS, PARK_VALUE_SECONDS, PV_EMPTY_SPACE_EXP, PV_RESCUE_FACTOR, PV_UNSHIPPED_WEIGHT, PRESTIGE_DIVISOR,
+  DISCOVER_DIVISOR, DUPLICATE_GROWTH_BY_TIER, FINDS, KENNELS, MAX_FLEET_SLOTS, KENNEL_COST_GROWTH, KENNEL_EXTRA_GROWTH, LADDER_STEEP_FROM, VEHICLE_COST_GROWTH, VEHICLE_EXTRA_GROWTH, PARK_VALUE_SECONDS, PV_EMPTY_SPACE_EXP, PV_RESCUE_FACTOR, PV_UNSHIPPED_WEIGHT, PRESTIGE_DIVISOR,
   PRESTIGE_EXP_EARLY, PRESTIGE_EXP_LATE, PRESTIGE_KNEE, PUP_RANK_TITLES, SAVE_VERSION, TRAINING,
   TRAINING_TIERS, VEHICLES, VEHICLE_DUPLICATE_GROWTH_BY_TIER, applyOfflineProgress, buySledCar, claimDailyTreat,
   buyVehicle, computeStats, deserialize, prestige, kennelTierCost, kennelUpgradeCost, prestigeGainFor, pupRankFor, resetPark, runAutomation,
@@ -34,9 +34,9 @@ describe('flat prices and ladders (§1, §2.1)', () => {
     expect(kennelTierCost(b, 3, 7)).toBe(kennelTierCost(a, 3, 7));
     expect(vehicleTierCost(b, 1, 5)).toBe(vehicleTierCost(a, 1, 5));
   });
-  it('kennel ladder is 50 x 40^t and vehicle ladder 100 x 150^t, to 3 significant digits', () => {
-    KENNELS.forEach((k, t) => expect(k.cost).toBe(sig3(50 * 40 ** t)));
-    VEHICLES.forEach((v, t) => expect(v.cost).toBe(sig3(100 * 150 ** t)));
+  it('kennel ladder is 50 x growth^t and vehicle ladder 100 x growth^t, to 3 significant digits', () => {
+    KENNELS.forEach((k, t) => expect(k.cost).toBe(sig3(50 * KENNEL_COST_GROWTH ** t * KENNEL_EXTRA_GROWTH ** Math.max(0, t - LADDER_STEEP_FROM))));
+    VEHICLES.forEach((v, t) => expect(v.cost).toBe(sig3(100 * VEHICLE_COST_GROWTH ** t * VEHICLE_EXTRA_GROWTH ** Math.max(0, t - LADDER_STEEP_FROM))));
     expect(KENNELS).toHaveLength(18);
     expect(VEHICLES).toHaveLength(13);
     expect(KENNELS[17].cost).toBeGreaterThan(8e28);

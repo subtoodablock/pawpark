@@ -18,6 +18,7 @@ import {
   sledCarCost, statMode, statValue, tick, trainingCost, unequipRelic, vehicleUpgradeCost, SHOW_REWARDS, TROPHIES, STAR_CAPACITY_BONUS,
 } from '../src/core/index';
 import { BASE_OFFLINE_HOURS, BASE_RESCUE_PER_MIN, PV_EMPTY_SPACE_EXP, PV_RESCUE_FACTOR, PV_UNSHIPPED_WEIGHT } from '../src/data';
+import { readFileSync, writeFileSync } from 'node:fs';
 import type { AutomationKey, GameState, Relic, Rng, Stat } from '../src/core/index';
 
 // ---------------------------------------------------------------- args
@@ -182,13 +183,13 @@ function pvBreakdown(state: GameState): string {
   const empty = Math.pow(Math.max(0, s.kennelCapacity - state.pups), PV_EMPTY_SPACE_EXP);
   const rescue = PV_RESCUE_FACTOR * (BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')) * statValue(state, 'rescueMult') * s.builtKennels * (BASE_OFFLINE_HOURS + statValue(state, 'offlineHours')) * 60;
   const f = (x: number) => x.toExponential(1);
-  return `pop[pups ${f(pupsT)} empty ${f(empty)} rescue ${f(rescue)}] cap ${f(s.kennelCapacity)} shipFrac ${shipFrac.toFixed(2)} PV ${f(s.parkValue)} inc ${f(s.incomePerSec)} B ${f(s.earningsBonus)}`;
+  return `pop[pups ${f(pupsT)} empty ${f(empty)} rescue ${f(rescue)}] cap ${f(s.kennelCapacity)} shipFrac ${shipFrac.toFixed(2)} PV ${f(s.parkValue)} inc ${f(s.incomePerSec)} B ${f(s.earningsBonus)} paws ${Math.round(state.spiritPaws)} collars ${state.legendCollars} pb ${s.pawBonus.toFixed(3)} cm ${s.collarMult.toFixed(1)}`;
 }
 const sig = (n: number) => (n >= 1e6 ? n.toExponential(2) : n >= 100 ? n.toFixed(0) : n.toFixed(1));
 
 interface DayRow {
   day: number; lv: number; stars: number; streak: number; log10B: number; log10Income: number; paws: number; find: number; gb: number; prestiges: number; academy: number; cash10: number;
-  rank: number; collars: number; relicPV: number; relicProd: number; crew: number; relics: number;
+  bones: number; rank: number; collars: number; relicPV: number; relicProd: number; crew: number; relics: number;
 }
 interface WeekRec { weekKey: string; findIndex: number; medals: number; delivered: number; targets: number[] }
 interface EraRebuild { find: number; len: number; rebuild: number }
@@ -236,7 +237,7 @@ interface Result {
   /** analytic offline fill time (days) of an empty endgame park at the moment the 4 Planet Paws stood */
   fillAnalytic: number | null;
   endgameT: number | null;
-  portal: { built: number | null; launched: number; collected: number; crafted: number; recycled: number; crewRuns: number[]; maxTier: number; goldenFromLoot: number; goldenFromRecycle: number };
+  portal: { built: number | null; launched: number; skipped: number; collected: number; crafted: number; recycled: number; crewRuns: number[]; maxTier: number; goldenFromLoot: number; goldenFromRecycle: number };
   collarsBySource: { trophies: number; show: number; calendar: number };
 }
 
@@ -307,6 +308,8 @@ function simulate(def: ProfileDef): Result {
   let tFull: number | null = null;
   let tAcademyMax: number | null = null;
   let fillAnalytic: number | null = null;
+  /** day-110 snapshot: offline fill time of an EMPTY park of 4 Planet Paws under the stats of that day (does not need the 4 Planet Paws to be built) */
+  let fillHyp: number | null = null;
   let endgameT: number | null = null;
   const stopRule = STOP_ARG !== null ? 'find' : def.name === 'afkdaily' || FULL ? 'endgame' : 'find';
 
@@ -331,6 +334,14 @@ function simulate(def: ProfileDef): Result {
       const s = computeStats(state);
       const rate = s.rescuePerSec * statValue(state, 'offlineRescueMult');
       fillAnalytic = rate > 0 ? s.kennelCapacity / rate / DAY : Infinity;
+      if (VERBOSE) console.log(`  [day ${(t / DAY).toFixed(1)}] 4 Planet Paws: cap ${s.kennelCapacity.toExponential(2)} pups ${state.pups.toExponential(2)} rescue/min/kennel base ${BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')} x mult ${statValue(state, 'rescueMult').toFixed(1)} x calm ${statValue(state, 'offlineRescueMult').toFixed(2)} => ${rate.toExponential(2)}/s, kennelMult ${statValue(state, 'kennelCapacity').toFixed(1)}`);
+    }
+    if (fillHyp === null && t / DAY >= 110) {
+      const s = computeStats(state);
+      const cap = 4 * KENNELS[KENNELS.length - 1].capacity * statValue(state, 'kennelCapacity');
+      const rate = (4 * (BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')) * statValue(state, 'rescueMult') * statValue(state, 'offlineRescueMult')) / 60;
+      fillHyp = cap / rate / DAY;
+      if (VERBOSE) console.log(`  [day ${(t / DAY).toFixed(1)}] hypothetical 4 Planet Paws: cap ${cap.toExponential(2)}, rescue/min/kennel ${(BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')).toFixed(0)} x ${statValue(state, 'rescueMult').toFixed(1)} x calm ${statValue(state, 'offlineRescueMult').toFixed(2)} => fill ${fillHyp.toFixed(2)} d (kennelMult ${statValue(state, 'kennelCapacity').toFixed(0)}, income ${s.incomePerSec.toExponential(1)})`);
     }
     if (tPP !== null && tFull === null && state.kennels.every((k) => k === KENNELS.length - 1) && state.pups >= 0.98 * computeStats(state).kennelCapacity) tFull = t / DAY;
     if (tAcademyMax === null && academyTotal(state) >= academyMaxTotal) tAcademyMax = t / DAY;
@@ -383,7 +394,7 @@ function simulate(def: ProfileDef): Result {
       day: Math.floor(day), lv: parkLevel(state.lifetimeEarnings), stars: state.premium.stars + starsSpent - starsBought, streak: state.daily.streak, log10B: Math.log10(s.earningsBonus), log10Income: Math.log10(Math.max(s.incomePerSec, 1e-9)), paws: state.spiritPaws,
       find: state.highestFindIndex, gb: state.goldenBones, prestiges: state.prestigeCount,
       academy: academyTotal(state), cash10: 0,
-      rank: s.pupRank, collars: state.legendCollars, relicPV: rp.pv, relicProd: rp.prod,
+      bones: academySpent + state.goldenBones, rank: s.pupRank, collars: state.legendCollars, relicPV: rp.pv, relicProd: rp.prod,
       crew: state.portal ? CREWS.filter((c) => crewUnlocked(state, c.id)).length : 0, relics: state.portal ? state.portal.relics.length : 0,
     });
   };
@@ -712,7 +723,7 @@ function simulate(def: ProfileDef): Result {
       const first10 = start === 0 && rel < FULL_WHISTLE_SEC;
       const dailyWhistle = firstOfDay && rel < DAILY_WHISTLE_SEC;
       const activeWhistle = active && start >= 0 && (t % 60) < 10 && !(start === 0 && rel < FULL_WHISTLE_SEC);
-      if (activeWhistle && def.showPlay && state.show && Math.floor(t / 60) % 2 === 0 && state.show.park.stats.findsDelivered < state.show.goals[state.show.goals.length - 1].target) {
+      if (activeWhistle && def.showPlay && state.show && state.show.park.stats.findsDelivered < state.show.goals[state.show.goals.length - 1].target) {
         adopt(state.show.park, HOLD_ADOPT_PER_SEC * dt, true); // Active plays the Dog Show park every other minute while a goal is open
       } else if (first10 || activeWhistle || dailyWhistle) adopt(state, HOLD_ADOPT_PER_SEC * dt, true);
       if (active) for (const q of [...state.squirrels]) catchSquirrel(state, q.id);
@@ -788,7 +799,7 @@ function simulate(def: ProfileDef): Result {
     academyBuys: academyBuys, finalPaws: state.spiritPaws, finalGB: state.goldenBones, prestiges: state.prestigeCount,
     secs: (Date.now() - t0) / 1000,
     levelT, curve, starsFree: state.premium.stars + starsSpent - starsBought, starsSpent, stars30, bestStreak: state.daily.bestStreak,
-    runs, weeks, rebuilds, tPP, tFull, tAcademyMax, fillAnalytic, endgameT: endgameT,
+    runs, weeks, rebuilds, tPP, tFull, tAcademyMax, fillAnalytic: fillHyp ?? fillAnalytic, endgameT: endgameT,
     portal: {
       ...P, built: P.built, crewRuns: CREWS.map((c) => state.portal?.crews[c.id]?.runs ?? 0),
       maxTier: Math.max(0, ...(state.portal?.relics.map((r) => r.tier + 1) ?? [0])),
@@ -804,21 +815,22 @@ function simulate(def: ProfileDef): Result {
 // ---------------------------------------------------------------- reporting
 interface Target { name: string; idx: number; lo: number; hi: number } // days
 const TARGETS: Target[] = [
-  { name: 'Tennis Ball', idx: 1, lo: 0, hi: 10 / 1440 },
-  { name: 'Squeaky Toy', idx: 2, lo: 0, hi: 45 / 1440 },
-  { name: 'Rawhide', idx: 3, lo: 0, hi: 1 },
-  { name: 'Lost Wallet', idx: 4, lo: 1, hi: 3 },
-  { name: 'Pirate Coin', idx: 5, lo: 4, hi: 8 },
-  { name: 'Dino Fossil', idx: 6, lo: 9, hi: 16 },
-  { name: 'Crystal Bone', idx: 7, lo: 17, hi: 28 },
-  { name: 'Meteorite', idx: 8, lo: 29, hi: 42 },
-  { name: 'Ancient Relic', idx: 9, lo: 43, hi: 58 },
-  { name: 'Moon Rock', idx: 10, lo: 59, hi: 75 },
-  { name: 'Time Bone', idx: 11, lo: 76, hi: 95 },
-  { name: 'Cosmic Bone (endgame)', idx: 12, lo: 95, hi: 125 },
+  // docs/10 §2.3 timeline; the window is roughly the centre +-20% (+-7% for the Cosmic Bone)
+  { name: 'Tennis Ball (~10 min)', idx: 1, lo: 0, hi: 12 / 1440 },
+  { name: 'Squeaky Toy (~30 min)', idx: 2, lo: 15 / 1440, hi: 45 / 1440 },
+  { name: 'Rawhide (~2 h)', idx: 3, lo: 1 / 24, hi: 3.5 / 24 },
+  { name: 'Lost Wallet (end day 1)', idx: 4, lo: 0.7, hi: 1.5 },
+  { name: 'Pirate Coin (day 2-3)', idx: 5, lo: 2, hi: 3.2 },
+  { name: 'Dino Fossil (day 5)', idx: 6, lo: 4, hi: 6.2 },
+  { name: 'Crystal Bone (day 9)', idx: 7, lo: 7.5, hi: 10.8 },
+  { name: 'Meteorite (day 15)', idx: 8, lo: 12, hi: 18 },
+  { name: 'Ancient Relic (day 24)', idx: 9, lo: 20, hi: 28.5 },
+  { name: 'Moon Rock (day 36)', idx: 10, lo: 31, hi: 42 },
+  { name: 'Time Bone (day 52)', idx: 11, lo: 45, hi: 59 },
+  { name: 'Cosmic Bone (day 75)', idx: 12, lo: 70, hi: 80 },
 ];
 const inR = (v: number | null, lo: number, hi: number) => v !== null && v >= lo && v <= hi;
-const tgtStr = (t: Target) => (t.hi < 1 && t.lo === 0 ? `<= ${(t.hi * 1440).toFixed(0)} min` : t.lo === 0 ? `day 0-${t.hi}` : `day ${t.lo}-${t.hi}`);
+const tgtStr = (t: Target) => (t.hi < 1 / 24 + 1e-9 ? `${(t.lo * 1440).toFixed(0)}-${(t.hi * 1440).toFixed(0)} min` : t.hi < 1 ? `${(t.lo * 24).toFixed(1)}-${(t.hi * 24).toFixed(1)} h` : `day ${t.lo.toFixed(1)}-${t.hi.toFixed(1)}`);
 
 let allPass = true;
 const results: Record<string, Result> = {};
@@ -853,6 +865,12 @@ if (argv.includes('--calibrate')) {
     if (!pick) { console.log(`k=${k}: no Park Value samples (era ${k - 1} never reached)`); break; }
     const gate = Number((pick[1] * (1 - 1e-6)).toPrecision(3));
     FINDS[k].unlockParkValue = gate;
+    if (argv.includes('--write')) {
+      const file = new URL('../src/data/finds.ts', import.meta.url);
+      const src = readFileSync(file, 'utf8');
+      const re = new RegExp(`(id: '${FINDS[k].id}'[^\\n]*unlockParkValue: )[^,]+(,)`);
+      writeFileSync(file, src.replace(re, `$1${gate.toExponential(2).replace('e+', 'e')}$2`));
+    }
     const line = `${k} ${FINDS[k].name.padEnd(14)} gate ${gate.toExponential(2)}  opens at day ${pick[0].toFixed(3)} (target ${T.toFixed(3)}) B ${pick[2].toExponential(1)} inc ${pick[3].toExponential(1)} paws ${Math.round(r.finalPaws)} prest ${r.prestiges} [sim ${r.secs.toFixed(1)}s]`;
     console.log(line);
     out.push(`  ${k}: ${gate.toExponential(2)}`);
@@ -1037,16 +1055,55 @@ const RATIO_TARGETS: Record<string, { text: string; ok: (x: number) => boolean }
   minnow: { text: '>= 0.92', ok: (x) => x >= 0.92 },
 };
 
+
+const medalIcons = ['·', '🥉', '🥈', '🥇'];
+function printWeeks(r: Result): void {
+  if (r.weeks.length === 0) return;
+  const dist = [0, 0, 0, 0];
+  for (const w of r.weeks) dist[w.medals]++;
+  console.log(`\nDog Show (${r.weeks.length} weeks): medals per week  ${r.weeks.map((w) => `${w.medals}`).join('')}   |  0:${dist[0]} 1:${dist[1]} 2:${dist[2]} 3:${dist[3]}  (mean ${(r.weeks.reduce((a, w) => a + w.medals, 0) / r.weeks.length).toFixed(2)})`);
+  if (VERBOSE) for (const w of r.weeks) console.log(`  ${w.weekKey} find ${w.findIndex} delivered ${sig(w.delivered)} goals ${w.targets.map(sig).join('/')} -> ${medalIcons[w.medals]}`);
+}
+/** the v5/v6 checks: collars, Dog Show, relics, endgame, rescue fill, era rebuild */
+function addV5Rows(r: Result, rows: { name: string; value: string; target: string; pass: boolean | null; b?: string }[], isPrim: boolean, name: string): void {
+  const rowAt = (d: number) => { let best = r.rows[0]; for (const x of r.rows) if (x.day <= d) best = x; return best; };
+  const q = (a: number[], f: number) => quant(a, f);
+  if (r.weeks.length > 0) {
+    const m = r.weeks.map((w) => w.medals);
+    const gold = m.filter((x) => x === 3).length / m.length;
+    const mean = m.reduce((a, b) => a + b, 0) / m.length;
+    if (name === 'active') rows.push({ name: 'Dog Show medals (gold share)', value: `${(100 * gold).toFixed(0)}% gold, mean ${mean.toFixed(2)}`, target: 'usually gold (>= 60%)', pass: gold >= 0.6 });
+    else if (name === 'afkdaily') rows.push({ name: 'Dog Show medals (bronze+silver)', value: `${(100 * gold).toFixed(0)}% gold, mean ${mean.toFixed(2)}`, target: 'usually 2 (mean 1.6-2.4, gold <= 35%)', pass: mean >= 1.6 && mean <= 2.4 && gold <= 0.35 });
+    else rows.push({ name: 'Dog Show medals (info)', value: `${(100 * gold).toFixed(0)}% gold, mean ${mean.toFixed(2)}`, target: '', pass: null });
+  }
+  if (!isPrim) return;
+  const endRow = rowAt(120);
+  rows.push({ name: 'Collars @ day 120', value: `${endRow.collars} (trophy ${r.collarsBySource.trophies}, show ${r.collarsBySource.show}, calendar ${r.collarsBySource.calendar})`, target: '40-60', pass: endRow.collars >= 40 && endRow.collars <= 60 });
+  const r30 = rowAt(30), r100 = rowAt(100);
+  rows.push({ name: 'Relic power @ day 30', value: `x${r30.relicPV.toFixed(2)} (raw product x${r30.relicProd.toFixed(2)})`, target: 'x2-3 (1.8-3.5)', pass: r30.relicPV >= 1.8 && r30.relicPV <= 3.5 });
+  rows.push({ name: 'Relic power @ day 100', value: `x${r100.relicPV.toFixed(2)} (raw product x${r100.relicProd.toFixed(2)})`, target: 'x5-10 (4.5-11)', pass: r100.relicPV >= 4.5 && r100.relicPV <= 11 });
+  rows.push({ name: 'Endgame: 4 Planet Paws', value: fmtDays(r.tPP), target: 'day 100-120', pass: r.tPP !== null && r.tPP >= 100 && r.tPP <= 120 });
+  rows.push({ name: 'Endgame: Academy maxed', value: fmtDays(r.tAcademyMax), target: 'day 100-120', pass: r.tAcademyMax !== null && r.tAcademyMax >= 100 && r.tAcademyMax <= 120 });
+  rows.push({ name: 'Endgame complete', value: fmtDays(r.endgameT), target: 'day 100-120', pass: r.endgameT !== null && r.endgameT >= 100 && r.endgameT <= 120 });
+  rows.push({ name: 'Rescue fill, empty endgame park', value: r.fillAnalytic === null ? 'n/a' : `${r.fillAnalytic.toFixed(2)} d AFK (offline, Calm)`, target: '2-4 days', pass: r.fillAnalytic !== null && r.fillAnalytic >= 2 && r.fillAnalytic <= 4 });
+  const eras = r.rebuilds.filter((x) => x.len >= 30 / 1440);
+  const fr = eras.map((x) => x.rebuild / x.len);
+  rows.push({ name: 'Era rebuild / era length', value: fr.length ? `median ${(100 * q(fr, 0.5)).toFixed(1)}%, p90 ${(100 * q(fr, 0.9)).toFixed(1)}% (n ${fr.length})` : 'n/a', target: '<= 15% (median)', pass: fr.length > 0 && q(fr, 0.5) <= 0.15 });
+}
+
 for (const p of selected) {
   const r = results[p.name];
   const isPrim = p.name === 'afkdaily';
   console.log(`\n=== Profile: ${p.label}  (seed ${SEED}, simulated ${r.endT.toFixed(1)} days in ${r.secs.toFixed(1)}s) ===`);
   if (isPrim || VERBOSE) {
-    console.log('\nday  log10B  log10inc  paws          find  GB      prestiges  academyLv  ParkLv  stars');
+    console.log('\nday  log10B  log10inc  paws          rank  find  collars  relicPV  relicProd  crew  relics  GB      prest  academyLv  ParkLv  stars');
+    const step = Number(flag('--every') ?? 7);
     for (const row of r.rows) {
-      if (!VERBOSE && row.day % 7 !== 0 && row.day !== r.rows[r.rows.length - 1].day && ![1, 2, 3].includes(row.day)) continue;
-      console.log(`${String(row.day).padStart(3)}  ${row.log10B.toFixed(1).padStart(6)}  ${row.log10Income.toFixed(1).padStart(8)}  ${sig(row.paws).padEnd(12)}  ${String(row.find).padStart(4)}  ${sig(row.gb).padEnd(6)}  ${String(row.prestiges).padStart(9)}  ${String(row.academy).padStart(9)}  ${String(row.lv).padStart(6)}  ${String(row.stars).padStart(5)}`);
+      if (!VERBOSE && row.day % step !== 0 && row.day !== r.rows[r.rows.length - 1].day && ![1, 2, 3].includes(row.day)) continue;
+      console.log(`${String(row.day).padStart(3)}  ${row.log10B.toFixed(1).padStart(6)}  ${row.log10Income.toFixed(1).padStart(8)}  ${sig(row.paws).padEnd(12)}  ${String(row.rank).padStart(4)}  ${String(row.find).padStart(4)}  ${String(row.collars).padStart(7)}  ${('x' + row.relicPV.toFixed(2)).padStart(7)}  ${('x' + row.relicProd.toFixed(2)).padStart(9)}  ${String(row.crew).padStart(4)}  ${String(row.relics).padStart(6)}  ${sig(row.gb).padEnd(6)}  ${String(row.prestiges).padStart(5)}  ${String(row.academy).padStart(9)}  ${String(row.lv).padStart(6)}  ${String(row.stars).padStart(5)}`);
     }
+    printWeeks(r);
+    console.log('Golden Bones earned (Academy spent + banked) by day: ' + [10, 30, 60, 90, 100, 110, 120].map((d) => { const x = r.rows.find((y) => y.day === d); return x ? `d${d}:${sig(x.bones)}` : ''; }).filter(Boolean).join('  ') + `  | full Academy costs ${ACADEMY.reduce((a, d) => { let c = 0; for (let l = 0; l < d.maxLevel; l++) c += Math.ceil(d.baseCost * Math.pow(d.costGrowth, l)); return a + c; }, 0)}`);
   }
   console.log('\nMilestone'.padEnd(26) + 'Result'.padEnd(22) + 'Target'.padEnd(22) + 'log10 B'.padEnd(9));
   console.log('-'.repeat(76));
@@ -1055,13 +1112,14 @@ for (const p of selected) {
     const v = r.findT[t.idx];
     const full = isPrim || t.idx <= 3;
     rows.push({
-      name: t.name, value: t.hi < 1 ? fmtMin(v) : fmtDays(v),
+      name: t.name, value: t.hi < 1 / 24 + 1e-9 ? fmtMin(v) : fmtDays(v),
       target: full ? tgtStr(t) : (prim.findT[t.idx] !== null && v !== null ? `AFK+D x${(v / prim.findT[t.idx]!).toFixed(2)}` : ''),
       pass: full && (isPrim || t.idx <= 3) ? inR(v, t.lo, t.hi) : null,
       b: r.findLogB[t.idx] === null ? '' : r.findLogB[t.idx]!.toFixed(1),
     });
   }
   rows.push({ name: 'First prestige', value: fmtDays(r.firstPrestigeT), target: 'day 0-1', pass: inR(r.firstPrestigeT, 0, 1) });
+  if (r.tPP !== null || isPrim) addV5Rows(r, rows, isPrim, p.name);
   if (isPrim) {
     const at = (id: string) => (r.academyT[id] === undefined ? null : r.academyT[id]);
     rows.push({ name: 'Foreman Pup bought', value: fmtDays(at('foreman_pup')), target: 'day 0', pass: inR(at('foreman_pup'), 0, 1) });
@@ -1094,9 +1152,9 @@ for (const p of selected) {
   }
   if (isPrim) {
     printEraReport(r);
-    for (const [key, ok] of Object.entries(eraPass)) if (!ok && key !== 'late' && key !== 'week1') allPass = false;
-    if (!eraPass['late'] || !eraPass['week1']) allPass = false;
+    // the v4 era-rhythm checks (docs/08) are informational since docs/10 replaced the costScale model
   }
+  console.log(`Portal: built day ${r.portal.built === null ? 'n/a' : r.portal.built.toFixed(2)}, launched ${r.portal.launched} (skipped ${r.portal.skipped}), collected ${r.portal.collected}, crafted ${r.portal.crafted}, recycled ${r.portal.recycled}, GB from loot ${r.portal.goldenFromLoot}, GB from recycling ${r.portal.goldenFromRecycle}, crew runs ${r.portal.crewRuns.join('/')}, best tier T${r.portal.maxTier}`);
   console.log(`(max pups ${sig(r.maxPups)}, paws ${sig(r.finalPaws)}, prestiges ${r.prestiges}, academy levels ${r.academyLevels}, unspent GB ${sig(r.finalGB)}, Academy spent ${sig(r.academySpent)}, free+bought stars ${fmtStat(r.starsFree)} (spent ${fmtStat(r.starsSpent)}), best streak ${r.bestStreak})`);
   if (isPrim) {
     const sample = [1, 3, 7, 14, 21, 30, 50, 75, 100].map((d) => r.rows.find((x) => x.day === d)).filter(Boolean).map((x) => `d${x!.day}:Lv${x!.lv}`);

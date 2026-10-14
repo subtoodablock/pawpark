@@ -20,6 +20,21 @@ export const VEHICLE_DUPLICATE_GROWTH_BY_TIER: readonly number[] = [
 /** v5: optional cap on the (normally 1) era price tax in FINDS[k].costScale */
 export const MAX_COST_SCALE = 1.5;
 
+/**
+ * v5 ladders (docs/10 §2.1): kennel tier t costs 50 x KENNEL_COST_GROWTH^t, vehicle tier t costs 100 x VEHICLE_COST_GROWTH^t,
+ * each multiplied by an extra x^(t - STEEP_FROM) from tier STEEP_FROM up (the balance pass steepens the upper ladder so
+ * the top tiers cost days of endgame income). Training tier T >= 3 base costs get TRAINING_TIER_COST_SCALE^(T - 2).
+ */
+export const KENNEL_COST_GROWTH = 40;
+export const VEHICLE_COST_GROWTH = 150;
+export const KENNEL_EXTRA_GROWTH: number = 2.5;
+export const VEHICLE_EXTRA_GROWTH: number = 3;
+export const LADDER_STEEP_FROM = 3;
+export const TRAINING_TIER_COST_SCALE: number = 20;
+
+/** global multiplier on the long Academy ladders (balance knob; 1 = as authored in academy.ts) */
+export const ACADEMY_LADDER_COST_SCALE: number = 1.5;
+
 export const KENNEL_SLOTS = 4;
 export const BASE_FLEET_SLOTS = 4;
 export const MAX_FLEET_SLOTS = 12;
@@ -41,9 +56,9 @@ export const BASE_SPIRIT_PAW_BONUS = 0.1;
 export const BASE_COLLAR_BONUS = 1.05;
 /** v5 prestige (docs/10 §2.5): piecewise gain, continuous at PRESTIGE_KNEE (run earnings) */
 export const PRESTIGE_DIVISOR = 1e6;
-export const PRESTIGE_KNEE = 1e12;
+export const PRESTIGE_KNEE = 1e10;
 export const PRESTIGE_EXP_EARLY = 0.3;
-export const PRESTIGE_EXP_LATE = 0.2;
+export const PRESTIGE_EXP_LATE = 0.12;
 /** Park Value tuning constant (docs/10 §2.2) */
 export const PARK_VALUE_SECONDS = 600;
 /** Park Value popTerm weights (docs/10 §2.2): unshipped pups count this much, emptySpace^exp, rescue-potential factor */
@@ -100,7 +115,7 @@ export const AUTOMATION_MAX_BUYS = 50;
 export const AUTO_SPLURGE_FRACTION = 0.1;
 export const AUTO_PRESTIGE_MIN_RUN_SEC = 600;
 export const AUTO_PRESTIGE_THRESHOLDS: readonly number[] = [0.1, 0.25, 0.5, 1, 2];
-export const DEFAULT_AUTO_PRESTIGE_THRESHOLD = 0.5;
+export const DEFAULT_AUTO_PRESTIGE_THRESHOLD = 0.25;
 
 export const STAT_MODES: Record<Stat, StatMode> = {
   layRate: 'mult',

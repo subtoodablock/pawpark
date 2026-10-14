@@ -17,21 +17,21 @@ export const PORTAL_BUILD_COST = 1e6;
 
 export const EXPEDITION_LENGTHS: readonly ExpeditionLength[] = ['short', 'standard', 'long'];
 
-/** capacity = round(base crew scale x [1, 2, 4]) */
-const CAP_SCALE = [1, 1.5, 2, 2.5, 3, 4];
+/** loot items per run: short 1, standard round(scale), long round(2 x scale) (balance pass: relics are a bounded layer, docs/11 §5) */
+const CAP_SCALE = [1, 1.3, 1.6, 2, 2.4, 3];
 const cap = (i: number): Record<ExpeditionLength, number> => ({
-  short: Math.max(1, Math.round(CAP_SCALE[i])),
-  standard: Math.round(2 * CAP_SCALE[i]),
-  long: Math.round(4 * CAP_SCALE[i]),
+  short: 1,
+  standard: Math.max(1, Math.round(CAP_SCALE[i])),
+  long: Math.max(2, Math.round(2 * CAP_SCALE[i])),
 });
 
 export const CREWS: CrewDef[] = [
   { id: 'puppy_scouts', name: 'Puppy Scouts', unlockRuns: 0, durationsSec: { short: 0.5 * H, standard: 3 * H, long: 12 * H }, capacity: cap(0), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'fetch_squad', name: 'Fetch Squad', unlockRuns: 6, durationsSec: { short: 1 * H, standard: 4 * H, long: 12 * H }, capacity: cap(1), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'rescue_rangers', name: 'Rescue Rangers', unlockRuns: 10, durationsSec: { short: 2 * H, standard: 6 * H, long: 16 * H }, capacity: cap(2), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'sky_hounds', name: 'Sky Hounds', unlockRuns: 15, durationsSec: { short: 3 * H, standard: 8 * H, long: 24 * H }, capacity: cap(3), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'star_retrievers', name: 'Star Retrievers', unlockRuns: 20, durationsSec: { short: 4 * H, standard: 12 * H, long: 36 * H }, capacity: cap(4), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'infinity_pack', name: 'Infinity Pack', unlockRuns: 30, durationsSec: { short: 6 * H, standard: 18 * H, long: 48 * H }, capacity: cap(5), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'fetch_squad', name: 'Fetch Squad', unlockRuns: 15, durationsSec: { short: 1 * H, standard: 4 * H, long: 12 * H }, capacity: cap(1), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'rescue_rangers', name: 'Rescue Rangers', unlockRuns: 30, durationsSec: { short: 2 * H, standard: 6 * H, long: 16 * H }, capacity: cap(2), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'sky_hounds', name: 'Sky Hounds', unlockRuns: 60, durationsSec: { short: 3 * H, standard: 8 * H, long: 24 * H }, capacity: cap(3), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'star_retrievers', name: 'Star Retrievers', unlockRuns: 100, durationsSec: { short: 4 * H, standard: 12 * H, long: 36 * H }, capacity: cap(4), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'infinity_pack', name: 'Infinity Pack', unlockRuns: 150, durationsSec: { short: 6 * H, standard: 18 * H, long: 48 * H }, capacity: cap(5), starRuns: [5, 12, 25, 45, 75] },
 ];
 
 export const DIMENSIONS: DimensionDef[] = [
@@ -68,11 +68,11 @@ function grid(lo: number, hi: number, digits: number): number[][] {
 }
 
 export const RELIC_FAMILIES: RelicFamilyDef[] = [
-  { id: 'bacon_prism', name: 'Bacon Prism', description: 'Pups dig faster.', stat: 'layRate', effect: grid(0.05, 1.0, 4) },
-  { id: 'squeaky_orb', name: 'Squeaky Orb', description: 'Finds are worth more.', stat: 'findValue', effect: grid(0.05, 1.0, 4) },
+  { id: 'bacon_prism', name: 'Bacon Prism', description: 'Pups dig faster.', stat: 'layRate', effect: grid(0.03, 0.75, 4) },
+  { id: 'squeaky_orb', name: 'Squeaky Orb', description: 'Finds are worth more.', stat: 'findValue', effect: grid(0.03, 0.75, 4) },
   { id: 'kennel_key', name: 'Pocket Kennel Key', description: 'Kennels hold more pups.', stat: 'kennelCapacity', effect: grid(0.03, 0.4, 4) },
-  { id: 'wormhole_leash', name: 'Wormhole Leash', description: 'Vehicles carry more.', stat: 'shippingCapacity', effect: grid(0.05, 1.0, 4) },
-  { id: 'rescue_beacon', name: 'Rescue Beacon', description: 'More pups are rescued.', stat: 'rescueMult', effect: grid(0.05, 1.2, 4) },
+  { id: 'wormhole_leash', name: 'Wormhole Leash', description: 'Vehicles carry more.', stat: 'shippingCapacity', effect: grid(0.03, 0.75, 4) },
+  { id: 'rescue_beacon', name: 'Rescue Beacon', description: 'More pups are rescued.', stat: 'rescueMult', effect: grid(0.03, 0.9, 4) },
   { id: 'timefold_collar', name: 'Time-Fold Collar', description: 'Longer Treat Jar (hours).', stat: 'offlineHours', effect: grid(1, 12, 2) },
   { id: 'lucky_acorn', name: 'Lucky Acorn', description: 'Squirrels visit more often.', stat: 'squirrelRate', effect: grid(0.1, 1.5, 4) },
   { id: 'bark_tablet', name: 'Ancient Bark Tablet', description: 'More power per Spirit Paw.', stat: 'spiritPawBonus', effect: grid(0.002, 0.03, 5) },
@@ -109,7 +109,7 @@ export const RARITY_STAR_BOOST = 0.25;
 export const RARITY_CRAFT_XP_BOOST = 0.01;
 export const RARITY_CRAFT_XP_BOOST_CAP = 1.5;
 /** +capacity fraction per crew star */
-export const STAR_CAPACITY_BONUS = 0.12;
+export const STAR_CAPACITY_BONUS = 0.08;
 
 /** loot extras */
 export const STONE_DROP_CHANCE = 0.18;
@@ -127,10 +127,10 @@ export const CRAFT_COUNT = 3;
 
 /** golden bones for recycling a relic: [tier][rarity] */
 export const RECYCLE_BONES: number[][] = [
-  [1, 1, 2, 4],
-  [2, 3, 6, 12],
-  [4, 8, 15, 30],
-  [10, 20, 40, 80],
+  [0, 0, 0, 1],
+  [0, 0, 1, 2],
+  [0, 1, 2, 4],
+  [1, 2, 4, 8],
 ];
 
 export const RELIC_STATS: readonly Stat[] = RELIC_FAMILIES.map((f) => f.stat);
