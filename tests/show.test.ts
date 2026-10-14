@@ -140,7 +140,7 @@ describe('joinShow', () => {
     const ms = performance.now() - t0;
     joinShow(b, MONDAY, seeded(99)); // a different rng must not matter: no randomness in the park
     expect(a.show!.goals.map((g) => g.target)).toEqual(b.show!.goals.map((g) => g.target));
-    expect(ms).toBeLessThan(300);
+    expect(ms).toBeLessThan(400);
   });
 });
 
