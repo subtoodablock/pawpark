@@ -1,3 +1,6 @@
+import '@fontsource/fredoka/500.css';
+import '@fontsource/fredoka/600.css';
+import '@fontsource/fredoka/700.css';
 import './style.css';
 import { startApp } from './ui/App';
 import type { GameController } from './ui/GameController';

@@ -17,6 +17,7 @@ import { h, meter, setClass, setHidden, setMeter, setText } from '../dom';
 import type { PaymentProvider } from '../payments/PaymentProvider';
 import { formatPrice } from '../payments/PaymentProvider';
 import { toast } from '../Toasts';
+import { burst } from '../motion';
 import { statLabel } from '../labels';
 import { makeRow, section, setBtn, type Panel } from './common';
 
@@ -52,6 +53,7 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
                   const g = grantPurchase(c.state, p.id, res.receiptId);
                   if (c.check(g)) {
                     c.save();
+                    burst(grid, 'stars', 10);
                     toast(`⭐ +${formatNumber(p.stars)} Pup Stars. Thank you!`, 'gold', 4500);
                   }
                 } finally {
@@ -82,8 +84,10 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
   // ---- shop
   const shopRows = PREMIUM_SHOP.map((def) => {
     const row = makeRow(def.icon, def.name, () => {
-      if (c.check(buyPremium(c.state, def.id))) c.save();
+      const ok = c.check(buyPremium(c.state, def.id));
+      if (ok) c.save();
       update();
+      return ok;
     });
     el.append(row.el);
     return { def, row };
@@ -93,8 +97,10 @@ export function createStorePanel(c: GameController, provider: PaymentProvider): 
 
   // ---- consumables
   const fRow = makeRow('❄️', 'Streak Freeze', () => {
-    if (c.check(buyStreakFreeze(c.state))) c.save();
+    const ok = c.check(buyStreakFreeze(c.state));
+    if (ok) c.save();
     update();
+    return ok;
   }, 'Saves your Daily Treat streak when you miss a day.');
   el.append(section('\u{1F9CA} Consumables', fRow.el, h('div', { cls: 'row-desc', text: 'Treats can also be bought with ⭐ in the Academy tab.' })));
 

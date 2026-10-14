@@ -16,8 +16,9 @@ export function createKennelsPanel(c: GameController): Panel {
   const rows: Row[] = [];
   for (let i = 0; i < KENNEL_SLOTS; i++) {
     const row = makeRow('', '', () => {
-      c.check(buyKennel(c.state, i));
+      const ok = c.check(buyKennel(c.state, i));
       update();
+      return ok;
     });
     rows.push(row);
     el.append(row.el);

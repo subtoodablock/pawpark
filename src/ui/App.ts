@@ -7,6 +7,7 @@ import { Sheet } from './Sheet';
 import { h } from './dom';
 import { initModal, showModal } from './Modal';
 import { initToasts, toast } from './Toasts';
+import { confetti } from './fx/confetti';
 import { createAcademyPanel } from './panels/AcademyPanel';
 import { createFleetPanel } from './panels/FleetPanel';
 import { createKennelsPanel } from './panels/KennelsPanel';
@@ -24,7 +25,10 @@ export function startApp(root: HTMLElement): GameController {
   const hud = new HUD(controller);
   const scene = new ParkScene(controller);
   hud.onAdopt = () => scene.bounce();
-  hud.onFindUpgraded = (icon) => toast(`${icon} New find unlocked!`, 'gold');
+  hud.onFindUpgraded = (icon) => {
+    toast(`${icon} New find unlocked!`, 'gold');
+    confetti({ y: window.innerHeight * 0.3, count: 70, power: 0.8 });
+  };
 
   const pack = createPackPanel(controller, () => academyEl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   const academy = createAcademyPanel(controller);
@@ -59,6 +63,7 @@ export function startApp(root: HTMLElement): GameController {
   controller.subscribe((e) => {
     if (e.type === 'mailArrived') scene.floater('\u{1F4EC}', scene.el.clientWidth - 32, 100);
     if (e.type === 'endgame') showEndgame(controller);
+    if (e.type === 'streakMilestone') confetti({ count: 90 });
   });
   controller.onOffline((r) => {
     showWelcomeBack(r);
@@ -143,5 +148,6 @@ function showEndgame(controller: GameController): void {
       h('p', { cls: 'muted', text: 'The game keeps going. Keep opening parks and collecting everything!' }),
     ],
     [{ label: 'Keep playing', primary: true }],
+    { celebrate: true },
   );
 }

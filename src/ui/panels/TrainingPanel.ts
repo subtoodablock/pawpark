@@ -40,8 +40,9 @@ export function createTrainingPanel(c: GameController): Panel {
     const head = h('h3', { cls: 'tier-head' }, `Tier ${t.tier}: ${t.name}`, lock);
     const rows = TRAINING.filter((d) => d.tier === t.tier).map((def) => {
       const row = makeRow(def.icon, def.name, () => {
-        c.check(buyTraining(c.state, def.id, maxMode ? Infinity : 1));
+        const ok = c.check(buyTraining(c.state, def.id, maxMode ? Infinity : 1));
         update();
+        return ok;
       });
       return { def, row };
     });

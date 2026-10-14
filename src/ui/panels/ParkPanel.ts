@@ -17,6 +17,8 @@ import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
+import { burst } from '../motion';
+import { confetti } from '../fx/confetti';
 import { createShareCard } from '../share';
 import { section, type Panel } from './common';
 
@@ -33,7 +35,7 @@ export function createParkPanel(c: GameController): Panel {
     text: 'Upgrade find!',
     on: {
       click: () => {
-        c.check(upgradeFind(c.state));
+        if (c.check(upgradeFind(c.state))) burst(nfBtn, 'coins', 10);
         update();
       },
     },
@@ -72,6 +74,7 @@ export function createParkPanel(c: GameController): Panel {
             const r = prestige(c.state);
             if (c.check(r)) {
               toast(`\u{1F43E} New park opened! +${formatNumber(r.gained ?? 0)} Spirit Paws`, 'gold', 5000);
+              confetti();
               c.save();
             }
           },

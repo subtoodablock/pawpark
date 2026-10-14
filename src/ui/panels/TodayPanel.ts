@@ -19,6 +19,8 @@ import type { GameController } from '../GameController';
 import { h, meter, setClass, setHidden, setMeter, setText } from '../dom';
 import { createShareCard } from '../share';
 import { toast } from '../Toasts';
+import { burst } from '../motion';
+import { confetti } from '../fx/confetti';
 import { section, setBtn, type Panel } from './common';
 
 export function rewardShort(r: DailyTreatReward): string {
@@ -78,13 +80,14 @@ export function createTodayPanel(c: GameController): Panel {
         const r = claimDailyTreat(c.state, c.today());
         if (c.check(r)) {
           if (r.reward) toast(`\u{1F381} Daily Treat: ${rewardLong(r.reward)}  \u{1F525} ${r.streak ?? ''}`, 'gold', 4500);
+          burst(claimBtn, 'bones', 10);
           c.save();
         }
         update();
       },
     },
   });
-  const freezeLine = h('div', { cls: 'row-meta' });
+  const freezeLine = h('div', { cls: 'row-desc' });
   el.append(section('\u{1F4C5} Daily Treat', h('div', { cls: 'card' }, streakLine, bestLine, h('div', { cls: 'day-strip' }, ...cells), freezeLine, claimBtn)));
 
   // ---- park of the day
@@ -105,7 +108,10 @@ export function createTodayPanel(c: GameController): Panel {
       attrs: { type: 'button' },
       on: {
         click: () => {
-          if (c.check(claimDailyDig(c.state, i))) c.save();
+          if (c.check(claimDailyDig(c.state, i))) {
+            burst(btn, 'bones');
+            c.save();
+          }
           update();
         },
       },
@@ -120,6 +126,8 @@ export function createTodayPanel(c: GameController): Panel {
       click: () => {
         if (c.check(claimDailyDigBonus(c.state))) {
           toast(`\u{1F389} All Digs done! +${DIG_BONUS_BONES} \u{1F9B4} +${DIG_BONUS_STARS} ⭐`, 'gold', 4500);
+          burst(bonusBtn, 'stars', 10);
+          confetti({ y: window.innerHeight * 0.5 });
           c.save();
         }
         update();

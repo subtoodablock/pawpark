@@ -1,6 +1,7 @@
 import { ACADEMY, TREATS, academyCost, buyAcademy, buyTreat, formatDuration, formatNumber } from '../../core';
 import type { GameController } from '../GameController';
 import { h, setText } from '../dom';
+import { celebrateBuy } from '../motion';
 import { formatTreatDuration, statLabel } from '../labels';
 import { makeRow, setBtn, type Panel } from './common';
 
@@ -9,8 +10,9 @@ export function createAcademyPanel(c: GameController): Panel {
   el.append(h('h3', { text: '\u{1F393} Academy (permanent, paid in \u{1F9B4})' }));
   const acRows = ACADEMY.map((def) => {
     const row = makeRow(def.icon, def.name, () => {
-      c.check(buyAcademy(c.state, def.id));
+      const ok = c.check(buyAcademy(c.state, def.id));
       update();
+      return ok;
     });
     el.append(row.el);
     return { def, row };
@@ -18,15 +20,20 @@ export function createAcademyPanel(c: GameController): Panel {
   el.append(h('h3', { text: '\u{1F356} Treats (timed boosts)' }));
   const trRows = TREATS.map((def) => {
     const row = makeRow(def.icon, def.name, () => {
-      c.check(buyTreat(c.state, def.id, 'bones'));
+      const ok = c.check(buyTreat(c.state, def.id, 'bones'));
       update();
+      return ok;
     });
     const star = h('button', {
       cls: 'btn buy star-buy',
       attrs: { type: 'button', title: 'Buy with Pup Stars' },
       on: {
         click: () => {
-          if (c.check(buyTreat(c.state, def.id, 'stars'))) c.save();
+          const ok = c.check(buyTreat(c.state, def.id, 'stars'));
+          if (ok) {
+            c.save();
+            celebrateBuy(star);
+          }
           update();
         },
       },

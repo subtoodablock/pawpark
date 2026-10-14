@@ -1,10 +1,17 @@
 import { h, type Child } from './dom';
+import { confetti } from './fx/confetti';
+import { reducedMotion } from './motion';
 
 export interface ModalAction {
   label: string;
   primary?: boolean;
   danger?: boolean;
   onClick?: () => void;
+}
+
+export interface ModalOpts {
+  /** celebration modal: fires a confetti burst when it opens */
+  celebrate?: boolean;
 }
 
 let host: HTMLElement | null = null;
@@ -16,13 +23,13 @@ export function initModal(parent: HTMLElement): void {
   host = parent;
 }
 
-export function showModal(title: string, body: Child[], actions: ModalAction[]): () => void {
+export function showModal(title: string, body: Child[], actions: ModalAction[], opts: ModalOpts = {}): () => void {
   if (!host) return () => {};
   if (openCount > 0) {
     let closer: (() => void) | null = null;
     let cancelled = false;
     queue.push(() => {
-      if (!cancelled) closer = showModal(title, body, actions);
+      if (!cancelled) closer = showModal(title, body, actions, opts);
     });
     return () => {
       cancelled = true;
@@ -34,14 +41,18 @@ export function showModal(title: string, body: Child[], actions: ModalAction[]):
   const close = (): void => {
     if (closed) return;
     closed = true;
-    overlay.remove();
+    overlay.classList.add('closing');
+    overlay.style.pointerEvents = 'none';
+    window.setTimeout(() => overlay.remove(), reducedMotion() ? 0 : 190);
     openCount--;
-    queue.shift()?.();
+    // let the leaving modal fade before the next one enters
+    window.setTimeout(() => queue.shift()?.(), reducedMotion() ? 0 : 200);
   };
   const buttons = actions.map((a) =>
     h('button', {
-      cls: 'btn ' + (a.primary ? 'primary ' : '') + (a.danger ? 'danger' : ''),
+      cls: 'btn ' + (a.primary ? 'primary' : a.danger ? 'danger' : 'ghost'),
       text: a.label,
+      attrs: { type: 'button' },
       on: {
         click: () => {
           close();
@@ -62,5 +73,12 @@ export function showModal(title: string, body: Child[], actions: ModalAction[]):
     ),
   );
   host.appendChild(overlay);
+  if (opts.celebrate) {
+    window.setTimeout(() => {
+      if (closed) return;
+      const r = overlay.querySelector('.modal')?.getBoundingClientRect();
+      confetti({ x: r ? r.left + r.width / 2 : undefined, y: r ? r.top + 30 : undefined });
+    }, 220);
+  }
   return close;
 }
