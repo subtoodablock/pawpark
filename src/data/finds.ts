@@ -16,6 +16,6 @@ export const FINDS: FindDef[] = [
   { id: 'meteorite', name: 'Meteorite', icon: '☄️', flavor: 'Fell from the sky, landed in the sandbox.', value: 4.2e4, unlockParkValue: 1.32e19, unlockReward: 180, costScale: 1e6 },
   { id: 'ancient_relic', name: 'Ancient Relic', icon: '🏺', flavor: 'Museum curators keep calling. The pups keep ignoring them.', value: 1.65e5, unlockParkValue: 4.94e21, unlockReward: 250, costScale: 4.92e6 },
   { id: 'moon_rock', name: 'Moon Rock', icon: '🌑', flavor: 'Dug all the way through. Good boy.', value: 6.5e5, unlockParkValue: 1.83e24, unlockReward: 350, costScale: 2.42e7 },
-  { id: 'time_bone', name: 'Time Bone', icon: '⏳', flavor: 'Was buried tomorrow. Dug up yesterday.', value: 2.5e6, unlockParkValue: 6.5e26, unlockReward: 450, costScale: 1.16e8 },
-  { id: 'cosmic_bone', name: 'Cosmic Bone', icon: '🌌', flavor: 'The universe itself is a very good boy.', value: 1e7, unlockParkValue: 5e22, unlockReward: 600, costScale: 5.82e8 },
+  { id: 'time_bone', name: 'Time Bone', icon: '⏳', flavor: 'Was buried tomorrow. Dug up yesterday.', value: 2.5e6, unlockParkValue: 1.16e26, unlockReward: 450, costScale: 1.16e8 },
+  { id: 'cosmic_bone', name: 'Cosmic Bone', icon: '🌌', flavor: 'The universe itself is a very good boy.', value: 1e7, unlockParkValue: 3.02e27, unlockReward: 600, costScale: 5.82e8 },
 ];

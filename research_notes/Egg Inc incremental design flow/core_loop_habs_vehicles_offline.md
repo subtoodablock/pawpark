@@ -350,3 +350,105 @@ Each silo stores **60 minutes** of away time, plus 6 min per Silo Capacity epic 
 - Exact current silo maximum: code does not hard-cap it; the wiki says 10 with Pro Permit. Whether the Standard Permit's 2-silo/0.5x rule still applies in 2026 is not independently confirmed.
 - Whether RCB, drones or boost timers pause offline was not sourced.
 - Whether offline earnings are computed with the population growing linearly over the offline period or with the start population was not stated by any source. The code models population growth separately from earnings.
+
+---
+
+## Q7 (designer extra focus). Full hab/vehicle ladders with looks, how scaling creates time, and the on-farm visual flow
+
+### Takeaway
+- **Numbers.** Capacities and per-copy prices are confirmed from the community code above.
+- **Looks.** Could **not** be source-verified. Fandom and NamuWiki pages, and the community icon CDN (eggincassets.pages.dev, proxy-blocked), were all unreachable. The appearance notes below are **[UNVERIFIED: from tier names and general recall]** and should be checked against screenshots or the App Store page before art direction.
+- **Time.** Time is created by geometric scaling: each hab tier costs roughly 30x to 450x the previous tier's last copy but adds only about 2x to 6x capacity. Fill time is (hab space − population) / (IHR per hab × number of habs). At max habs, fill time runs to days or months without boosts, which is why boost items exist.
+
+### Cited Findings
+**(1) Full hab ladder.** Capacity and prices (bocks; copies 1 / 4) [CONFIRMED-code], from [hab_space.ts](https://github.com/carpetsage/egg/blob/main/lib/farm/hab_space.ts). Max capacity uses ×3.15 research, or ×4.725 for portal habs [DERIVED]. "Look" is [UNVERIFIED]. "When reached" is my inference from price magnitude.
+
+| # | Hab | Base cap | Max-research cap | 1st copy | 4th copy | Look [UNVERIFIED] | Roughly when |
+|---|---|---|---|---|---|---|---|
+| 0 | Coop | 250 | 788 | free | 96.56 | small wooden chicken coop | start of every farm |
+| 1 | Shack | 500 | 1,575 | 467 | 1,861 | wooden shed | first minutes |
+| 2 | Super Shack | 1,000 | 3,150 | 12,267 | 66,811 | bigger, sturdier shed | first ~10 min of a fresh farm |
+| 3 | Short House | 2,000 | 6,300 | 340,829 | 2.55M | small barn-style house | early |
+| 4 | The Standard | 5,000 | 15,750 | 2.14e7 | 4.09e8 | standard farm barn | early |
+| 5 | Long House | 10,000 | 31,500 | 2.32e9 | 2.72e10 | long poultry barn | early–mid |
+| 6 | Double Decker | 20,000 | 63,000 | 1.48e11 | 1.87e12 | two-storey barn | mid |
+| 7 | Warehouse | 50,000 | 157,500 | 1.78e13 | 4.86e14 | industrial warehouse | mid |
+| 8 | Center | 100,000 | 315,000 | 3.24e15 | 4.29e16 | large modern facility | mid |
+| 9 | Bunker | 200,000 | 630,000 | 2.50e17 | 3.32e18 | concrete bunker | mid |
+| 10 | Eggkea | 500,000 | 1.575M | 3.26e19 | 9.04e20 | big-box flat-pack store (IKEA pun) | mid–late |
+| 11 | HAB 1000 | 1M | 3.15M | 6.05e21 | 7.98e22 | futuristic habitat module | late |
+| 12 | Hangar | 2M | 6.3M | 4.63e23 | 6.10e24 | aircraft hangar | late |
+| 13 | Tower | 5M | 15.75M | 5.93e25 | 1.58e27 | high-rise tower | late |
+| 14 | HAB 10,000 | 10M | 31.5M | 1.25e28 | 2.15e29 | larger sci-fi habitat | late |
+| 15 | Eggtopia | 25M | 78.75M | 2.93e30 | 1.13e32 | utopian domed city | late egg tiers |
+| 16 | Monolith | 50M | 157.5M | 2.8e33 | 1.75e35 | dark sci-fi monolith | late egg tiers |
+| 17 | Planet Portal | 100M | 472.5M | 8.57e36 | 7.18e38 | portal to another planet | endgame |
+| 18 | Chicken Universe | 600M | 2.835B | 3.22e41 | 7.12e43 | "portal to another universe" | endgame |
+
+- The max-research capacities match the wiki: Coop "250 to 788", Planet Portal "100,000,000 to 472,500,000". [WIKI] — [Habitats (fandom)](https://egg-inc.fandom.com/wiki/Habitats)
+- Chicken Universe is described by a creator as "the LAST chicken habitat in the game: a portal to another universe". — [YouTube: "I Sent Billions of Chickens to Another Universe"](https://www.youtube.com/watch?v=Wq4-TWIUj-k)
+- Price jumps between a tier's 4th copy and the next tier's 1st copy [DERIVED from code]:
+  - Shack 1,861 → Super Shack 12,267: 6.6x.
+  - Standard 4.09e8 → Long House 2.32e9: 5.7x.
+  - Planet Portal 7.18e38 → Chicken Universe 3.22e41: 448x.
+  - Meanwhile capacity steps are only 2x to 2.5x, rising to 6x for Chicken Universe.
+
+**(2) Full vehicle ladder.** Capacity is in eggs/min [CONFIRMED-code] — [shipping_capacity.ts](https://github.com/carpetsage/egg/blob/main/lib/farm/shipping_capacity.ts):
+- Prices: the wiki lists Trike free, Transit Van 544 bocks, Semi 58.164T, "accurate as of Version 1.22.4", and "accurate to the order of magnitude as of 1.33.2". Other tiers' normal prices were not retrieved. [WIKI] — [Vehicles (fandom)](https://egg-inc.fandom.com/wiki/Vehicles)
+- "The base price of a vehicle depends on how many of that level you already own, not on how many you own of other levels." [WIKI] — [Vehicles (fandom)](https://egg-inc.fandom.com/wiki/Vehicles); also [Vehicle Cost forum thread](https://egg-inc.fandom.com/f/p/4400000000000326414)
+- The ladder below lists capacity, then look [UNVERIFIED]:
+  - Trike: 5,000. Three-wheeled delivery bike/scooter.
+  - Transit Van: 15,000. Delivery van.
+  - Pickup: 50,000. Pickup truck.
+  - 10 Foot: 100,000. Small box truck.
+  - 24 Foot: 250,000. Large box truck.
+  - Semi: 500,000. Tractor-trailer.
+  - Double Semi: 1M. Semi with two trailers.
+  - Future Semi: 5M. Futuristic semi.
+  - Mega Semi: 15M. Oversized futuristic semi.
+  - Hover Semi: 30M. Floating, wheel-less semi.
+  - Quantum Transporter: 50M. Sci-fi teleport/transport vehicle.
+  - Hyperloop Train: 50M per car. A train in a hyperloop tube; one engine plus added cars.
+- **Hyperloop cars**:
+  - A one-time Hyperloop purchase (50,000 golden eggs) is needed first. — [Vehicles (fandom, 1.22.4-era)](https://egg-inc.fandom.com/wiki/Vehicles?oldid=8651)
+  - Each Hyperloop slot holds a train whose capacity = 50M × cars.
+  - Base 5 cars; Micro-Coupling research adds 5 levels × +1, for 10 max. The first car is free with the train. [CONFIRMED-code] — [ascension-planner vehicles.ts](https://github.com/carpetsage/egg/blob/main/wasmegg/ascension-planner/src/lib/vehicles.ts), [researches.json](https://github.com/carpetsage/egg/blob/main/lib/researches.json)
+  - Each added car has its own escalating price.
+  - So 17 slots × 10 cars × 50M × ×14,016 research ≈ **1.19e14 eggs/min** maximum before artifacts [DERIVED].
+
+**(3) How scaling creates time** [DERIVED from confirmed constants unless noted]
+- Time to fill habs (minutes) = (total hab space − population) / (IHR per hab per min × number of habs). The community planner implements exactly this "time to hab lock" formula. [CONFIRMED-code] — [population.ts](https://github.com/carpetsage/egg/blob/main/lib/farm/population.ts)
+- Worked examples, with no boosts or artifacts, 4 habs, IHR only:
+  - **Fresh farm**: 4 Coops (1,000 cap) at 2 chickens/min/hab (Internal Hatcheries level 1) → 1,000 / 8 = **125 min**. Manual hatching (2 to 32 chickens/s, hatchery 250 to 500 buffer) fills this in seconds. Early game is button-driven.
+  - **Maxed research, 4 Chicken Universes** (11.34B) at max IHR: 7,440/min/hab online → 11.34e9 / 29,760 ≈ 381,000 min ≈ **265 days** online. Offline with max Calm (22,320/min/hab): ≈ 127,000 min ≈ **88 days**.
+  - Endgame filling is therefore done with **boosts** (Tachyon Prisms and Boost Beacons multiply IHR; see `internalHatcheryRateBoostMultiplier` in [farm.ts](https://github.com/carpetsage/egg/blob/main/lib/farm/farm.ts)) rather than waiting.
+- Income vs cost: income ∝ population × lay rate × egg value. Each hab tier multiplies capacity by about 2x to 2.5x, but tier prices rise about 30x to 100x per tier ([hab_space.ts](https://github.com/carpetsage/egg/blob/main/lib/farm/hab_space.ts)). So each successive purchase requires income to accumulate for a progressively longer wait, unless research multipliers (lay rate up to ×2,772, shipping up to ×14,016, egg value) grow income faster. The egg upgrade (gated by farm value) and prestige (Soul and Prophecy egg earnings bonus) reset the curve.
+- Silo-cost growth (100M × n^(3n+15)) makes each extra hour of AFK time super-exponentially pricier. [CONFIRMED-code] — [silos.ts](https://github.com/carpetsage/egg/blob/main/lib/farm/silos.ts)
+- The Prestige page advises acting "once internal hatchery boosts expire, or when your habs are full". [WIKI] — [Prestige (fandom)](https://egg-inc.fandom.com/wiki/Prestige)
+
+**(4) On-farm visual and animation flow**
+- Reviews confirm:
+  - "You tap a big red button to release chickens onto your farm, sell the eggs they produce, and spend the proceeds on bigger hen houses, faster delivery trucks." — [Playwanderer review](https://playwanderer.online/game-reviews/egg-inc)
+  - "looking at chickens scurry across your farm is a cute and nice touch", and too many chickens at once can make the game lag. — [Sirus Gaming review](https://sirusgaming.com/egg-inc-review/)
+  - "simple yet charming graphics… clicker elements with a simulation twist". — [Pookybox review](https://www.pookybox.com/egg-inc-review-secrets-universe-short-lived/)
+- The save file tracks `num_chickens_running` and `num_chickens_unsettled` separately from `num_chickens`. This confirms a modelled transit state between the hatchery button and settled hab population. [CONFIRMED-code schema] — [ei.proto](https://github.com/carpetsage/egg/blob/main/protobuf/ei.proto)
+- [UNVERIFIED recall] The farm is a small isometric map:
+  - The hatchery and red button are at the bottom.
+  - Released chicks run along a path into the 4 hab plots, which change model when upgraded.
+  - Delivery vehicles drive off along a road from a depot. The Hyperloop adds a visible tube/track.
+  - Silos and research/lab buildings sit on the map.
+  - Drones fly overhead and are tapped for rewards. Drone payout scales with farm value × sqrt(RCB) — [Drones (fandom)](https://egg-inc.fandom.com/wiki/Drones).
+  - The farm's look also changes per egg type. Verify all of this against gameplay video before use.
+
+### Inferences
+- For a dog clone, the strongest pacing levers to copy are:
+  - 4 slots × many tiers with per-copy price tables.
+  - Capacity steps of about 2x per tier, against price steps of about 30x to 100x.
+  - A passive per-building intake (IHR) whose fill time crosses from minutes to days as the ladder climbs.
+  - Boosts that compress those waits.
+- The visual ladder's arc is rustic farm → industrial → retail parody → sci-fi → cosmic portal. That arc carries the sense of progression across orders of magnitude, and a dog theme can mirror it (doghouse → kennel → … → dog planet portal).
+
+### Gaps
+- No source-verified visual descriptions or flavor text for individual habs or vehicles; the wiki and icon CDN were unreachable.
+- Normal-farm bock prices for most vehicles.
+- No community timeline found for "time to max habs on an egg" or typical prestige-run length; the searches returned nothing relevant.
