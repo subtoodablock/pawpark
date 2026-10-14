@@ -20,6 +20,7 @@ import { createInitialState, resetPark } from './state';
 import { hashString, seededRng } from './dates';
 import { addTreat } from './actions';
 import { stepSimulationDetailed } from './tick';
+import { mirrorPortal } from './portal';
 
 const fail = (reason: string): ActionResult => ({ ok: false, reason });
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -87,6 +88,7 @@ export function syncShowMeta(home: GameState, park: GameState): void {
   park.mailTimer = NEVER;
   park.endgameReached = true;
   if (park.trophies.length !== TROPHIES.length) park.trophies = TROPHIES.map((t) => t.id);
+  park.portal = mirrorPortal(home); // equipped relics apply in the show park too
   park.show = null;
   park.showHistory = [];
 }

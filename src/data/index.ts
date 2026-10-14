@@ -10,3 +10,4 @@ export * from './daily';
 export * from './premium';
 export * from './show';
 export * from './rank';
+export * from './portal';

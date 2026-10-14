@@ -33,7 +33,7 @@ export function defaultAutomation(): AutomationSettings {
 
 export function createInitialState(now: number): GameState {
   return {
-    version: SAVE_VERSION as 5,
+    version: SAVE_VERSION,
     cash: START_CASH,
     pups: 0,
     adoptionStock: BASE_ADOPTION_CAP,
@@ -64,6 +64,7 @@ export function createInitialState(now: number): GameState {
     premium: { stars: 0, spendCents: 0, receipts: [], shop: {} },
     show: null,
     showHistory: [],
+    portal: null,
     notifiedFinds: [],
     runEarnings: 0,
     lifetimeEarnings: 0,

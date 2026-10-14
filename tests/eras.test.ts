@@ -259,12 +259,12 @@ describe('offline across eras', () => {
 });
 
 describe('save v5', () => {
-  it('SAVE_VERSION is 5 and v3 saves migrate', () => {
-    expect(SAVE_VERSION).toBe(5);
+  it('SAVE_VERSION is 6 and v3 saves migrate', () => {
+    expect(SAVE_VERSION).toBe(6);
     const v3 = JSON.parse(serialize(ready()));
     v3.version = 3;
     const g = deserialize(JSON.stringify(v3))!;
-    expect(g.version).toBe(5);
+    expect(g.version).toBe(6);
     expect(g.kennels).toEqual(v3.kennels);
     expect(g.cash).toBe(v3.cash);
     expect(g.findIndex).toBe(v3.findIndex);
@@ -272,6 +272,6 @@ describe('save v5', () => {
   it('round-trips and rejects unknown versions', () => {
     const s = ready();
     expect(deserialize(serialize(s))).toEqual(s);
-    expect(deserialize(JSON.stringify({ ...s, version: 6 }))).toBeNull();
+    expect(deserialize(JSON.stringify({ ...s, version: 7 }))).toBeNull();
   });
 });

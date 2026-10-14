@@ -36,6 +36,7 @@ import {
   VEHICLES,
   VIP_TIERS,
 } from '../data';
+import { applyPortalStat } from './relics';
 
 // local snapshots: the data barrel's re-export getters are costly in hot paths (automation runs computeStats ~50k times)
 const L_STAT_MODES = STAT_MODES;
@@ -112,6 +113,8 @@ export function statValue(state: GameState, stat: Stat): number {
     if (mode === 'mult') acc *= def.multPerLevel !== undefined ? Math.pow(def.multPerLevel, level) : 1 + def.perLevel * level;
     else acc += def.perLevel * level;
   }
+  // Paw Portal: equipped relics + socketed stones
+  if (state.portal) acc = applyPortalStat(state, stat, acc, mode === 'mult');
   // Kennel Club perks: the current tier replaces lower ones (no stacking)
   const vip = L_VIP_TIERS[vipTierFor(state.premium.spendCents)];
   if (vip) {

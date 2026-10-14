@@ -1,6 +1,11 @@
-import type { AutomationKey, DogShowGoal, GameState } from './types';
+import type { AutomationKey, DogShowGoal, Expedition, GameState, PortalState, Relic, RelicRarity } from './types';
 import {
   ACADEMY,
+  CREWS,
+  DIMENSIONS,
+  EXPEDITION_LENGTHS,
+  RELIC_TIERS,
+  SOCKETS_BY_RARITY,
   AUTO_PRESTIGE_THRESHOLDS,
   DAILY_DIG_POOL,
   FINDS,
@@ -19,6 +24,8 @@ import {
 import { createInitialState } from './state';
 import { createDailyState, emptyCounters } from './counters';
 import { computeStats } from './stats';
+import { createPortalState } from './portal';
+import { familyDef, isStoneKey } from './relics';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -144,6 +151,101 @@ function cleanShow(raw: unknown, fallbackHistory: GameState['showHistory']): Pic
   };
 }
 
+// ---------------------------------------------------------------- v6: portal
+
+const cleanInt = (v: unknown, min: number, max: number, dflt: number): number =>
+  isNum(v) ? Math.min(max, Math.max(min, Math.floor(v))) : dflt;
+
+function cleanStoneList(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((k): k is string => typeof k === 'string' && isStoneKey(k)) : [];
+}
+
+function cleanLootRelics(raw: unknown): Expedition['loot']['relics'] {
+  if (!Array.isArray(raw)) return [];
+  const out: Expedition['loot']['relics'] = [];
+  for (const r of raw) {
+    if (!isObj(r) || typeof r.family !== 'string' || !familyDef(r.family)) continue;
+    out.push({
+      family: r.family,
+      tier: cleanInt(r.tier, 0, RELIC_TIERS - 1, 0),
+      rarity: cleanInt(r.rarity, 0, 3, 0) as RelicRarity,
+    });
+  }
+  return out;
+}
+
+function cleanExpedition(raw: unknown): Expedition | null {
+  if (!isObj(raw)) return null;
+  if (typeof raw.crewId !== 'string' || !CREWS.some((c) => c.id === raw.crewId)) return null;
+  if (typeof raw.dimensionId !== 'string' || !DIMENSIONS.some((d) => d.id === raw.dimensionId)) return null;
+  if (!EXPEDITION_LENGTHS.includes(raw.length as never)) return null;
+  if (!isNum(raw.launchedAt) || !isNum(raw.returnsAt)) return null;
+  const loot = isObj(raw.loot) ? raw.loot : {};
+  return {
+    crewId: raw.crewId,
+    dimensionId: raw.dimensionId,
+    length: raw.length as Expedition['length'],
+    launchedAt: raw.launchedAt,
+    returnsAt: raw.returnsAt,
+    loot: {
+      relics: cleanLootRelics(loot.relics),
+      stones: cleanStoneList(loot.stones),
+      goldenBones: cleanCount(loot.goldenBones),
+    },
+  };
+}
+
+/** Sanitizes the Paw Portal: clamps tiers/rarities, drops unknown ids, keeps equipped consistent. */
+function cleanPortal(raw: unknown): PortalState | null {
+  if (!isObj(raw)) return null;
+  const out = createPortalState();
+  out.built = raw.built === true;
+  const slots = Array.isArray(raw.slots) ? raw.slots : [];
+  out.slots = out.slots.map((_, i) => cleanExpedition(slots[i]));
+  if (isObj(raw.crews)) {
+    for (const c of CREWS) {
+      const v = raw.crews[c.id];
+      if (isObj(v)) out.crews[c.id] = { runs: cleanCount(v.runs) };
+    }
+  }
+  const seen = new Set<number>();
+  const relics: Relic[] = [];
+  for (const r of Array.isArray(raw.relics) ? raw.relics : []) {
+    if (!isObj(r) || typeof r.family !== 'string' || !familyDef(r.family)) continue;
+    if (!isNum(r.id) || !Number.isInteger(r.id) || r.id < 1 || seen.has(r.id)) continue;
+    seen.add(r.id);
+    const rarity = cleanInt(r.rarity, 0, 3, 0) as RelicRarity;
+    relics.push({
+      id: r.id,
+      family: r.family,
+      tier: cleanInt(r.tier, 0, RELIC_TIERS - 1, 0),
+      rarity,
+      stones: cleanStoneList(r.stones).slice(0, SOCKETS_BY_RARITY[rarity]),
+    });
+  }
+  out.relics = relics;
+  out.nextRelicId = Math.max(cleanInt(raw.nextRelicId, 1, Number.MAX_SAFE_INTEGER, 1), ...relics.map((r) => r.id + 1), 1);
+  const rawEq = Array.isArray(raw.equipped) ? raw.equipped : [];
+  const families = new Set<string>();
+  const used = new Set<number>();
+  out.equipped = out.equipped.map((_, i) => {
+    const id = rawEq[i];
+    const relic = isNum(id) ? relics.find((r) => r.id === id) : undefined;
+    if (!relic || used.has(relic.id) || families.has(relic.family)) return null;
+    used.add(relic.id);
+    families.add(relic.family);
+    return relic.id;
+  });
+  if (isObj(raw.stones)) {
+    for (const [k, v] of Object.entries(raw.stones)) {
+      if (isStoneKey(k) && isNum(v) && v >= 1) out.stones[k] = Math.floor(v);
+    }
+  }
+  out.craftXp = isNum(raw.craftXp) && raw.craftXp > 0 ? raw.craftXp : 0;
+  out.launchSeq = cleanCount(raw.launchSeq);
+  return out;
+}
+
 export function deserialize(json: string): GameState | null {
   let parsed: unknown;
   try {
@@ -151,7 +253,7 @@ export function deserialize(json: string): GameState | null {
   } catch {
     return null;
   }
-  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 4 && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1)) return null;
+  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 5 && parsed.version !== 4 && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1)) return null;
   for (const k of NUMERIC_KEYS) {
     if (k in parsed && !isNum(parsed[k])) return null;
   }
@@ -160,7 +262,7 @@ export function deserialize(json: string): GameState | null {
   const base = createInitialState(Date.now());
   const merged = { ...base, ...parsed } as GameState;
 
-  merged.version = SAVE_VERSION as 5; // v4 -> v5 adds vehicleCars, show, showHistory, stats.findsDelivered
+  merged.version = SAVE_VERSION; // v4 -> v5 adds vehicleCars, show, showHistory, stats.findsDelivered
   merged.kennels = cleanSlots(parsed.kennels ?? base.kennels, KENNEL_SLOTS, KENNELS.length);
   merged.vehicles = cleanSlots(parsed.vehicles ?? base.vehicles, MAX_FLEET_SLOTS, VEHICLES.length);
   // v5: sled cars. 1 for any slot already at the top tier, else 0 (migration and sanitizing)
@@ -181,6 +283,8 @@ export function deserialize(json: string): GameState | null {
   merged.daily = cleanDaily(parsed.daily);
   merged.premium = cleanPremium(parsed.premium, base.premium);
   Object.assign(merged, cleanShow(parsed, []));
+  // v5 -> v6: portal (null on old saves; the next simulation step unlocks it if the save already qualifies)
+  merged.portal = cleanPortal(parsed.portal);
 
   merged.trophies = Array.isArray(parsed.trophies)
     ? parsed.trophies.filter((t): t is string => typeof t === 'string')

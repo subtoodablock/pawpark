@@ -35,7 +35,7 @@ export function applyOfflineProgress(state: GameState, now: number): OfflineRepo
   let remaining = simulatedSec;
   while (remaining > 1e-9) {
     const dt = Math.min(OFFLINE_MAX_CHUNK_SEC, remaining);
-    const r = stepSimulationDetailed(state, dt, Math.random, { offline: true });
+    const r = stepSimulationDetailed(state, dt, Math.random, { offline: true, now });
     remaining -= dt;
     purchases += r.purchases;
     for (const e of r.events) {

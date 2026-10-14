@@ -87,7 +87,7 @@ export const MAIL_CASH_SECONDS = 300;
 export const MIN_COST_MULTIPLIER = 0.25;
 export const AUTOSAVE_INTERVAL_SEC = 10;
 export const SAVE_KEY = 'pawpark.save.v1';
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 // ---- automation ("The Pack")
 export const AUTOMATION_INTERVAL_SEC = 2;

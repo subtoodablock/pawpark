@@ -86,3 +86,40 @@ export {
 export type { ShowProgress } from './show';
 export { grantPurchase, buyPremium, premiumCost, buyStreakFreeze } from './premium';
 export { formatNumber, formatMoney, formatRate, formatDuration } from './format';
+export {
+  createPortalState,
+  portalQualifies,
+  checkPortalUnlock,
+  buildPortal,
+  crewRuns,
+  crewUnlocked,
+  crewStars,
+  crewProgress,
+  rarityOdds,
+  craftXpBoost,
+  rollRarity,
+  rollLoot,
+  fuelCost,
+  fuelBones,
+  launchExpedition,
+  expeditionReady,
+  bestRarity,
+  collectExpedition,
+  collectAll,
+  findRelic,
+  isEquipped,
+  equipRelic,
+  unequipRelic,
+  socketCapacity,
+  socketStone,
+  unsocketStone,
+  craftStone,
+  craftCost,
+  craftableRelics,
+  craftRelic,
+  recycleValue,
+  recycleRelic,
+  bestRelic,
+} from './portal';
+export type { CrewProgress, CollectResult } from './portal';
+export { relicEffect, familyDef, stoneDef, stoneKey, parseStoneKey, isStoneKey } from './relics';

@@ -25,10 +25,13 @@ import { computeStats, statValue } from './stats';
 import { bumpCounter } from './counters';
 import { checkDigCompletion } from './daily';
 import { stepShow } from './show';
+import { portalStep } from './portal';
 
 export interface StepOptions {
   /** Offline mode: no zoomies, squirrels resolve instantly via the hound, automation fires once per call. */
   offline: boolean;
+  /** wall-clock epoch ms used for expedition returns (defaults to Date.now()) */
+  now?: number;
 }
 
 export interface StepResult {
@@ -237,7 +240,10 @@ export function stepSimulationDetailed(
 
   if (!offline) events.push(...checkDigCompletion(state));
 
-  // 12. Dog Show park (home only: the show park's own show is null)
+  // 12. Paw Portal: unlock check + expedition returns (wall-clock; announced on the first online step)
+  portalStep(state, opts.now ?? Date.now(), events, !offline);
+
+  // 13. Dog Show park (home only: the show park's own show is null)
   if (state.show) stepShow(state, dt, rng, offline, events);
 
   return { events, purchases };

@@ -549,7 +549,7 @@ describe('findsDelivered', () => {
 
 describe('save v5 migration', () => {
   it('v4 saves gain vehicleCars (1 on top-tier slots), show, showHistory, findsDelivered', () => {
-    expect(SAVE_VERSION).toBe(5);
+    expect(SAVE_VERSION).toBe(6);
     const s = newState();
     s.vehicles[0] = TOP;
     s.vehicles[1] = TOP - 1;
@@ -560,7 +560,7 @@ describe('save v5 migration', () => {
     delete raw.showHistory;
     delete raw.stats.findsDelivered;
     const g = deserialize(JSON.stringify(raw))!;
-    expect(g.version).toBe(5);
+    expect(g.version).toBe(6);
     expect(g.vehicleCars).toHaveLength(MAX_FLEET_SLOTS);
     expect(g.vehicleCars[0]).toBe(1);
     expect(g.vehicleCars[1]).toBe(0);
