@@ -221,7 +221,7 @@ export const BREEDS: Breed[] = [
     blush: 0.5,
     body: [
       { k: 'e', x: -1.5, y: -3.6, rx: 11.5, ry: 6, col: '#b06a33' },
-      { k: 'e', x: -5, y: -5.2, rx: 4.8, ry: 3.4, col: '#3b2d25' },
+      { k: 'e', x: -5.5, y: -5.4, rx: 3.6, ry: 2.4, col: '#3b2d25' },
     ],
     head: [
       { k: 'e', x: -4, y: -3, rx: 7.6, ry: 7.4, col: '#b06a33' },
@@ -346,9 +346,9 @@ export const BREEDS: Breed[] = [
     fluff: 'none',
     fluffSize: 0,
     feather: false,
-    bodyL: 19,
-    bodyH: 12.5,
-    legH: 2.8,
+    bodyL: 16,
+    bodyH: 13,
+    legH: 3.4,
     legW: 0.95,
     headR: 8.8,
     snoutL: 4.2,

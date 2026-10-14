@@ -209,8 +209,8 @@ function skeleton(b: Breed, pose: Pose, f: number, pup: boolean): Skel {
     case 'sit': {
       const hipY = -r * 0.98;
       sk.hip = { x: -bl0 * 0.5 - 2.5, y: hipY };
-      const ang = -1.12;
-      const L = bl0 * 0.7 + r * 0.55;
+      const ang = -1.2;
+      const L = bl0 * 0.5 + r * 0.42;
       sk.sh = { x: sk.hip.x + Math.cos(ang) * L, y: sk.hip.y + Math.sin(ang) * L };
       sk.rh = r * 1.06;
       sk.rs = r * 0.95;
@@ -339,7 +339,7 @@ function softFur(ctx: Ctx, rnd: () => number, cx: number, cy: number, rx: number
     // bow toward the centre so the stroke hugs the form
     const bx = -Math.cos(a) * 0.5;
     const by = -Math.sin(a) * 0.5;
-    ctx.strokeStyle = rgba(shift(base, rnd() < 0.5 ? amp * 10 : -amp * 10), 0.5);
+    ctx.strokeStyle = rgba(shift(base, rnd() < 0.5 ? amp * 10 : -amp * 10), 0.42);
     ctx.beginPath();
     ctx.moveTo(px - tx * l, py - ty * l);
     ctx.quadraticCurveTo(px + bx, py + by, px + tx * l, py + ty * l);
@@ -523,7 +523,7 @@ function drawBody(ctx: Ctx, b: Breed, sk: Skel, r: number): void {
   ctx.rotate(bf.ang);
   drawMarks(ctx, b.body);
   const rnd = rng(b.seed * 131 + (sk.ball ? 7 : 1));
-  const n = b.fur === 'fluffy' ? 22 : b.fur === 'glossy' ? 6 : 8;
+  const n = b.fur === 'fluffy' ? 14 : b.fur === 'glossy' ? 3 : 3;
   softFur(ctx, rnd, 0, 0, bf.hl + r, r, n, b.base);
   ctx.restore();
   ctx.restore();
@@ -629,24 +629,16 @@ function drawEar(ctx: Ctx, b: Breed, sk: Skel, hr: number, far: boolean): void {
   switch (b.ear) {
     case 'floppy':
     case 'long': {
-      const L = b.ear === 'long' ? 1.0 : 0.72;
-      const w = b.ear === 'long' ? 0.36 : 0.34;
-      const root = far ? { x: hr * 0.52, y: -hr * 0.66 } : { x: -hr * 0.55, y: -hr * 0.55 };
-      // hangs from the root; far ear peeks out over the top-front corner
-      const rot = far ? -0.55 : 0.12;
-      earRoot(ctx, root.x, root.y, rot - back * 0.9 * (far ? 0.6 : 1), () => {
-        const len = hr * (far ? 0.62 : 0.72) * L * (far ? 1.1 : 1.45) * (b.ear === 'long' ? 1.0 : 0.95);
+      const long = b.ear === 'long';
+      const len = hr * (long ? 1.7 : b.id === 'dalmatian' ? 1.15 : 1.3) * (far ? 0.62 : 1);
+      const wid = hr * (long ? 0.38 : 0.34) * (far ? 0.8 : 1);
+      const root = far ? { x: hr * 0.56, y: -hr * 0.74 } : { x: -hr * 0.64, y: -hr * 0.56 };
+      earRoot(ctx, root.x, root.y, (far ? -0.55 : 0.08) - back * (far ? 0.4 : 0.8), () => {
         const cx = root.x;
-        const cy = root.y + len * 0.5;
-        const wid = hr * w * (far ? 0.8 : 1);
-        let p: Path2D;
-        if (b.feather && !far) {
-          p = new Path2D();
-          scallopPath(p, ellipsePts(cx, cy, wid, len * 0.5, 0, 22), 0.55, 2);
-        } else {
-          p = new Path2D();
-          p.ellipse(cx, cy, wid, len * 0.5, 0, 0, TAU);
-        }
+        const cy = root.y + len * 0.5 - wid * 0.4;
+        const p = new Path2D();
+        if (b.feather && !far) scallopPath(p, ellipsePts(cx, cy, wid, len * 0.5, 0, 22), 0.55, 2);
+        else p.ellipse(cx, cy, wid, len * 0.5, 0, 0, TAU);
         finish(p, null);
       });
       break;
@@ -666,10 +658,10 @@ function drawEar(ctx: Ctx, b: Breed, sk: Skel, hr: number, far: boolean): void {
       break;
     }
     case 'rose': {
-      const root = far ? { x: hr * 0.5, y: -hr * 0.7 } : { x: -hr * 0.45, y: -hr * 0.6 };
+      const root = far ? { x: hr * 0.55, y: -hr * 0.66 } : { x: -hr * 0.62, y: -hr * 0.52 };
       earRoot(ctx, root.x, root.y, -back * 0.6, () => {
         const p = new Path2D();
-        const w = hr * (far ? 0.38 : 0.46);
+        const w = hr * (far ? 0.34 : 0.4);
         p.moveTo(root.x - w, root.y + hr * 0.05);
         p.quadraticCurveTo(root.x - w * 0.9, root.y - hr * 0.5, root.x + w * 0.2, root.y - hr * 0.42);
         p.quadraticCurveTo(root.x + w * 1.1, root.y - hr * 0.1, root.x + w * 0.8, root.y + hr * 0.38);
@@ -782,7 +774,7 @@ function drawHead(ctx: Ctx, b: Breed, sk: Skel, hr: number, pup: boolean): void 
   ctx.save();
   ctx.clip(skull);
   drawMarks(ctx, b.head);
-  softFur(ctx, rng(b.seed * 17 + 3), 0, 0, hr, hr * 0.95, curly ? 0 : b.fur === 'fluffy' ? 9 : 3, b.base);
+  softFur(ctx, rng(b.seed * 17 + 3), 0, 0, hr, hr * 0.95, curly ? 0 : b.fur === 'fluffy' ? 6 : 0, b.base);
   // rosy cheek
   if (b.blush > 0) {
     ctx.fillStyle = `rgba(255,105,130,${0.4 * b.blush})`;
@@ -822,7 +814,7 @@ function drawHead(ctx: Ctx, b: Breed, sk: Skel, hr: number, pup: boolean): void 
   }
 
   // eyes (3/4 view: near eye bigger)
-  const er = hr * 0.2 * b.eye * (pup ? 1.08 : 1);
+  const er = hr * 0.235 * b.eye * (pup ? 1.08 : 1);
   drawEye(ctx, b, hr * 0.12, -hr * 0.04, er, sk.closedEyes);
   drawEye(ctx, b, hr * 0.7, -hr * 0.05, er * 0.88, sk.closedEyes);
 
@@ -858,12 +850,12 @@ function drawHead(ctx: Ctx, b: Breed, sk: Skel, hr: number, pup: boolean): void 
 
   // near ear (on top)
   if (b.ear === 'puff') {
-    const cx = -hr * 0.62;
-    const cy = hr * 0.2;
-    curl(ctx, cx, cy, hr * 0.46, b.earCol, 0);
-    curl(ctx, cx - 0.4, cy + hr * 0.5, hr * 0.42, b.earCol, 0);
-    curl(ctx, cx, cy, hr * 0.46, b.earCol, 1);
-    curl(ctx, cx - 0.4, cy + hr * 0.5, hr * 0.42, b.earCol, 1);
+    const cx = -hr * 0.8;
+    const cy = -hr * 0.02;
+    curl(ctx, cx, cy, hr * 0.4, b.earCol, 0);
+    curl(ctx, cx - 0.3, cy + hr * 0.5, hr * 0.36, b.earCol, 0);
+    curl(ctx, cx, cy, hr * 0.4, b.earCol, 1);
+    curl(ctx, cx - 0.3, cy + hr * 0.5, hr * 0.36, b.earCol, 1);
   } else drawEar(ctx, b, sk, hr, false);
   ctx.restore();
 }
@@ -931,7 +923,8 @@ export function drawTail(ctx: Ctx, b: Breed, pup: boolean): void {
   const s = DOG_K * b.size * (pup ? PUP : 1);
   ctx.save();
   ctx.translate(TAIL_AX, TAIL_AY);
-  ctx.scale(s, s);
+  const ts = { plume: 0.74, whip: 0.86, otter: 0.86, curl: 0.78, fluffcurl: 0.76, stub: 0.92, pom: 0.85, pug: 0.95 }[b.tail];
+  ctx.scale(s * ts, s * ts);
   const col = b.tailCol;
   const oc = outline(col);
   const fluffy = b.tail === 'plume' || b.tail === 'fluffcurl' || b.tail === 'stub';

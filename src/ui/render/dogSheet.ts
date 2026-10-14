@@ -51,6 +51,18 @@ export class DogSheet {
   draw(ctx: CanvasRenderingContext2D, dpr: number, w: number, h: number): void {
     const { scale: s, breeds, cols } = this.cfg;
     const cache = this.cache;
+    // full-window overlay so the sheet is not limited to the phone column
+    const cv = ctx.canvas;
+    if (cv.parentElement !== document.body) document.body.appendChild(cv);
+    const ww = window.innerWidth;
+    const hh = window.innerHeight;
+    if (cv.style.position !== 'fixed' || cv.width !== Math.round(ww * dpr) || cv.height !== Math.round(hh * dpr)) {
+      cv.style.cssText = `position:fixed;left:0;top:0;z-index:2147483000;width:${ww}px;height:${hh}px`;
+      cv.width = Math.round(ww * dpr);
+      cv.height = Math.round(hh * dpr);
+    }
+    w = ww;
+    h = hh;
     cache.setDpr(dpr * s);
     cache.nextFrame();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
