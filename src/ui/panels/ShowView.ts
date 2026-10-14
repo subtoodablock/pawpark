@@ -145,7 +145,7 @@ export function createShowView(c: GameController, opts: { onSwitch: () => void }
     if (sp && show) {
       const top = Math.max(1, sp.goals[2]?.target ?? 1);
       setMeter(prog, sp.delivered / top);
-      setText(deliveredEl, `${formatNumber(sp.delivered)} / ${formatNumber(top)}`);
+      setText(deliveredEl, `${formatNumber(Math.floor(sp.delivered))} / ${formatNumber(top)}`);
       markers.forEach((m, i) => {
         const t = sp.goals[i].target;
         m.el.style.left = `${Math.min(100, (t / top) * 100).toFixed(2)}%`;
@@ -173,7 +173,7 @@ export function createShowView(c: GameController, opts: { onSwitch: () => void }
         setBtn(g.btn, 'CLAIM', true);
       } else {
         setClass(g.btn, 'claimed', false);
-        setBtn(g.btn, `${formatNumber(Math.max(0, goal.target - sp.delivered))} TO GO`, false);
+        setBtn(g.btn, `${formatNumber(Math.max(0, Math.ceil(goal.target - sp.delivered)))} TO GO`, false);
       }
     });
 

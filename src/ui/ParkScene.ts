@@ -300,6 +300,14 @@ export class ParkScene {
       a.tx = clamp(a.tx, 16, w - 16);
       a.ty = clamp(a.ty, this.L.kennelBase + 16, this.L.lawnBottom);
     }
+    // Resizing clears the canvas, and the ResizeObserver fires after this frame's draw: repaint now so the scene never flashes blank.
+    if (this.frames > 0 && !this.dogSheet) {
+      try {
+        this.draw();
+      } catch {
+        /* next frame repaints */
+      }
+    }
   }
 
   private computeAnchors(): void {

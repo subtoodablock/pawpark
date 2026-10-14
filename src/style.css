@@ -207,9 +207,16 @@ strong {
   box-shadow: none;
 }
 .btn.sm {
+  position: relative;
   min-height: 28px;
   padding: 3px 12px;
   font-size: 15px;
+}
+/* small buttons keep their look but get a 40px tap area */
+.btn.sm::after {
+  content: '';
+  position: absolute;
+  inset: -6px -3px;
 }
 .btn.pill {
   border-radius: 999px;
@@ -359,8 +366,17 @@ strong {
   margin-top: 2px;
   font-size: 17px;
   white-space: nowrap;
+  overflow: hidden;
+}
+.sub-line.stack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }
 .income {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--accent-text);
   font-weight: 500;
 }
@@ -369,7 +385,7 @@ strong {
   align-items: center;
   gap: 4px;
   color: var(--ui-text);
-  min-width: 0;
+  flex: none;
 }
 .pups-chip.full {
   color: var(--red);
@@ -412,16 +428,17 @@ strong {
 }
 .find-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid var(--ui-line);
   min-height: 34px;
 }
 .find-text {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 110px;
+  min-width: 110px;
   font-size: 15px;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -430,23 +447,37 @@ strong {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.find-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex: none;
+}
 .find-row .chip {
   flex: none;
   height: 24px;
-  padding: 0 9px 0 7px;
+  padding: 0 7px 0 6px;
   border-radius: 999px;
   background: var(--ui-soft);
   font-size: 15px;
 }
 .find-row .chip-btn {
+  position: relative;
   border: 0;
   cursor: pointer;
+}
+/* 24px chips, 40px tap area */
+.find-row .chip-btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px -3px;
 }
 .find-row .chip-btn:active {
   background: #e4e7ec;
 }
 .find-row .chip.lv {
-  padding-left: 9px;
+  padding-left: 7px;
   letter-spacing: 0.03em;
 }
 
@@ -620,8 +651,8 @@ strong {
   flex-direction: column;
   justify-content: center;
   width: 100%;
-  height: 66px;
-  padding: 0 18px 6px;
+  height: 70px;
+  padding: 0 18px 12px;
   border: 0;
   border-radius: 22px;
   background: var(--red);
@@ -675,6 +706,7 @@ strong {
   line-height: 1;
 }
 .whistle-sub {
+  line-height: 1.15;
   font-size: 14px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -997,6 +1029,8 @@ strong {
   align-items: center;
   gap: 10px;
   padding: 8px 0;
+  min-height: 44px;
+  cursor: pointer;
   font-size: 17px;
 }
 .pref-row input {
@@ -1352,7 +1386,7 @@ strong {
 .find-dots button.dot {
   position: static;
   width: 15px;
-  height: 28px;
+  height: 44px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1558,7 +1592,7 @@ strong {
 }
 .seg {
   min-width: 64px;
-  height: 32px;
+  height: 40px;
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
@@ -1791,6 +1825,14 @@ strong {
   align-items: center;
   pointer-events: none;
   padding: 0 14px;
+}
+.toast.bump {
+  animation: toast-bump 240ms ease-out;
+}
+@keyframes toast-bump {
+  50% {
+    transform: scale(1.05);
+  }
 }
 .toast {
   pointer-events: none;
@@ -2446,10 +2488,12 @@ img.silhouette {
   display: flex;
   gap: 3px;
   margin-top: 5px;
-  flex-wrap: wrap;
+  max-width: 100%;
 }
 .car-pips i {
-  width: 14px;
+  flex: 1 1 0;
+  min-width: 4px;
+  max-width: 14px;
   height: 8px;
   border-radius: 3px;
   background: #d6dae0;
@@ -2570,7 +2614,8 @@ img.silhouette {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 12px 4px 8px;
+  min-height: 40px;
+  padding: 4px 14px 4px 8px;
   border: 0;
   border-radius: 999px;
   background: var(--ui-soft);
@@ -2944,6 +2989,7 @@ img.silhouette {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 40px;
   padding: 3px 10px 3px 4px;
   border: 0;
   border-radius: 999px;
@@ -3291,4 +3337,9 @@ img.silhouette {
   .show-switch {
     min-height: 48px;
   }
+}
+
+/* money amounts with case-sensitive suffixes (see caseSafe.ts) */
+.nt {
+  text-transform: none;
 }

@@ -5,6 +5,7 @@ import { HUD } from './HUD';
 import { ParkScene } from './ParkScene';
 import { Sheet } from './Sheet';
 import { h } from './dom';
+import { installCaseSafeAmounts } from './caseSafe';
 import { artImg } from './gameArt';
 import { rich } from './icons';
 import { createMenuPanel } from './panels/MenuPanel';
@@ -71,6 +72,7 @@ export function startApp(root: HTMLElement): GameController {
   root.replaceChildren(app);
   initToasts(app);
   initModal(app);
+  installCaseSafeAmounts(app);
 
   controller.subscribe((e) => {
     if (e.type === 'mailArrived') scene.floater('MAIL', scene.el.clientWidth - 32, 100);

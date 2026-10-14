@@ -5,7 +5,7 @@ import { reducedMotion } from './motion';
 export type ToastKind = 'info' | 'good' | 'warn' | 'gold';
 
 let host: HTMLElement | null = null;
-const MAX = 4;
+const MAX = 3;
 
 export function initToasts(parent: HTMLElement): void {
   host = h('div', { cls: 'toasts', attrs: { 'aria-live': 'polite' } });
@@ -25,8 +25,17 @@ function dismiss(t: HTMLElement): void {
 export function toast(msg: string, kind: ToastKind = 'info', ms = 3200): void {
   if (!host) return;
   const live = Array.from(host.children).filter((c) => !c.classList.contains('out'));
+  const dup = live.find((c) => (c as HTMLElement).dataset.msg === msg);
+  if (dup) {
+    // the same message already showing: pulse it instead of stacking another copy
+    dup.classList.remove('bump');
+    void (dup as HTMLElement).offsetWidth;
+    dup.classList.add('bump');
+    return;
+  }
   while (live.length >= MAX) dismiss(live.shift() as HTMLElement);
   const t = h('div', { cls: `toast ${kind}` }, ...rich(msg, 16));
+  t.dataset.msg = msg;
   t.addEventListener('click', () => dismiss(t));
   host.appendChild(t);
   window.setTimeout(() => dismiss(t), ms);

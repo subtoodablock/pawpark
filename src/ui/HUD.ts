@@ -88,6 +88,10 @@ export class HUD {
   private cashUnit = h('span', { cls: 'cash-unit' });
   private income = h('span', { cls: 'income' });
   private pups = h('span', { cls: 'pups-val' });
+  private pupsChip = h('span', { cls: 'pups-chip', attrs: { title: 'Pups / kennel capacity' } }, icon('dog', { size: 15 }), this.pups);
+  private subLine = h('div', { cls: 'sub-line' }, this.income, this.pupsChip);
+  private subKey = '';
+  private subStacked = false;
   private level = makeChip('button', 'lv', null, 'Park Level');
   private rank = makeChip('button', 'rank', null, 'Pup Rank');
   private showBand = h('div', { cls: 'show-band' }, icon('flag-banner', { size: 18, color: '#111' }));
@@ -155,12 +159,12 @@ export class HUD {
             'div',
             { cls: 'cash-col' },
             this.cashLine,
-            h('div', { cls: 'sub-line' }, this.income, h('span', { cls: 'pups-chip', attrs: { title: 'Pups / kennel capacity' } }, icon('dog', { size: 15 }), this.pups)),
+            this.subLine,
           ),
           h('div', { cls: 'chips' }, this.bones.el, this.paws.el),
           this.shopBtn,
         ),
-        h('div', { cls: 'find-row' }, this.findLine, this.upgradePill, this.stars.el, this.level.el, this.rank.el),
+        h('div', { cls: 'find-row' }, this.findLine, this.upgradePill, h('div', { cls: 'find-chips' }, this.stars.el, this.level.el, this.rank.el)),
     );
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(() => document.documentElement.style.setProperty('--hud-h', `${this.top.offsetHeight}px`)).observe(this.top);
@@ -267,9 +271,15 @@ export class HUD {
   }
 
   /** Shrink the cash figure until number + unit word fit the centre column (re-measured only when the text shape changes). */
-  private fitCash(key: string): void {
+  private fitCash(num: string, unit: string): void {
+    // measure with the widest text for this many integer digits ("$14.2" and "$14.21" must not size differently,
+    // or the figure and the whole HUD would jitter while the number counts up)
+    const m = /^(-?\$)(\d+)(?:\.\d+)?$/.exec(num);
+    const key = m ? `${m[2].length}:${unit}` : `${num.length}:${unit}`;
     if (key === this.cashFitKey) return;
     this.cashFitKey = key;
+    const real = this.cash.textContent;
+    if (m) this.cash.textContent = `${m[1]}${'8'.repeat(m[2].length)}.88`;
     const line = this.cashLine;
     line.style.removeProperty('--cash-fs');
     line.style.removeProperty('--unit-fs');
@@ -279,6 +289,7 @@ export class HUD {
       line.style.setProperty('--cash-fs', `${fs}px`);
       line.style.setProperty('--unit-fs', `${Math.max(12, Math.round(fs * 0.4))}px`);
     }
+    this.cash.textContent = real;
   }
 
   /** Update a chip; flash it when the value went up. */
@@ -313,7 +324,7 @@ export class HUD {
     const cp = moneyParts(this.cashAnim.step(dt));
     setText(this.cash, cp.num);
     setText(this.cashUnit, cp.unit);
-    this.fitCash(`${cp.num.length}:${cp.unit}`);
+    this.fitCash(cp.num, cp.unit);
     setText(this.income, `+${formatMoney(d.incomePerSec)}/s` + (d.zoomieMult > 1.001 ? `  ×${d.zoomieMult.toFixed(2)}` : ''));
     // meta currencies, Park Level and Pup Rank always belong to the home save
     this.setChip(this.bones, Math.floor(home.goldenBones), formatNumber(Math.floor(home.goldenBones)));
@@ -342,7 +353,7 @@ export class HUD {
     const f = FINDS[s.findIndex];
     setArt(this.badgeImg, 'find', s.findIndex, 40);
     const nf = nextFind(s);
-    const ready = !!nf && d.parkValue >= nf.unlockParkValue;
+    const ready = !!nf && d.parkValue >= nf.unlockParkValue && !inShow;
     setHidden(this.upgradePill, !ready || inShow);
     setClass(this.badge, 'ready', ready);
 
@@ -357,12 +368,24 @@ export class HUD {
       if (this.badgeFill.style.strokeDashoffset !== off) this.badgeFill.style.strokeDashoffset = off;
     } else if (this.badgeFill.style.strokeDashoffset !== '0.0') this.badgeFill.style.strokeDashoffset = '0.0';
     const pct = Math.floor(Math.max(0, Math.min(1, frac)) * 100);
-    setText(this.findLine, nf ? `${f?.name ?? '?'} Era  ·  ${ready ? 'next find ready' : `${pct}% to ${nf.name}`}` : `${f?.name ?? '?'} Era  ·  all finds discovered`);
+    setText(this.findLine, inShow ? `${f?.name ?? '?'}  ·  show park` : nf ? (ready ? `${f?.name ?? '?'}` : `${f?.name ?? '?'}  ·  ${pct}%`) : `${f?.name ?? '?'}  ·  all finds`);
+    this.findLine.title = nf ? `${f?.name ?? '?'} Era: ${ready ? 'next find ready' : `${pct}% to ${nf.name}`}` : `${f?.name ?? '?'} Era: all finds discovered`;
 
     const pups = Math.floor(s.pups);
     const full = d.kennelCapacity - s.pups < 1;
     setText(this.pups, `${formatNumber(pups)} / ${formatNumber(Math.floor(d.kennelCapacity))}` + (full ? ' FULL' : ''));
-    setClass(this.pups.parentElement as HTMLElement, 'full', full);
+    setClass(this.pupsChip, 'full', full);
+
+    // income and pups share a line; stack them when they would collide (with hysteresis, so the HUD never flaps between heights)
+    const subKey = `${this.income.textContent}|${this.pups.textContent}`;
+    if (subKey !== this.subKey) {
+      this.subKey = subKey;
+      const need = this.income.scrollWidth + this.pupsChip.offsetWidth + 12;
+      const avail = this.subLine.clientWidth;
+      if (!this.subStacked && need > avail) this.subStacked = true;
+      else if (this.subStacked && need < avail - 30) this.subStacked = false;
+      setClass(this.subLine, 'stack', this.subStacked);
+    }
 
     const digBott = d.bottleneck === 'dig';
     setText(this.dig, `DIG ${formatNumber(d.digPerSec)}/s${digBott ? '  limit' : ''}`);
