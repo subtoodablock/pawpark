@@ -101,8 +101,9 @@ export class Particles {
       q.vr = (Math.random() - 0.5) * 16;
     }
   }
-  z(x: number, y: number): void {
-    this.spawn(K.Z, x, y, 6 + Math.random() * 4, -14 - Math.random() * 4, 1.5, 3.6 + Math.random());
+  /** a small sleepy z that drifts up (away from the dog's facing side) and fades */
+  z(x: number, y: number, dir = 1): void {
+    this.spawn(K.Z, x, y, dir * (2.5 + Math.random() * 1.5), -7.5 - Math.random() * 2, 2.4, 2.5 + Math.random() * 0.4);
   }
   paw(x: number, y: number): void {
     const a = Math.random() * Math.PI * 2;
@@ -216,8 +217,9 @@ export class Particles {
           break;
         }
         case K.Z: {
-          ctx.globalAlpha = Math.min(1, u * 5) * (1 - u);
-          const s = q.size * (0.7 + u * 0.7);
+          // fade in quickly, then fade away while rising; grows a touch
+          ctx.globalAlpha = Math.min(1, u * 7) * (1 - u) * (1 - u) * 1.15;
+          const s = q.size * (0.75 + u * 0.55);
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
           ctx.beginPath();
@@ -225,11 +227,11 @@ export class Particles {
           ctx.lineTo(q.x + s, q.y - s);
           ctx.lineTo(q.x - s, q.y + s);
           ctx.lineTo(q.x + s, q.y + s);
-          ctx.strokeStyle = 'rgba(60,80,150,0.9)';
-          ctx.lineWidth = 3.4;
+          ctx.strokeStyle = 'rgba(60,80,150,0.85)';
+          ctx.lineWidth = 2.4;
           ctx.stroke();
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.6;
+          ctx.lineWidth = 1.1;
           ctx.stroke();
           break;
         }

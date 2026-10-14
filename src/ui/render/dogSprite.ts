@@ -144,13 +144,13 @@ function skeleton(b: Breed, pose: Pose, f: number, pup: boolean): Skel {
       // waddle: body bobs twice per stride, rocks side to side, squashes on contact
       const ph = th + Math.PI / 2;
       const bob = Math.abs(Math.cos(ph));
-      const by = by0 - bob * 1.4;
+      const by = by0 - bob * 1.6;
       sk.hip.y = sk.sh.y = by;
       sk.tilt = Math.cos(ph) * 0.07;
       sk.sy = 1 + (bob - 0.5) * 0.07;
       sk.sx = 1 - (bob - 0.5) * 0.05;
-      const sw = 2.1;
-      const lf = 2.0;
+      const sw = 2.5;
+      const lf = 2.4;
       const mk = (x: number, near: boolean, p: number): void => leg(x, near, Math.sin(p) * sw, Math.max(0, Math.cos(p)) * lf);
       mk(hx() + far, false, ph);
       mk(fx() + far, false, ph + Math.PI);
@@ -163,11 +163,11 @@ function skeleton(b: Breed, pose: Pose, f: number, pup: boolean): Skel {
       bodyL *= 1.15;
       sk.hip.x = -bodyL / 2;
       sk.sh.x = bodyL / 2;
-      const air = Math.max(0, Math.sin(th)) * 2.6;
+      const air = Math.max(0, Math.sin(th)) * 2.0;
       const by = by0 - air - 0.5;
       sk.hip.y = by + Math.sin(th) * 1.0;
       sk.sh.y = by - Math.sin(th) * 1.0;
-      sk.tilt = -Math.sin(th) * 0.06;
+      sk.tilt = -Math.sin(th) * 0.035;
       sk.sy = 1 + Math.sin(th) * 0.04;
       sk.sx = 1 - Math.sin(th) * 0.03 + 0.03;
       const reach = 4.2;
@@ -176,7 +176,7 @@ function skeleton(b: Breed, pose: Pose, f: number, pup: boolean): Skel {
       mk(fx() + far, false, th + 0.4);
       mk(hx(), true, th + Math.PI);
       mk(fx(), true, th);
-      headDy = -Math.sin(th) * 0.7 - 0.4;
+      headDy = -Math.sin(th) * 0.4 - 0.2;
       sk.headRot = -0.08;
       sk.tongue = true;
       sk.tailRest = 0.3;
@@ -523,7 +523,7 @@ function drawBody(ctx: Ctx, b: Breed, sk: Skel, r: number): void {
   ctx.rotate(bf.ang);
   drawMarks(ctx, b.body);
   const rnd = rng(b.seed * 131 + (sk.ball ? 7 : 1));
-  const n = b.fur === 'fluffy' ? 14 : b.fur === 'glossy' ? 3 : 3;
+  const n = b.fur === 'fluffy' ? 14 : 0;
   softFur(ctx, rnd, 0, 0, bf.hl + r, r, n, b.base);
   ctx.restore();
   ctx.restore();
@@ -569,7 +569,7 @@ function drawCurlyBody(ctx: Ctx, b: Breed, sk: Skel, r: number): void {
     cs.push([bf.mx + lx * c - ly * sn, bf.my + lx * sn + ly * c, rad]);
   };
   put(-bf.hl, 0, r * 1.0);
-  put(bf.hl, -r * 0.03, r * 0.98);
+  put(bf.hl - 0.8, r * 0.1, r * 0.9);
   for (let i = 0; i < 3; i++) {
     const lx = -bf.hl * 0.5 + (i / 2) * bf.hl;
     put(lx, -r * 0.5, r * 0.66);
@@ -630,10 +630,10 @@ function drawEar(ctx: Ctx, b: Breed, sk: Skel, hr: number, far: boolean): void {
     case 'floppy':
     case 'long': {
       const long = b.ear === 'long';
-      const len = hr * (long ? 1.7 : b.id === 'dalmatian' ? 1.15 : 1.3) * (far ? 0.62 : 1);
-      const wid = hr * (long ? 0.38 : 0.34) * (far ? 0.8 : 1);
-      const root = far ? { x: hr * 0.56, y: -hr * 0.74 } : { x: -hr * 0.64, y: -hr * 0.56 };
-      earRoot(ctx, root.x, root.y, (far ? -0.55 : 0.08) - back * (far ? 0.4 : 0.8), () => {
+      const len = hr * (long ? 1.75 : b.id === 'dalmatian' ? 1.3 : 1.5) * (far ? 0.62 : 1);
+      const wid = hr * (long ? 0.38 : 0.36) * (far ? 0.8 : 1);
+      const root = far ? { x: hr * 0.56, y: -hr * 0.74 } : { x: -hr * 0.8, y: -hr * 0.62 };
+      earRoot(ctx, root.x, root.y, (far ? -0.55 : 0.16) + back * (far ? 0.5 : 0.85), () => {
         const cx = root.x;
         const cy = root.y + len * 0.5 - wid * 0.4;
         const p = new Path2D();
@@ -658,7 +658,7 @@ function drawEar(ctx: Ctx, b: Breed, sk: Skel, hr: number, far: boolean): void {
       break;
     }
     case 'rose': {
-      const root = far ? { x: hr * 0.55, y: -hr * 0.66 } : { x: -hr * 0.62, y: -hr * 0.52 };
+      const root = far ? { x: hr * 0.55, y: -hr * 0.66 } : { x: -hr * 0.78, y: -hr * 0.46 };
       earRoot(ctx, root.x, root.y, -back * 0.6, () => {
         const p = new Path2D();
         const w = hr * (far ? 0.34 : 0.4);

@@ -2,6 +2,7 @@
 import { BREEDS } from './breeds';
 import {
   DOG_AX,
+  DOG_K,
   DOG_AY,
   DOG_H,
   DOG_W,
@@ -56,6 +57,7 @@ const TA_X = new Float32Array(10 * 6 * 8 * 2);
 const TA_Y = new Float32Array(10 * 6 * 8 * 2);
 const TA_R = new Float32Array(10 * 6 * 8 * 2);
 const TA_OK = new Uint8Array(10 * 6 * 8 * 2);
+const TA_H = new Uint8Array(10 * 6 * 8 * 2);
 
 export class PupActor {
   active = false;
@@ -132,6 +134,7 @@ function tailAnch(breed: number, pose: Pose, frame: number, pup: boolean): numbe
     TA_X[i] = a.x - DOG_AX;
     TA_Y[i] = a.y - DOG_AY;
     TA_R[i] = a.rest;
+    TA_H[i] = a.hide ? 1 : 0;
     TA_OK[i] = 1;
   }
   return i;
@@ -167,8 +170,9 @@ export class Flock {
     a.reset(bi, Math.random() < 0.1);
     const L = env.L;
     if (scatter) {
-      a.x = 18 + Math.random() * (L.w - 36);
-      a.y = L.kennelBase + 20 + Math.random() * (L.lawnBottom - L.kennelBase - 20);
+      this.bestSpot(a, env, 18, L.w - 18, L.kennelBase + 20, L.lawnBottom, 8);
+      a.x = a.tx;
+      a.y = a.ty;
       a.alpha = 0;
       a.fadeRate = 2.2;
       this.pickTarget(a, env);
@@ -237,16 +241,71 @@ export class Flock {
     }
   }
 
+  /**
+   * Best-candidate sampling: draw a handful of random spots on the lawn and keep the one that is
+   * farthest (in screen-ellipse metric) from every other pup and every other pup's destination, with a
+   * slight push away from the crowd centroid. This is a cheap Poisson-disc-like distribution, so the whole
+   * lawn gets used instead of everyone converging on the middle.
+   */
+  private bestSpot(a: PupActor, env: SimEnv, x0: number, x1: number, y0: number, y1: number, tries: number): void {
+    const list = this.actors;
+    let cx = 0;
+    let cy = 0;
+    let n = 0;
+    for (const o of list) {
+      if (o === a || o.state === St.Run || o.state === St.Enter) continue;
+      cx += o.x;
+      cy += o.y;
+      n++;
+    }
+    if (n) {
+      cx /= n;
+      cy /= n;
+    }
+    let bx = x0 + Math.random() * (x1 - x0);
+    let by = y0 + Math.random() * (y1 - y0);
+    let bs = -1;
+    for (let t = 0; t < tries; t++) {
+      const x = x0 + Math.random() * (x1 - x0);
+      const y = y0 + Math.random() * (y1 - y0);
+      let d2 = 1e9;
+      for (const o of list) {
+        if (o === a || o.state === St.Run || o.state === St.Enter) continue;
+        const dx = x - o.x;
+        const dy = (y - o.y) * 2.2;
+        const dd = dx * dx + dy * dy;
+        if (dd < d2) d2 = dd;
+        // others' pending destinations count too (wanderers only)
+        if (o.state === St.Wander) {
+          const tx = x - o.tx;
+          const ty = (y - o.ty) * 2.2;
+          const td = tx * tx + ty * ty;
+          if (td < d2) d2 = td;
+        }
+      }
+      // mild preference for spots away from the crowd centroid
+      const cd = n ? Math.hypot(x - cx, (y - cy) * 2.2) : 0;
+      const score = Math.sqrt(d2) + cd * 0.22;
+      if (score > bs) {
+        bs = score;
+        bx = x;
+        by = y;
+      }
+    }
+    a.tx = bx;
+    a.ty = by;
+    void env;
+  }
+
   private pickTarget(a: PupActor, env: SimEnv, fromDoor = false): void {
     const L = env.L;
     const y0 = L.kennelBase + 16 * L.bs;
     const y1 = L.lawnBottom;
     if (fromDoor) {
-      a.tx = clamp(a.x + (Math.random() - 0.5) * 90, 16, L.w - 16);
-      a.ty = clamp(a.y + 22 + Math.random() * 60, y0, y1);
+      // leave the door in the general outward direction, but still avoid the crowd
+      this.bestSpot(a, env, clamp(a.x - 60, 16, L.w - 16), clamp(a.x + 60, 16, L.w - 16), clamp(a.y + 18, y0, y1), clamp(a.y + 90, y0, y1), 5);
     } else {
-      a.tx = 16 + Math.random() * (L.w - 32);
-      a.ty = y0 + Math.random() * (y1 - y0);
+      this.bestSpot(a, env, 16, L.w - 16, y0, y1, 7);
     }
   }
 
@@ -433,8 +492,9 @@ export class Flock {
           wagF = 3;
           a.sfx -= dt;
           if (a.sfx <= 0) {
-            a.sfx = 1.1;
-            env.particles.z(a.x + a.face * 18 * ds, a.y - 20 * ds);
+            // one slow little z at a time per sleeper (life < interval, so they never stack)
+            a.sfx = 2.7 + Math.random() * 0.8;
+            env.particles.z(a.x + a.face * 9 * ds, a.y - 17 * ds, a.face);
           }
           if (a.t > a.dur) this.choose(a, env);
           break;
@@ -534,12 +594,12 @@ export class Flock {
         const b = list[j];
         if (b.state === St.Run || b.state === St.Enter) continue;
         const dx = a.x - b.x;
-        if (dx > 24 || dx < -24) continue;
+        if (dx > 26 || dx < -26) continue;
         const dy = (a.y - b.y) * 2.2;
         const d2 = dx * dx + dy * dy;
-        if (d2 > 576 || d2 < 0.01) continue;
+        if (d2 > 676 || d2 < 0.01) continue;
         const d = Math.sqrt(d2);
-        const push = ((24 - d) / 24) * 60 * dt;
+        const push = ((26 - d) / 26) * 60 * dt;
         const nx = dx / d;
         const ny = dy / d;
         const am = a.state === St.Wander || a.state === St.Play || a.state === St.Sniff;
@@ -649,7 +709,7 @@ export function drawPupShadow(ctx: CanvasRenderingContext2D, dpr: number, cache:
   const ds = depthScale(L, a.y);
   const b = BREEDS[a.breed];
   const sz = b.size * (a.puppy ? 0.74 : 1);
-  const len = (b.bodyL + 26) * 0.86 * sz * 1.1;
+  const len = (b.bodyL + b.bodyH + 9) * DOG_K * sz;
   const lift = clamp(1 - a.z / 40, 0.55, 1);
   const w = len * ds * lift;
   const h = w * (SHADOW_H / SHADOW_W) * (a.state === St.Nap ? 1.15 : 1);
@@ -667,8 +727,10 @@ export function drawPup(ctx: CanvasRenderingContext2D, dpr: number, cache: Sprit
   if (!sprite) return;
   const s = ds;
   const sq = a.squash;
-  const sx = s * (1 + 0.07 * sq) * Math.max(0.05, Math.abs(a.faceS));
-  const sy = s * (1 - 0.1 * sq);
+  // sleepers breathe: a slow, tiny squash/stretch
+  const br = a.state === St.Nap ? Math.sin(a.t * 2.4 + a.phase * 6) * 0.022 : 0;
+  const sx = s * (1 + 0.07 * sq - br) * Math.max(0.05, Math.abs(a.faceS));
+  const sy = s * (1 - 0.1 * sq + br * 1.4);
   const flip = a.faceS >= 0 ? 1 : -1;
   const al = a.alpha;
   if (al < 0.99) ctx.globalAlpha = al < 0 ? 0 : al;
@@ -677,7 +739,7 @@ export function drawPup(ctx: CanvasRenderingContext2D, dpr: number, cache: Sprit
   // live tail wag (separate cached sprite)
   const ti = tailAnch(a.breed, a.pose, a.frame, a.puppy);
   const tail = getTailSprite(cache, a.breed, a.puppy);
-  if (tail) {
+  if (tail && !TA_H[ti]) {
     const ang = TA_R[ti] + Math.sin(a.wag) * a.wagAmp;
     const tx = bx + TA_X[ti] * sx * flip;
     const ty = by + TA_Y[ti] * sy;
