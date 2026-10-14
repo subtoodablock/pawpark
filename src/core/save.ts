@@ -111,7 +111,7 @@ export function deserialize(json: string): GameState | null {
   } catch {
     return null;
   }
-  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 2 && parsed.version !== 1)) return null;
+  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1)) return null;
   for (const k of NUMERIC_KEYS) {
     if (k in parsed && !isNum(parsed[k])) return null;
   }
@@ -120,7 +120,7 @@ export function deserialize(json: string): GameState | null {
   const base = createInitialState(Date.now());
   const merged = { ...base, ...parsed } as GameState;
 
-  merged.version = SAVE_VERSION as 3;
+  merged.version = SAVE_VERSION as 4; // v3 -> v4 only bumps the version
   merged.kennels = cleanSlots(parsed.kennels ?? base.kennels, KENNEL_SLOTS, KENNELS.length);
   merged.vehicles = cleanSlots(parsed.vehicles ?? base.vehicles, MAX_FLEET_SLOTS, VEHICLES.length);
   merged.training = cleanLevels(parsed.training, TRAINING);

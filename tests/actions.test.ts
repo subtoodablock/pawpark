@@ -58,6 +58,7 @@ describe('kennels', () => {
   it('buys the next tier, charging the cost', () => {
     const s = newState();
     s.cash = KENNELS[0].cost * 2;
+    s.kennels = [null, null, null, null]; // no duplicates yet
     expect(kennelUpgradeCost(s, 1)).toBe(KENNELS[0].cost);
     expect(buyKennel(s, 1)).toEqual({ ok: true });
     expect(s.kennels[1]).toBe(0);
@@ -85,6 +86,7 @@ describe('kennels', () => {
   });
   it('applies kennel discount', () => {
     const s = newState();
+    s.kennels = [null, null, null, null];
     s.academy = { kennel_deals: 4 };
     const disc = ACADEMY.find((d) => d.id === 'kennel_deals')!.perLevel * 4;
     expect(kennelUpgradeCost(s, 1)).toBeCloseTo(KENNELS[0].cost * (1 - disc), 10);
@@ -94,6 +96,7 @@ describe('kennels', () => {
 describe('vehicles', () => {
   it('buys and upgrades in unlocked slots', () => {
     const s = newState();
+    s.vehicles[0] = null; // no duplicates
     s.cash = VEHICLES[0].cost + VEHICLES[1].cost;
     expect(vehicleUpgradeCost(s, 1)).toBe(VEHICLES[0].cost);
     expect(buyVehicle(s, 1).ok).toBe(true);
@@ -256,6 +259,7 @@ describe('find upgrade', () => {
     expect(s.highestFindIndex).toBe(1);
     expect(s.goldenBones).toBe(bones + FINDS[1].unlockReward);
     // simulate a prestige: back to find 0, record kept
+    Object.assign(s, rich());
     s.findIndex = 0;
     expect(upgradeFind(s).ok).toBe(true);
     expect(s.findIndex).toBe(1);

@@ -1,6 +1,6 @@
 export * from './types';
 export * from '../data';
-export { createInitialState, resetForPrestige } from './state';
+export { createInitialState, resetForPrestige, resetPark } from './state';
 export {
   statMode,
   statValue,
@@ -17,6 +17,10 @@ export { applyOfflineProgress } from './offline';
 export {
   adopt,
   kennelUpgradeCost,
+  kennelTierCost,
+  vehicleTierCost,
+  trainingLevelCost,
+  eraCostScale,
   vehicleUpgradeCost,
   trainingCost,
   trainingMaxBuy,

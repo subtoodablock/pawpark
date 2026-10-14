@@ -5,7 +5,7 @@ import {
   applyOfflineProgress, buyKennel, buyTraining, buyTreat, catchSquirrel, claimDailyDig, claimDailyDigBonus,
   claimDailyTreat, computeStats, createInitialState, dailyDigProgress, dayDiff, dayKeyOf, deserialize,
   hashString, openMail, parkLevel, parkTitle, prestige, refreshDaily, runAutomation, seededRng, serialize,
-  shareText, statValue, tick, adopt, buyVehicle, vipTierFor,
+  SAVE_VERSION, shareText, statValue, tick, adopt, buyVehicle, vipTierFor,
 } from '../src/core';
 import type { GameState } from '../src/core';
 import { newState, seeded } from './helpers';
@@ -272,6 +272,7 @@ describe('daily counters', () => {
   });
   it('earn counts online and offline; treats count buys and free activations', () => {
     const s = newState();
+    s.automation.find = false; // an auto era reset would wipe the park mid-test
     s.kennels = [3, null, null, null]; s.vehicles = [3, null, null, null]; s.pups = 2000;
     const inc = computeStats(s).incomePerSec;
     tick(s, 10, seeded(1));
@@ -439,7 +440,7 @@ describe('save v3', () => {
     v2.version = 2;
     delete v2.daily; delete v2.premium;
     const g = deserialize(JSON.stringify(v2))!;
-    expect(g.version).toBe(3);
+    expect(g.version).toBe(SAVE_VERSION);
     expect(g.cash).toBe(55);
     expect(g.daily.streak).toBe(0);
     expect(g.daily.counters.letters).toBe(0);
@@ -469,7 +470,7 @@ describe('save v3', () => {
   });
   it('createInitialState has v3 fields', () => {
     const s = createInitialState(1);
-    expect(s.version).toBe(3);
+    expect(s.version).toBe(SAVE_VERSION);
     expect(ACADEMY.length).toBeGreaterThan(0);
   });
 });

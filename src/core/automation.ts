@@ -9,8 +9,8 @@ import {
   TRAINING_TIERS,
   VEHICLES,
 } from '../data';
-import { prestige, upgradeFind } from './actions';
-import { computeStats, costMultiplier } from './stats';
+import { kennelTierCost, prestige, trainingLevelCost, upgradeFind, vehicleTierCost } from './actions';
+import { computeStats } from './stats';
 import { bumpCounter } from './counters';
 
 export interface AutomationResult {
@@ -75,27 +75,25 @@ function buyLoop(state: GameState): number {
 
     const cands: Candidate[] = [];
     if (build) {
-      const kMult = costMultiplier(state, 'kennelDiscount');
       for (let slot = 0; slot < KENNEL_SLOTS; slot++) {
         const cur = state.kennels[slot];
         const next = cur === null || cur === undefined ? 0 : cur + 1;
         if (next >= KENNELS.length) continue;
         cands.push({
-          cost: KENNELS[next].cost * kMult,
+          cost: kennelTierCost(state, slot, next),
           inBucket: bucketKennels,
           kind: 0,
           idx: slot,
           to: next,
         });
       }
-      const vMult = costMultiplier(state, 'fleetDiscount');
       const slots = Math.min(s.fleetSlots, state.vehicles.length);
       for (let slot = 0; slot < slots; slot++) {
         const cur = state.vehicles[slot];
         const next = cur === null || cur === undefined ? 0 : cur + 1;
         if (next >= VEHICLES.length) continue;
         cands.push({
-          cost: VEHICLES[next].cost * vMult,
+          cost: vehicleTierCost(state, slot, next),
           inBucket: bucketVehicles,
           kind: 1,
           idx: slot,
@@ -104,7 +102,6 @@ function buyLoop(state: GameState): number {
       }
     }
     if (train) {
-      const tMult = costMultiplier(state, 'researchDiscount');
       for (let d = 0; d < TRAINING.length; d++) {
         const def = TRAINING[d];
         const level = state.training[def.id] ?? 0;
@@ -112,7 +109,7 @@ function buyLoop(state: GameState): number {
         const tier = TRAINING_TIERS.find((t) => t.tier === def.tier);
         if (!tier || s.totalTrainingLevels < tier.unlockAt) continue;
         cands.push({
-          cost: def.baseCost * Math.pow(def.costGrowth, level) * tMult,
+          cost: trainingLevelCost(state, def, level),
           inBucket: bucketStats.includes(def.stat),
           kind: 2,
           idx: d,

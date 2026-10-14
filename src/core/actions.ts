@@ -2,6 +2,8 @@ import type { ActionResult, AutomationKey, FindDef, GameState, RewardResult, Rng
 import {
   ACADEMY,
   AUTO_PRESTIGE_THRESHOLDS,
+  DUPLICATE_GROWTH,
+  ERA_START_CASH,
   FINDS,
   KENNELS,
   KENNEL_SLOTS,
@@ -19,7 +21,7 @@ import {
 } from '../data';
 import { computeStats, costMultiplier } from './stats';
 import { bumpCounter } from './counters';
-import { resetForPrestige } from './state';
+import { resetForPrestige, resetPark } from './state';
 
 // ---------------------------------------------------------------- helpers
 
@@ -66,11 +68,51 @@ function nextTier(current: number | null | undefined, tierCount: number): number
   return next < tierCount ? next : null;
 }
 
+/** v4: the current era's multiplier on every cash price. */
+export function eraCostScale(state: GameState): number {
+  return (FINDS[state.findIndex] ?? FINDS[0]).costScale;
+}
+
+/** n = how many OTHER slots already hold tier >= `tier` (docs/08 §3.3). */
+function duplicateFactor(slots: (number | null)[], slot: number, tier: number): number {
+  let n = 0;
+  for (let i = 0; i < slots.length; i++) {
+    const t = slots[i];
+    if (i !== slot && t !== null && t !== undefined && t >= tier) n++;
+  }
+  return Math.pow(DUPLICATE_GROWTH, n);
+}
+
+/** Cash price of putting kennel tier `tier` into `slot` (era scale, duplicates, discount). */
+export function kennelTierCost(state: GameState, slot: number, tier: number): number {
+  return (
+    KENNELS[tier].cost *
+    eraCostScale(state) *
+    duplicateFactor(state.kennels, slot, tier) *
+    costMultiplier(state, 'kennelDiscount')
+  );
+}
+
+/** Cash price of putting vehicle tier `tier` into `slot`. */
+export function vehicleTierCost(state: GameState, slot: number, tier: number): number {
+  return (
+    VEHICLES[tier].cost *
+    eraCostScale(state) *
+    duplicateFactor(state.vehicles, slot, tier) *
+    costMultiplier(state, 'fleetDiscount')
+  );
+}
+
+/** Cash price of buying training `def` at current level `level` -> level + 1. */
+export function trainingLevelCost(state: GameState, def: { baseCost: number; costGrowth: number }, level: number): number {
+  return def.baseCost * Math.pow(def.costGrowth, level) * eraCostScale(state) * costMultiplier(state, 'researchDiscount');
+}
+
 export function kennelUpgradeCost(state: GameState, slot: number): number | null {
   if (!isSlot(slot, KENNEL_SLOTS)) return null;
   const next = nextTier(state.kennels[slot], KENNELS.length);
   if (next === null) return null;
-  return KENNELS[next].cost * costMultiplier(state, 'kennelDiscount');
+  return kennelTierCost(state, slot, next);
 }
 
 export function vehicleUpgradeCost(state: GameState, slot: number): number | null {
@@ -78,7 +120,7 @@ export function vehicleUpgradeCost(state: GameState, slot: number): number | nul
   if (!isSlot(slot, s.fleetSlots)) return null;
   const next = nextTier(state.vehicles[slot], VEHICLES.length);
   if (next === null) return null;
-  return VEHICLES[next].cost * costMultiplier(state, 'fleetDiscount');
+  return vehicleTierCost(state, slot, next);
 }
 
 export function trainingCost(state: GameState, id: string): number | null {
@@ -86,7 +128,7 @@ export function trainingCost(state: GameState, id: string): number | null {
   if (!def) return null;
   const level = state.training[id] ?? 0;
   if (level >= def.maxLevel) return null;
-  return def.baseCost * Math.pow(def.costGrowth, level) * costMultiplier(state, 'researchDiscount');
+  return trainingLevelCost(state, def, level);
 }
 
 export function isTrainingTierUnlocked(state: GameState, tier: number): boolean {
@@ -99,12 +141,11 @@ export function isTrainingTierUnlocked(state: GameState, tier: number): boolean 
 export function trainingMaxBuy(state: GameState, id: string): { levels: number; cost: number } {
   const def = TRAINING.find((d) => d.id === id);
   if (!def || !isTrainingTierUnlocked(state, def.tier)) return { levels: 0, cost: 0 };
-  const mult = costMultiplier(state, 'researchDiscount');
   let level = state.training[id] ?? 0;
   let levels = 0;
   let cost = 0;
   while (level < def.maxLevel) {
-    const c = def.baseCost * Math.pow(def.costGrowth, level) * mult;
+    const c = trainingLevelCost(state, def, level);
     if (cost + c > state.cash) break;
     cost += c;
     level++;
@@ -174,9 +215,8 @@ export function buyTraining(state: GameState, id: string, levels = 1): ActionRes
     total = m.cost;
   } else {
     n = Math.min(Math.floor(levels), def.maxLevel - current);
-    const mult = costMultiplier(state, 'researchDiscount');
     total = 0;
-    for (let i = 0; i < n; i++) total += def.baseCost * Math.pow(def.costGrowth, current + i) * mult;
+    for (let i = 0; i < n; i++) total += trainingLevelCost(state, def, current + i);
     if (state.cash < total) return fail('Not enough cash.');
   }
   state.cash -= total;
@@ -212,6 +252,7 @@ export function upgradeFind(state: GameState): ActionResult {
   if (!next) return fail('You already dig up the best find.');
   if (computeStats(state).parkValue < next.unlockParkValue) return fail('Park Value is too low.');
   state.findIndex += 1;
+  resetPark(state, ERA_START_CASH * next.costScale);
   if (state.findIndex > state.highestFindIndex) {
     state.highestFindIndex = state.findIndex;
     state.goldenBones += next.unlockReward;

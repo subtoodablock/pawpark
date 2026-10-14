@@ -11,6 +11,7 @@ import {
   SQUIRREL_INTERVAL_MAX,
   SQUIRREL_INTERVAL_MIN,
   SAVE_KEY,
+  SAVE_VERSION,
   buyAcademy,
   computeStats,
   deserialize,
@@ -39,7 +40,8 @@ function withAutomation(keys: Partial<GameState['automation']>, academy: Record<
     retirement_planner: 1,
     ...academy,
   };
-  s.automation = { ...s.automation, build: false, training: false, whistle: false, prestige: false, ...keys };
+  // find off so purchase tests are not wiped by an era reset (park value is high in these fixtures)
+  s.automation = { ...s.automation, find: false, build: false, training: false, whistle: false, prestige: false, ...keys };
   return s;
 }
 
@@ -99,11 +101,12 @@ describe('runAutomation: find', () => {
     expect(s.findIndex).toBe(1);
     expect(s.goldenBones).toBe(10 + FINDS[1].unlockReward);
   });
-  it('loops over several finds', () => {
+  it('stops after one find per pass: the era reset empties the park', () => {
     const s = rich(1000);
     const ev = runAutomation(s);
-    expect(ev.filter((e) => e.type === 'findUnlocked')).toHaveLength(2);
-    expect(s.findIndex).toBe(2);
+    expect(ev.filter((e) => e.type === 'findUnlocked')).toHaveLength(1);
+    expect(s.findIndex).toBe(1);
+    expect(s.pups).toBe(0);
   });
   it('does nothing when disabled', () => {
     const s = rich(1000);
@@ -466,7 +469,7 @@ describe('save migration v1 -> v2', () => {
       mailTimer: 12,
     };
     const g = deserialize(JSON.stringify(v1))!;
-    expect(g.version).toBe(3);
+    expect(g.version).toBe(SAVE_VERSION);
     expect('mailReady' in g).toBe(false);
     expect(g.mailCount).toBe(1);
     expect(g.academy).toEqual({ epic_digging: 2, foreman_pup: 1 });

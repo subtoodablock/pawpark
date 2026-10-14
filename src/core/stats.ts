@@ -234,5 +234,6 @@ export function computeStats(state: GameState): DerivedStats {
     modifier: currentModifier(state),
     totalTrainingLevels: totalTrainingLevels(state),
     prestigeGain,
+    costScale: find.costScale,
   };
 }

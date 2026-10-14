@@ -3,6 +3,14 @@ import type { Stat, StatMode } from '../core/types';
 export const START_CASH = 0;
 export const START_GOLDEN_BONES = 10;
 
+// ---- v4 Find eras (docs/08)
+/** Starting cash of a new era = ERA_START_CASH * costScale of the new Find (the first doghouse + bike) */
+export const ERA_START_CASH = 50;
+/** price of tier t in a slot is multiplied by this per OTHER slot already holding tier >= t */
+export const DUPLICATE_GROWTH = 1.35;
+/** FINDS[k].costScale starting shape is (value_k / value_0) * HARDNESS^k */
+export const HARDNESS = 1.6;
+
 export const KENNEL_SLOTS = 4;
 export const BASE_FLEET_SLOTS = 4;
 export const MAX_FLEET_SLOTS = 12;
@@ -59,7 +67,7 @@ export const MAIL_CASH_SECONDS = 300;
 export const MIN_COST_MULTIPLIER = 0.25;
 export const AUTOSAVE_INTERVAL_SEC = 10;
 export const SAVE_KEY = 'pawpark.save.v1';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // ---- automation ("The Pack")
 export const AUTOMATION_INTERVAL_SEC = 2;

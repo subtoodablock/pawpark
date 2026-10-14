@@ -33,7 +33,7 @@ export function defaultAutomation(): AutomationSettings {
 
 export function createInitialState(now: number): GameState {
   return {
-    version: SAVE_VERSION as 3,
+    version: SAVE_VERSION as 4,
     cash: START_CASH,
     pups: 0,
     adoptionStock: BASE_ADOPTION_CAP,
@@ -71,20 +71,28 @@ export function createInitialState(now: number): GameState {
   };
 }
 
-/** Resets the per-run parts of the state (see design §3.6). Does not award Spirit Paws. */
-export function resetForPrestige(state: GameState): void {
-  state.cash = START_CASH;
+/**
+ * Shared park rebuild used by Find eras and prestige: sets cash, empties pups, kennels, fleet,
+ * training and zoomies, and refills adoption stock to the cap computed after the reset.
+ */
+export function resetPark(state: GameState, cash: number): void {
+  state.cash = cash;
   state.pups = 0;
   state.kennels = emptySlots(KENNEL_SLOTS);
   state.vehicles = emptySlots(MAX_FLEET_SLOTS);
-  state.findIndex = 0;
   state.training = {};
   state.zoomies = 0;
   state.zoomieIdle = 0;
+  state.adoptionStock = computeStats(state).adoptionCap;
+}
+
+/** Resets the per-run parts of the state (see design §3.6). Does not award Spirit Paws. */
+export function resetForPrestige(state: GameState): void {
+  state.findIndex = 0;
   state.runEarnings = 0;
   state.runTimeSec = 0;
   state.treats = [];
   state.squirrels = [];
   state.notifiedFinds = [];
-  state.adoptionStock = computeStats(state).adoptionCap;
+  resetPark(state, START_CASH);
 }
