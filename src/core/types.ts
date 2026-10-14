@@ -27,6 +27,9 @@ export type Stat =
   | 'autoTraining'
   | 'autoPrestige'
   | 'autoWhistle' // fraction of adoptionRefill auto-adopted per second
+  // v3 (mult)
+  | 'earnings' // multiplies incomePerSec and parkValue
+  | 'mailRate' // divides MAIL_INTERVAL_SEC
   | 'researchDiscount'
   | 'kennelDiscount'
   | 'fleetDiscount';
@@ -100,6 +103,7 @@ export interface TreatDef {
   multiplier: number;
   durationSec: number;
   cost: number; // Golden Bones
+  starCost: number; // Pup Stars (premium alternative)
 }
 
 export type TrophyKind = 'pups' | 'lifetimeEarnings' | 'prestiges' | 'find';
@@ -157,7 +161,7 @@ export interface GameStats {
 }
 
 export interface GameState {
-  version: 2;
+  version: 3;
   cash: number;
   pups: number;
   adoptionStock: number;
@@ -191,6 +195,8 @@ export interface GameState {
   runTimeSec: number;
   /** true once the endgame event has fired */
   endgameReached: boolean;
+  daily: DailyState;
+  premium: PremiumState;
   /** find indices for which findUpgradeAvailable was already emitted this run */
   notifiedFinds: number[];
   runEarnings: number;
@@ -230,6 +236,11 @@ export interface DerivedStats {
   autoWhistleFrac: number; // 0..1
   /** unlocked (not necessarily enabled) automation */
   automationUnlocked: Record<AutomationKey, boolean>;
+  // v3
+  parkLevel: number;
+  parkTitle: string;
+  vipTier: number; // 0..VIP_TIERS.length-1
+  modifier: DailyModifierDef | null;
   totalTrainingLevels: number;
   prestigeGain: number; // spirit paws if prestiged now
 }
@@ -248,6 +259,8 @@ export type GameEvent =
   | { type: 'autoPrestige'; gained: number }
   | { type: 'squirrelHound'; reward: RewardResult }
   | { type: 'endgame' }
+  | { type: 'dailyDigComplete'; index: number }
+  | { type: 'streakMilestone'; streak: number; stars: number }
   | { type: 'mailArrived' }
   | { type: 'squirrelSpawned'; squirrelId: number }
   | { type: 'treatExpired'; treatId: string };
@@ -276,3 +289,100 @@ export interface OfflineReport {
 
 /** Injectable RNG returning [0, 1). Defaults to Math.random. */
 export type Rng = () => number;
+
+// ---------------------------------------------------------------- v3: daily + premium
+// Spec: docs/06-daily-social-premium.md
+
+/** Local calendar date 'YYYY-MM-DD' */
+export type DayKey = string;
+
+export type DailyDigKind =
+  | 'squirrels'
+  | 'letters'
+  | 'whistle'
+  | 'training'
+  | 'buildings'
+  | 'earn'
+  | 'treat'
+  | 'zoomies';
+
+export interface DailyDigDef {
+  kind: DailyDigKind;
+  name: string;
+  icon: string;
+  /** text with {n} placeholder for the target */
+  text: string;
+  /** fixed target; 'earn' computes its target at roll time instead */
+  target: number;
+  rewardBones: number;
+}
+
+export interface DailyDig {
+  kind: DailyDigKind;
+  target: number;
+  claimed: boolean;
+}
+
+export type DailyCounters = Record<DailyDigKind, number>;
+
+export type DailyTreatReward =
+  | { kind: 'goldenBones'; amount: number }
+  | { kind: 'treat'; treatId: string }
+  | { kind: 'bundle'; goldenBones: number; stars: number };
+
+export interface DailyModifierDef {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  stat: Stat; // must be a mult stat
+  multiplier: number;
+}
+
+export interface DailyState {
+  lastSeenDay: DayKey | null;
+  lastClaimDay: DayKey | null;
+  streak: number;
+  bestStreak: number;
+  streakFreezes: number;
+  /** streak milestones (e.g. 30, 100, 365) already rewarded */
+  streakMilestones: number[];
+  digsDay: DayKey | null;
+  digs: DailyDig[];
+  digBonusClaimed: boolean;
+  modifierId: string | null;
+  counters: DailyCounters;
+}
+
+export interface ProductDef {
+  id: string;
+  name: string;
+  stars: number;
+  priceCents: number;
+  /** optional marketing tag, e.g. 'Best value' */
+  tag?: string;
+}
+
+export interface VipTierDef {
+  tier: number;
+  name: string;
+  icon: string;
+  minSpendCents: number;
+  earningsBonus: number; // e.g. 0.04 → earnings ×1.04 (replaces lower tiers)
+  mailCapacity: number; // extra mailbox slots
+  offlineHours: number; // extra Treat Jar hours
+}
+
+export interface PremiumShopDef extends UpgradeDef {
+  /** minimum Kennel Club tier to buy */
+  requiredTier: number;
+}
+
+export interface PremiumState {
+  stars: number;
+  spendCents: number;
+  receipts: string[];
+  /** premium shop id -> level */
+  shop: Record<string, number>;
+}
+
