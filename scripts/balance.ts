@@ -29,6 +29,11 @@ for (const kv of (flag('--gates') ?? '').split(',').filter(Boolean)) {
   const [k, v] = kv.split(':');
   FINDS[Number(k)].unlockParkValue = Number(v);
 }
+/** diagnostic: --cs "1:8,2:64" overrides costScale per find index */
+for (const kv of (flag('--cs') ?? '').split(',').filter(Boolean)) {
+  const [k, v] = kv.split(':');
+  FINDS[Number(k)].costScale = Number(v);
+}
 /** diagnostic: ABL="vip,star_spirit,..." zeroes the VIP earnings bonus / the named shop items' perLevel */
 for (const id of (process.env.ABL ?? '').split(',').filter(Boolean)) {
   if (id === 'vip') for (const t of VIP_TIERS) t.earningsBonus = 0;

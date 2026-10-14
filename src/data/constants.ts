@@ -31,7 +31,7 @@ export const ZOOMIE_DECAY_PER_SEC = 10;
 export const BASE_SPIRIT_PAW_BONUS = 0.1;
 export const BASE_COLLAR_BONUS = 1.05;
 export const PRESTIGE_DIVISOR = 1e8;
-export const PRESTIGE_EXPONENT = 0.3;
+export const PRESTIGE_EXPONENT = 0.2;
 export const PARK_VALUE_SECONDS = 3600;
 
 export const BASE_OFFLINE_HOURS = 8;
