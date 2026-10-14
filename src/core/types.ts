@@ -171,7 +171,7 @@ export interface GameStats {
 }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   cash: number;
   pups: number;
   adoptionStock: number;
