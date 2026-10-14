@@ -7,7 +7,7 @@ export const KENNEL_SLOTS = 4;
 export const BASE_FLEET_SLOTS = 4;
 export const MAX_FLEET_SLOTS = 12;
 
-export const BASE_DIG_PER_MIN = 2;
+export const BASE_DIG_PER_MIN = 6;
 
 export const BASE_ADOPTION_CAP = 50;
 export const BASE_ADOPTION_REFILL = 1;
@@ -20,7 +20,7 @@ export const ZOOMIE_DECAY_PER_SEC = 10;
 
 export const BASE_SPIRIT_PAW_BONUS = 0.1;
 export const BASE_COLLAR_BONUS = 1.05;
-export const PRESTIGE_DIVISOR = 1e5;
+export const PRESTIGE_DIVISOR = 1e7;
 export const PRESTIGE_EXPONENT = 0.4;
 export const PARK_VALUE_SECONDS = 3600;
 

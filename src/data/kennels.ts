@@ -2,7 +2,7 @@ import type { KennelTierDef } from '../core/types';
 
 export const KENNELS: KennelTierDef[] = [
   { id: 'doghouse', name: 'Doghouse', icon: '🏠', capacity: 250, cost: 50 },
-  { id: 'twin_doghouse', name: 'Twin Doghouse', icon: '🏘️', capacity: 500, cost: 1000 },
+  { id: 'twin_doghouse', name: 'Twin Doghouse', icon: '🏘️', capacity: 500, cost: 600},
   { id: 'kennel_shed', name: 'Kennel Shed', icon: '🛖', capacity: 1000, cost: 10000 },
   { id: 'pup_barn', name: 'Pup Barn', icon: '🛖', capacity: 2000, cost: 75000 },
   { id: 'bark_lodge', name: 'Bark Lodge', icon: '🏡', capacity: 5000, cost: 500000 },

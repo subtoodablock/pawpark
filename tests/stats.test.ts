@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats, statMode, statValue, STAT_MODES } from '../src/core';
+import { computeStats, statMode, statValue, STAT_MODES, BASE_DIG_PER_MIN, PRESTIGE_DIVISOR } from '../src/core';
 import { newState } from './helpers';
 
 describe('stat modes', () => {
@@ -48,9 +48,9 @@ describe('computeStats', () => {
     expect(d.builtKennels).toBe(2);
     expect(d.fleetSlots).toBe(4);
     expect(d.shipPerSec).toBeCloseTo(((300 + 1000) / 60) * 1.2, 8); // 26
-    expect(d.digPerPupPerSec).toBeCloseTo((2 / 60) * 1.95, 10); // 0.065
-    expect(d.digPerSec).toBeCloseTo(6.5, 8);
-    expect(d.deliveredPerSec).toBeCloseTo(6.5, 8);
+    expect(d.digPerPupPerSec).toBeCloseTo((BASE_DIG_PER_MIN / 60) * 1.95, 10);
+    expect(d.digPerSec).toBeCloseTo(100 * (BASE_DIG_PER_MIN / 60) * 1.95, 8);
+    expect(d.deliveredPerSec).toBeCloseTo(d.digPerSec, 8);
     expect(d.bottleneck).toBe('dig');
     expect(d.findValue).toBeCloseTo(1.25 * 1.3, 10);
     expect(d.pawBonus).toBeCloseTo(0.12, 10);
@@ -59,7 +59,7 @@ describe('computeStats', () => {
     expect(d.zoomieBonusPer).toBeCloseTo(0.08, 10);
     expect(d.zoomieMult).toBeCloseTo(1.8, 10);
     expect(d.treatMult.earnings).toBe(2);
-    const base = 6.5 * 1.625 * 2.323;
+    const base = d.digPerSec * 1.625 * 2.323;
     expect(d.incomePerSec).toBeCloseTo(base * 1.8 * 2, 8);
     expect(d.parkValue).toBeCloseTo(base * 3600, 6);
     expect(d.totalTrainingLevels).toBe(27);
@@ -71,7 +71,7 @@ describe('computeStats', () => {
     s.vehicles = [0, null, null, null, null, null, null, null, 5, null, null, null]; // slot 8 locked
     const d = computeStats(s);
     expect(d.shipPerSec).toBeCloseTo(5, 10);
-    expect(d.digPerSec).toBeCloseTo(1000 * (2 / 60), 10);
+    expect(d.digPerSec).toBeCloseTo(1000 * (BASE_DIG_PER_MIN / 60), 10);
     expect(d.bottleneck).toBe('ship');
     expect(d.deliveredPerSec).toBeCloseTo(5, 10);
   });
@@ -89,7 +89,7 @@ describe('computeStats', () => {
     s.training = { louder_whistle: 2, quick_refill: 2, rescue_program: 5 };
     s.academy = { bigger_jar: 4 };
     s.treats = [{ id: 'peanut_kong', remaining: 10 }];
-    s.runEarnings = 1e5 * 1024; // (1024)^0.4 = 16
+    s.runEarnings = PRESTIGE_DIVISOR * 1024; // (1024)^0.4 = 16
     const d = computeStats(s);
     expect(d.adoptionCap).toBe(90);
     expect(d.adoptionRefill).toBeCloseTo((1 + 1) * 10, 10);

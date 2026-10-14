@@ -174,7 +174,7 @@ highestFindIndex, lifetimeEarnings, stats, mail state.
 | # | id | name | icon | capacity | cost |
 |---|---|---|---|---|---|
 | 0 | doghouse | Doghouse | 🏠 | 250 | 50 |
-| 1 | twin_doghouse | Twin Doghouse | 🏘️ | 500 | 1,000 |
+| 1 | twin_doghouse | Twin Doghouse | 🏘️ | 500 | 600 |
 | 2 | kennel_shed | Kennel Shed | 🛖 | 1,000 | 10,000 |
 | 3 | pup_barn | Pup Barn | 🛖 | 2,000 | 75,000 |
 | 4 | bark_lodge | Bark Lodge | 🏡 | 5,000 | 500,000 |
@@ -196,7 +196,7 @@ highestFindIndex, lifetimeEarnings, stats, mail state.
 | # | id | name | icon | capacityPerMin | cost |
 |---|---|---|---|---|---|
 | 0 | bike_basket | Bike Basket | 🚲 | 300 | 100 |
-| 1 | wagon | Red Wagon | 🛒 | 1,000 | 5,000 |
+| 1 | wagon | Red Wagon | 🛒 | 1,000 | 1,500 |
 | 2 | scooter | Scooter | 🛵 | 3,000 | 50,000 |
 | 3 | delivery_van | Delivery Van | 🚐 | 10,000 | 5e5 |
 | 4 | pickup | Pickup Truck | 🛻 | 30,000 | 5e6 |
@@ -213,18 +213,18 @@ highestFindIndex, lifetimeEarnings, stats, mail state.
 | # | id | name | icon | value | unlockParkValue | unlockReward (GB) |
 |---|---|---|---|---|---|---|
 | 0 | stick | Stick | 🪵 | 0.25 | 0 | 0 |
-| 1 | tennis_ball | Tennis Ball | 🎾 | 1.25 | 5e4 | 5 |
+| 1 | tennis_ball | Tennis Ball | 🎾 | 1.25 | 3.5e4 | 5 |
 | 2 | squeaky_toy | Squeaky Toy | 🧸 | 6.25 | 1e6 | 10 |
-| 3 | rawhide | Rawhide Bone | 🦴 | 30 | 3e7 | 15 |
-| 4 | lost_wallet | Lost Wallet | 👛 | 150 | 1e9 | 20 |
-| 5 | pirate_coin | Pirate Coin | 🪙 | 700 | 5e10 | 25 |
-| 6 | dino_fossil | Dino Fossil | 🦕 | 3,000 | 2e12 | 30 |
-| 7 | crystal_bone | Crystal Bone | 💎 | 12,500 | 1e14 | 40 |
-| 8 | meteorite | Meteorite | ☄️ | 50,000 | 5e15 | 50 |
-| 9 | ancient_relic | Ancient Relic | 🏺 | 175,000 | 2e17 | 60 |
-| 10 | moon_rock | Moon Rock | 🌑 | 525,000 | 1e19 | 75 |
-| 11 | time_bone | Time Bone | ⏳ | 1.5e6 | 5e20 | 100 |
-| 12 | cosmic_bone | Cosmic Bone | 🌌 | 1e7 | 3e22 | 150 |
+| 3 | rawhide | Rawhide Bone | 🦴 | 30 | 1e9 | 15 |
+| 4 | lost_wallet | Lost Wallet | 👛 | 150 | 2.5e10 | 20 |
+| 5 | pirate_coin | Pirate Coin | 🪙 | 700 | 1e12 | 25 |
+| 6 | dino_fossil | Dino Fossil | 🦕 | 3,000 | 4e13 | 30 |
+| 7 | crystal_bone | Crystal Bone | 💎 | 12,500 | 2e15 | 40 |
+| 8 | meteorite | Meteorite | ☄️ | 50,000 | 1e17 | 50 |
+| 9 | ancient_relic | Ancient Relic | 🏺 | 175,000 | 5e18 | 60 |
+| 10 | moon_rock | Moon Rock | 🌑 | 525,000 | 2.5e20 | 75 |
+| 11 | time_bone | Time Bone | ⏳ | 1.5e6 | 1.2e22 | 100 |
+| 12 | cosmic_bone | Cosmic Bone | 🌌 | 1e7 | 6e23 | 150 |
 
 Each find also has a one-line `flavor` string (the agent writes it, keeping it playful).
 
@@ -296,12 +296,12 @@ writes. The description is rendered with the effect (e.g. "+10% dig rate per lev
 ```
 START_CASH = 0               START_GOLDEN_BONES = 10
 KENNEL_SLOTS = 4             BASE_FLEET_SLOTS = 4        MAX_FLEET_SLOTS = 12
-BASE_DIG_PER_MIN = 2
+BASE_DIG_PER_MIN = 6
 BASE_ADOPTION_CAP = 50       BASE_ADOPTION_REFILL = 1    HOLD_ADOPT_PER_SEC = 6
 BASE_MAX_ZOOMIES = 20        BASE_ZOOMIE_BONUS = 0.05
 ZOOMIE_GRACE_SEC = 1.0       ZOOMIE_DECAY_PER_SEC = 10
 BASE_SPIRIT_PAW_BONUS = 0.10 BASE_COLLAR_BONUS = 1.05
-PRESTIGE_DIVISOR = 1e5       PRESTIGE_EXPONENT = 0.4
+PRESTIGE_DIVISOR = 1e7       PRESTIGE_EXPONENT = 0.4
 PARK_VALUE_SECONDS = 3600
 BASE_OFFLINE_HOURS = 1       OFFLINE_RESCUE_BASE = 0.5
 SQUIRREL_INTERVAL_MIN = 45   SQUIRREL_INTERVAL_MAX = 90
@@ -384,6 +384,34 @@ as soon as it can, and catches no squirrels. Targets for the first run:
 | Prestige gives ≥ 5 Spirit Paws | 30–60 min |
 | Longest gap with nothing affordable (first 60 min) | < 90 s |
 | Second run reaches Rawhide | ≥ 30% faster than first |
+
+### 9.1 Balance results
+`npm run balance` (add `-- --verbose` to log purchases) runs the bot (seed 12345,
+dt = 1 s, public engine API only). Bot refinements beyond the text above:
+kennels are only prioritised when dig is the bottleneck (a full kennel while
+shipping is the limit is not a problem); when ship-bound it prefers fleet items;
+a fallback "cheapest overall" purchase is skipped if it costs more than 10% of the
+cheapest bottleneck-widening item (the bot saves instead). "Idle gap" counts
+seconds where nothing at all was affordable; the longest gap *between* purchases
+(~195 s, the bot saving for a big fleet/kennel tier) is reported as information.
+
+| Milestone | Result | Target | |
+|---|---|---|---|
+| Tennis Ball | 4m40s | 3-6 min | PASS |
+| Squeaky Toy | 15m33s | 10-20 min | PASS |
+| Rawhide | 30m11s | 25-45 min | PASS |
+| Prestige gives >= 5 Spirit Paws | 32m10s | 30-60 min | PASS |
+| Longest idle gap (first 60 min) | 22 s | < 90 s | PASS |
+| Run 2 Rawhide (after 5 SP) | 9m47s (67.6% faster) | >= 30% faster | PASS |
+
+Income/s: 5 min = 152, 15 min = 220, 30 min = 2.5e5. Tuned vs. the first draft:
+`BASE_DIG_PER_MIN` 2 to 6, `PRESTIGE_DIVISOR` 1e5 to 1e7, Red Wagon cost 5,000 to 1,500,
+Twin Doghouse cost 1,000 to 600, and the find ladder thresholds (Tennis Ball 3.5e4,
+Rawhide 1e9, and everything after Rawhide re-spaced to roughly x25-x50 per step).
+
+Known issue: after Rawhide the mid/late economy outruns the kennel/fleet cost
+curves (the bot reaches find #8 within 60 min). Fixing that needs a
+longer-term pass over high-tier costs, not part of the first-run targets.
 
 ## 10. v2 extension points (not in scope now)
 Dog Shows (contracts, which are the main Legend Collar source), breeds (cosmetic

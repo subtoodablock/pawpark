@@ -3,7 +3,7 @@ import {
   academyCost, adopt, buyAcademy, buyKennel, buyTraining, buyTreat, buyVehicle,
   catchSquirrel, computeStats, isTrainingTierUnlocked, kennelUpgradeCost, nextFind,
   openMail, prestige, resetForPrestige, trainingCost, trainingMaxBuy, upgradeFind,
-  vehicleUpgradeCost, KENNELS, VEHICLES, FINDS, TRAINING, TREATS,
+  vehicleUpgradeCost, KENNELS, VEHICLES, FINDS, TRAINING, TREATS, PRESTIGE_DIVISOR,
 } from '../src/core';
 import { constRng, newState } from './helpers';
 
@@ -58,7 +58,7 @@ describe('kennels', () => {
     expect(buyKennel(s, 1)).toEqual({ ok: true });
     expect(s.kennels[1]).toBe(0);
     expect(s.cash).toBe(50);
-    expect(kennelUpgradeCost(s, 1)).toBe(1000);
+    expect(kennelUpgradeCost(s, 1)).toBe(KENNELS[1].cost);
   });
   it('fails when unaffordable, without mutating', () => {
     const s = newState();
@@ -89,8 +89,8 @@ describe('kennels', () => {
 describe('vehicles', () => {
   it('buys and upgrades in unlocked slots', () => {
     const s = newState();
-    s.cash = 5100;
-    expect(vehicleUpgradeCost(s, 1)).toBe(100);
+    s.cash = VEHICLES[0].cost + VEHICLES[1].cost;
+    expect(vehicleUpgradeCost(s, 1)).toBe(VEHICLES[0].cost);
     expect(buyVehicle(s, 1).ok).toBe(true);
     expect(buyVehicle(s, 1).ok).toBe(true);
     expect(s.vehicles[1]).toBe(1);
@@ -321,14 +321,14 @@ describe('mail', () => {
 describe('prestige', () => {
   it('fails below 1 spirit paw', () => {
     const s = newState();
-    s.runEarnings = 1e5 * 0.9;
+    s.runEarnings = PRESTIGE_DIVISOR * 0.9;
     const r = prestige(s);
     expect(r.ok).toBe(false);
     expect(s.prestigeCount).toBe(0);
   });
   it('computes gain, resets run state, keeps meta state', () => {
     const s = newState();
-    s.runEarnings = 1e5 * 1e5; // (1e5)^0.4 = 100
+    s.runEarnings = PRESTIGE_DIVISOR * 1e5; // (1e5)^0.4 = 100
     s.lifetimeEarnings = 5e10;
     s.cash = 123456;
     s.pups = 200;
@@ -381,7 +381,7 @@ describe('prestige', () => {
   });
   it('earnings bonus rises after prestige', () => {
     const s = newState();
-    s.runEarnings = 1e10;
+    s.runEarnings = PRESTIGE_DIVISOR * 1e5;
     const before = computeStats(s).earningsBonus;
     const gained = prestige(s).gained!;
     expect(gained).toBe(Math.floor((1e5) ** 0.4));
