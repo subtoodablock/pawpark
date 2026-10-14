@@ -1865,19 +1865,6 @@ strong {
 .prestige-chip[hidden] {
   display: none;
 }
-.era-note {
-  display: inline-block;
-  margin: 0 2px 6px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  background: var(--ui-bg-3);
-  color: var(--ui-muted);
-}
-.era-note[hidden] {
-  display: none;
-}
 .era-stats {
   display: flex;
   gap: 8px;
@@ -1904,8 +1891,12 @@ strong {
 .era-stat.good b {
   color: var(--btn-green-edge);
 }
-.era-stat.warn b {
-  color: var(--danger-edge);
+
+.era-stat small {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-muted);
 }
 .era-cols {
   display: grid;

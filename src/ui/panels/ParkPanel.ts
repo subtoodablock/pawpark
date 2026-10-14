@@ -10,7 +10,7 @@ import {
   nextFind,
 } from '../../core';
 import type { GameController } from '../GameController';
-import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
+import { h, meter, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
 import { confirmPrestige, prestigeSummary } from '../prestige';
