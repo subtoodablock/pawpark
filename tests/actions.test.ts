@@ -3,7 +3,7 @@ import {
   academyCost, adopt, buyAcademy, buyKennel, buyTraining, buyTreat, buyVehicle,
   catchSquirrel, computeStats, isTrainingTierUnlocked, kennelUpgradeCost, nextFind,
   openMail, prestige, resetForPrestige, trainingCost, trainingMaxBuy, upgradeFind,
-  vehicleUpgradeCost, KENNELS, VEHICLES, FINDS, TRAINING, TREATS, PRESTIGE_DIVISOR, PRESTIGE_EXPONENT,
+  vehicleUpgradeCost, KENNELS, VEHICLES, FINDS, TRAINING, TREATS, PRESTIGE_DIVISOR, PRESTIGE_EXP_EARLY,
   BASE_SPIRIT_PAW_BONUS, MAIL_BONES_MAX, MAIL_CASH_SECONDS, ACADEMY,
 } from '../src/core';
 
@@ -337,7 +337,7 @@ describe('prestige', () => {
   it('computes gain, resets run state, keeps meta state', () => {
     const s = newState();
     s.runEarnings = PRESTIGE_DIVISOR * 1e5;
-    const gain = Math.floor(1e5 ** PRESTIGE_EXPONENT);
+    const gain = Math.floor(1e5 ** PRESTIGE_EXP_EARLY);
     s.lifetimeEarnings = 5e10;
     s.cash = 123456;
     s.pups = 200;
@@ -398,7 +398,7 @@ describe('prestige', () => {
     s.runEarnings = PRESTIGE_DIVISOR * 1e5;
     const before = computeStats(s).earningsBonus;
     const gained = prestige(s).gained!;
-    expect(gained).toBe(Math.floor((1e5) ** PRESTIGE_EXPONENT));
+    expect(gained).toBe(Math.floor((1e5) ** PRESTIGE_EXP_EARLY));
     expect(computeStats(s).earningsBonus).toBeCloseTo(1 + gained * BASE_SPIRIT_PAW_BONUS, 10);
     expect(computeStats(s).earningsBonus).toBeGreaterThan(before);
   });

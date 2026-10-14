@@ -9,6 +9,13 @@ import {
   TRAINING_TIERS,
   VEHICLES,
 } from '../data';
+const L_KENNELS = KENNELS;
+const L_VEHICLES = VEHICLES;
+const L_KENNEL_SLOTS = KENNEL_SLOTS;
+const L_TRAINING = TRAINING;
+const L_AUTOMATION_MAX_BUYS = AUTOMATION_MAX_BUYS;
+const L_AUTO_SPLURGE_FRACTION = AUTO_SPLURGE_FRACTION;
+
 import { eraCostScale, kennelTierCost, prestige, sledCarCost, upgradeFind, vehicleTierCost } from './actions';
 import { computeStats, costMultiplier, TOP_VEHICLE_TIER } from './stats';
 import { bumpCounter } from './counters';
@@ -56,7 +63,7 @@ function upgradeFinds(state: GameState, events: GameEvent[]): void {
 /** The purchase loop (§3.3 step 2). Returns the number of buys. */
 function buyLoop(state: GameState): number {
   let buys = 0;
-  while (buys < AUTOMATION_MAX_BUYS) {
+  while (buys < L_AUTOMATION_MAX_BUYS) {
     const s = computeStats(state);
     const build = isOn(state, s.automationUnlocked, 'build');
     const train = isOn(state, s.automationUnlocked, 'training');
@@ -77,10 +84,10 @@ function buyLoop(state: GameState): number {
 
     const cands: Candidate[] = [];
     if (build) {
-      for (let slot = 0; slot < KENNEL_SLOTS; slot++) {
+      for (let slot = 0; slot < L_KENNEL_SLOTS; slot++) {
         const cur = state.kennels[slot];
         const next = cur === null || cur === undefined ? 0 : cur + 1;
-        if (next >= KENNELS.length) continue;
+        if (next >= L_KENNELS.length) continue;
         cands.push({
           cost: kennelTierCost(state, slot, next),
           inBucket: bucketKennels,
@@ -97,7 +104,7 @@ function buyLoop(state: GameState): number {
           cands.push({ cost: carCost, inBucket: bucketVehicles, kind: 3, idx: slot, to: (state.vehicleCars[slot] || 1) + 1 });
         }
         const next = cur === null || cur === undefined ? 0 : cur + 1;
-        if (next >= VEHICLES.length) continue;
+        if (next >= L_VEHICLES.length) continue;
         cands.push({
           cost: vehicleTierCost(state, slot, next),
           inBucket: bucketVehicles,
@@ -110,8 +117,8 @@ function buyLoop(state: GameState): number {
     if (train) {
       // same price as trainingLevelCost, with the per-pass constants hoisted out of the loop
       const trainMult = eraCostScale(state) * costMultiplier(state, 'researchDiscount');
-      for (let d = 0; d < TRAINING.length; d++) {
-        const def = TRAINING[d];
+      for (let d = 0; d < L_TRAINING.length; d++) {
+        const def = L_TRAINING[d];
         const level = state.training[def.id] ?? 0;
         if (level >= def.maxLevel) continue;
         const unlockAt = TIER_UNLOCK_AT[def.tier];
@@ -144,7 +151,7 @@ function buyLoop(state: GameState): number {
             break;
           }
         }
-      } else if (cheapestAffordable && cheapestAffordable.cost <= AUTO_SPLURGE_FRACTION * cheapestBucket) {
+      } else if (cheapestAffordable && cheapestAffordable.cost <= L_AUTO_SPLURGE_FRACTION * cheapestBucket) {
         pick = cheapestAffordable;
       }
     } else {
@@ -159,7 +166,7 @@ function buyLoop(state: GameState): number {
       state.vehicles[pick.idx] = pick.to;
       state.vehicleCars[pick.idx] = pick.to === TOP_VEHICLE_TIER ? 1 : 0;
     } else if (pick.kind === 3) state.vehicleCars[pick.idx] = pick.to;
-    else if (pick.kind === 2) state.training[TRAINING[pick.idx].id] = pick.to;
+    else if (pick.kind === 2) state.training[L_TRAINING[pick.idx].id] = pick.to;
     bumpCounter(state, pick.kind === 2 ? 'training' : 'buildings');
     buys++;
   }

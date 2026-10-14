@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  DUPLICATE_GROWTH, ERA_START_CASH, FINDS, KENNELS, SAVE_VERSION, TRAINING, VEHICLES,
+  DUPLICATE_GROWTH_BY_TIER, VEHICLE_DUPLICATE_GROWTH_BY_TIER, MAX_COST_SCALE, ERA_START_CASH, FINDS, KENNELS, SAVE_VERSION, TRAINING, VEHICLES,
   applyOfflineProgress, buyKennel, buyTraining, buyVehicle, computeStats, deserialize, kennelUpgradeCost,
   nextFind, prestige, runAutomation, serialize, trainingCost, trainingMaxBuy, upgradeFind,
-  vehicleUpgradeCost, academyCost, PRESTIGE_DIVISOR, PRESTIGE_EXPONENT, HARDNESS, START_CASH,
+  vehicleUpgradeCost, academyCost, PRESTIGE_DIVISOR, PRESTIGE_EXP_EARLY, START_CASH,
 } from '../src/core';
 import type { GameState } from '../src/core';
 import { newState } from './helpers';
@@ -26,13 +26,12 @@ function ready(): GameState {
 }
 
 describe('find data', () => {
-  it('costScale follows value_k/value_0 * HARDNESS^k to 3 digits, Stick = 1', () => {
-    expect(FINDS[0].costScale).toBe(1);
-    FINDS.forEach((f, k) => {
-      const want = (f.value / FINDS[0].value) * HARDNESS ** k;
-      expect(f.costScale / want).toBeGreaterThan(0.995);
-      expect(f.costScale / want).toBeLessThan(1.005);
-    });
+  it('v5 prices are flat: costScale is 1 in every era (an optional tax of at most MAX_COST_SCALE)', () => {
+    for (const f of FINDS) {
+      expect(f.costScale).toBeGreaterThanOrEqual(1);
+      expect(f.costScale).toBeLessThanOrEqual(MAX_COST_SCALE);
+      expect(f.costScale).toBe(1);
+    }
   });
   it('computeStats exposes the era costScale', () => {
     const s = newState();
@@ -98,10 +97,10 @@ describe('upgradeFind era reset', () => {
     const s = ready();
     upgradeFind(s);
     const k = FINDS[1].costScale;
-    expect(s.cash).toBe(KENNELS[0].cost * k); // KENNELS[0].cost === ERA_START_CASH
+    expect(s.cash).toBe(ERA_START_CASH * k);
     s.kennels = [null, null, null, null];
     expect(buyKennel(s, 0).ok).toBe(true);
-    expect(s.cash).toBeCloseTo(0, 6);
+    expect(s.cash).toBeCloseTo(ERA_START_CASH * k - KENNELS[0].cost * k, 6);
   });
 
   it('prestige gain counts every era of the run', () => {
@@ -110,7 +109,7 @@ describe('upgradeFind era reset', () => {
     upgradeFind(s);
     expect(s.runEarnings).toBe(PRESTIGE_DIVISOR * 10);
     s.runEarnings += PRESTIGE_DIVISOR * 90;
-    const gain = Math.floor((100) ** PRESTIGE_EXPONENT);
+    const gain = Math.floor((100) ** PRESTIGE_EXP_EARLY);
     expect(computeStats(s).prestigeGain).toBe(gain);
     expect(prestige(s)).toEqual({ ok: true, gained: gain });
     expect(s.findIndex).toBe(0);
@@ -121,7 +120,10 @@ describe('upgradeFind era reset', () => {
   });
 });
 
-describe('era cost scaling', () => {
+describe('era cost scaling (engine still supports a costScale tax)', () => {
+  const saved = FINDS.map((f) => f.costScale);
+  beforeEach(() => FINDS.forEach((f, i) => { if (i > 0) f.costScale = 1 + 0.1 * i; }));
+  afterEach(() => FINDS.forEach((f, i) => { f.costScale = saved[i]; }));
   function atEra(k: number): GameState {
     const s = newState();
     s.findIndex = k;
@@ -199,25 +201,28 @@ describe('era cost scaling', () => {
 
 const ACADEMY_COST = (s: GameState): number => academyCost(s, 'kennel_deals')!;
 
+const DG = (t: number) => DUPLICATE_GROWTH_BY_TIER[t];
+const VG = (t: number) => VEHICLE_DUPLICATE_GROWTH_BY_TIER[t];
+
 describe('duplicate-tier pricing', () => {
-  it('kennels: x DUPLICATE_GROWTH per other slot holding tier >= t', () => {
+  it('kennels: x DUPLICATE_GROWTH_BY_TIER[t] per other slot holding tier >= t', () => {
     const s = newState();
     s.kennels = [0, null, null, null];
-    expect(kennelUpgradeCost(s, 1)).toBeCloseTo(KENNELS[0].cost * DUPLICATE_GROWTH, 8);
+    expect(kennelUpgradeCost(s, 1)).toBeCloseTo(KENNELS[0].cost * DG(0), 8);
     s.kennels = [0, 0, null, null];
-    expect(kennelUpgradeCost(s, 2)).toBeCloseTo(KENNELS[0].cost * DUPLICATE_GROWTH ** 2, 8);
+    expect(kennelUpgradeCost(s, 2)).toBeCloseTo(KENNELS[0].cost * DG(0) ** 2, 8);
     // upgrading slot 0 to tier 1: slot 1 holds tier 0 < 1, so no duplicate
     expect(kennelUpgradeCost(s, 0)).toBeCloseTo(KENNELS[1].cost, 8);
     // higher tiers elsewhere count too (tier >= t)
     s.kennels = [0, 2, 1, null];
-    expect(kennelUpgradeCost(s, 3)).toBeCloseTo(KENNELS[0].cost * DUPLICATE_GROWTH ** 3, 8);
-    expect(kennelUpgradeCost(s, 0)).toBeCloseTo(KENNELS[1].cost * DUPLICATE_GROWTH ** 2, 8);
+    expect(kennelUpgradeCost(s, 3)).toBeCloseTo(KENNELS[0].cost * DG(0) ** 3, 8);
+    expect(kennelUpgradeCost(s, 0)).toBeCloseTo(KENNELS[1].cost * DG(1) ** 2, 8);
   });
   it('vehicles: same rule', () => {
     const s = newState();
     s.vehicles = [0, 1, null, null, ...new Array(8).fill(null)];
-    expect(vehicleUpgradeCost(s, 2)).toBeCloseTo(VEHICLES[0].cost * DUPLICATE_GROWTH ** 2, 8);
-    expect(vehicleUpgradeCost(s, 0)).toBeCloseTo(VEHICLES[1].cost * DUPLICATE_GROWTH, 8);
+    expect(vehicleUpgradeCost(s, 2)).toBeCloseTo(VEHICLES[0].cost * VG(0) ** 2, 8);
+    expect(vehicleUpgradeCost(s, 0)).toBeCloseTo(VEHICLES[1].cost * VG(1), 8);
     expect(vehicleUpgradeCost(s, 1)).toBeCloseTo(VEHICLES[2].cost, 8);
   });
   it('is charged by the buy and composes with era scale and discount', () => {
@@ -229,7 +234,7 @@ describe('duplicate-tier pricing', () => {
     s.cash = cost;
     expect(buyKennel(s, 1).ok).toBe(true);
     expect(s.cash).toBeCloseTo(0, 6);
-    expect(cost).toBeLessThan(KENNELS[0].cost * FINDS[1].costScale * DUPLICATE_GROWTH);
+    expect(cost).toBeLessThan(KENNELS[0].cost * FINDS[1].costScale * DG(0));
   });
 });
 
@@ -253,13 +258,13 @@ describe('offline across eras', () => {
   });
 });
 
-describe('save v4', () => {
-  it('SAVE_VERSION is 4 and v3 saves migrate by bumping the version', () => {
-    expect(SAVE_VERSION).toBe(4);
+describe('save v5', () => {
+  it('SAVE_VERSION is 5 and v3 saves migrate', () => {
+    expect(SAVE_VERSION).toBe(5);
     const v3 = JSON.parse(serialize(ready()));
     v3.version = 3;
     const g = deserialize(JSON.stringify(v3))!;
-    expect(g.version).toBe(4);
+    expect(g.version).toBe(5);
     expect(g.kennels).toEqual(v3.kennels);
     expect(g.cash).toBe(v3.cash);
     expect(g.findIndex).toBe(v3.findIndex);
@@ -267,6 +272,6 @@ describe('save v4', () => {
   it('round-trips and rejects unknown versions', () => {
     const s = ready();
     expect(deserialize(serialize(s))).toEqual(s);
-    expect(deserialize(JSON.stringify({ ...s, version: 5 }))).toBeNull();
+    expect(deserialize(JSON.stringify({ ...s, version: 6 }))).toBeNull();
   });
 });

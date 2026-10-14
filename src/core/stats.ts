@@ -37,6 +37,32 @@ import {
   VIP_TIERS,
 } from '../data';
 
+// local snapshots: the data barrel's re-export getters are costly in hot paths (automation runs computeStats ~50k times)
+const L_STAT_MODES = STAT_MODES;
+const L_VIP_TIERS = VIP_TIERS;
+const L_KENNELS = KENNELS;
+const L_VEHICLES = VEHICLES;
+const L_FINDS = FINDS;
+const L_TREATS = TREATS;
+const L_BASE_DIG_PER_MIN = BASE_DIG_PER_MIN;
+const L_BASE_RESCUE_PER_MIN = BASE_RESCUE_PER_MIN;
+const L_SECONDS_PER_MIN = SECONDS_PER_MIN;
+const L_SECONDS_PER_HOUR = SECONDS_PER_HOUR;
+const L_BASE_FLEET_SLOTS = BASE_FLEET_SLOTS;
+const L_MAX_FLEET_SLOTS = MAX_FLEET_SLOTS;
+const L_BASE_OFFLINE_HOURS = BASE_OFFLINE_HOURS;
+const L_BASE_ADOPTION_CAP = BASE_ADOPTION_CAP;
+const L_BASE_ADOPTION_REFILL = BASE_ADOPTION_REFILL;
+const L_BASE_MAX_ZOOMIES = BASE_MAX_ZOOMIES;
+const L_BASE_ZOOMIE_BONUS = BASE_ZOOMIE_BONUS;
+const L_BASE_SPIRIT_PAW_BONUS = BASE_SPIRIT_PAW_BONUS;
+const L_BASE_COLLAR_BONUS = BASE_COLLAR_BONUS;
+const L_BASE_MAIL_CAPACITY = BASE_MAIL_CAPACITY;
+const L_PARK_VALUE_SECONDS = PARK_VALUE_SECONDS;
+const L_BASE_MAX_CARS = BASE_MAX_CARS;
+const L_DISCOVER_DIVISOR = DISCOVER_DIVISOR;
+
+
 interface Source {
   def: UpgradeDef;
   kind: 'training' | 'academy' | 'premium';
@@ -48,7 +74,7 @@ for (const def of ACADEMY) (SOURCES[def.stat] ??= []).push({ def, kind: 'academy
 for (const def of PREMIUM_SHOP) (SOURCES[def.stat] ??= []).push({ def, kind: 'premium' });
 
 export function statMode(stat: Stat): StatMode {
-  return STAT_MODES[stat];
+  return L_STAT_MODES[stat];
 }
 
 /** Park Level: number of thresholds reached (minimum 1). Never decreases with lifetime earnings. */
@@ -71,13 +97,13 @@ export function parkTitle(level: number): string {
 /** Kennel Club tier for a lifetime spend in cents. */
 export function vipTierFor(spendCents: number): number {
   let tier = 0;
-  for (const t of VIP_TIERS) if (spendCents >= t.minSpendCents) tier = t.tier;
+  for (const t of L_VIP_TIERS) if (spendCents >= t.minSpendCents) tier = t.tier;
   return tier;
 }
 
 /** M(stat) for mult stats (product of 1 + perLevel*level), A(stat) for add stats (sum). */
 export function statValue(state: GameState, stat: Stat): number {
-  const mode = STAT_MODES[stat];
+  const mode = L_STAT_MODES[stat];
   let acc = mode === 'mult' ? 1 : 0;
   for (const { def, kind } of SOURCES[stat] ?? []) {
     const level =
@@ -87,7 +113,7 @@ export function statValue(state: GameState, stat: Stat): number {
     else acc += def.perLevel * level;
   }
   // Kennel Club perks: the current tier replaces lower ones (no stacking)
-  const vip = VIP_TIERS[vipTierFor(state.premium.spendCents)];
+  const vip = L_VIP_TIERS[vipTierFor(state.premium.spendCents)];
   if (vip) {
     if (stat === 'earnings') acc *= 1 + vip.earningsBonus;
     else if (stat === 'mailCapacity') acc += vip.mailCapacity;
@@ -121,7 +147,7 @@ export function totalTrainingLevels(state: GameState): number {
 function treatMultFor(state: GameState): Record<TreatEffect, number> {
   const m: Record<TreatEffect, number> = { earnings: 1, layRate: 1, adoption: 1 };
   for (const t of state.treats) {
-    const def = TREATS.find((d) => d.id === t.id);
+    const def = L_TREATS.find((d) => d.id === t.id);
     if (def && t.remaining > 0) m[def.effect] *= def.multiplier;
   }
   return m;
@@ -150,7 +176,7 @@ export function pupRankTitleFor(rank: number): string {
 }
 
 /** Index of the top vehicle tier (the Sled Express). */
-export const TOP_VEHICLE_TIER = VEHICLES.length - 1;
+export const TOP_VEHICLE_TIER = L_VEHICLES.length - 1;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
@@ -161,7 +187,7 @@ export function computeStats(state: GameState): DerivedStats {
   let builtKennels = 0;
   for (const tier of state.kennels) {
     if (tier === null || tier === undefined) continue;
-    const def = KENNELS[tier];
+    const def = L_KENNELS[tier];
     if (!def) continue;
     rawCapacity += def.capacity;
     builtKennels++;
@@ -169,54 +195,54 @@ export function computeStats(state: GameState): DerivedStats {
   const kennelCapacity = rawCapacity * statValue(state, 'kennelCapacity');
 
   const fleetSlots = Math.min(
-    MAX_FLEET_SLOTS,
-    BASE_FLEET_SLOTS + Math.floor(statValue(state, 'fleetSlots')),
+    L_MAX_FLEET_SLOTS,
+    L_BASE_FLEET_SLOTS + Math.floor(statValue(state, 'fleetSlots')),
   );
   let rawShip = 0;
   for (let i = 0; i < Math.min(fleetSlots, state.vehicles.length); i++) {
     const tier = state.vehicles[i];
     if (tier === null || tier === undefined) continue;
-    const def = VEHICLES[tier];
+    const def = L_VEHICLES[tier];
     if (def) {
       const cars = tier === TOP_VEHICLE_TIER ? Math.max(1, state.vehicleCars?.[i] ?? 0) : 1;
-      rawShip += (def.capacityPerMin * cars) / SECONDS_PER_MIN;
+      rawShip += (def.capacityPerMin * cars) / L_SECONDS_PER_MIN;
     }
   }
   const shipPerSec = rawShip * statValue(state, 'shippingCapacity');
 
   const layRate = statValue(state, 'layRate');
-  const digPerPupPerSec = (BASE_DIG_PER_MIN / SECONDS_PER_MIN) * layRate * treatMult.layRate;
+  const digPerPupPerSec = (L_BASE_DIG_PER_MIN / L_SECONDS_PER_MIN) * layRate * treatMult.layRate;
   const digPerSec = state.pups * digPerPupPerSec;
   const deliveredPerSec = Math.min(digPerSec, shipPerSec);
   const bottleneck: 'dig' | 'ship' = digPerSec <= shipPerSec ? 'dig' : 'ship';
 
-  const find = FINDS[state.findIndex] ?? FINDS[0];
+  const find = L_FINDS[state.findIndex] ?? L_FINDS[0];
   const findValueMult = statValue(state, 'findValue');
   const findValue = find.value * findValueMult;
 
-  const pawBonus = BASE_SPIRIT_PAW_BONUS + statValue(state, 'spiritPawBonus');
+  const pawBonus = L_BASE_SPIRIT_PAW_BONUS + statValue(state, 'spiritPawBonus');
   const collarMult = Math.pow(
-    BASE_COLLAR_BONUS + statValue(state, 'collarBonus'),
+    L_BASE_COLLAR_BONUS + statValue(state, 'collarBonus'),
     state.legendCollars,
   );
   const earningsBonus = 1 + state.spiritPaws * pawBonus * collarMult;
 
-  const maxZoomies = BASE_MAX_ZOOMIES + statValue(state, 'maxZoomies');
-  const zoomieBonusPer = BASE_ZOOMIE_BONUS + statValue(state, 'zoomieBonus');
+  const maxZoomies = L_BASE_MAX_ZOOMIES + statValue(state, 'maxZoomies');
+  const zoomieBonusPer = L_BASE_ZOOMIE_BONUS + statValue(state, 'zoomieBonus');
   const zoomieMult = 1 + Math.floor(state.zoomies) * zoomieBonusPer;
 
   const base = deliveredPerSec * findValue * earningsBonus;
   const earnings = statValue(state, 'earnings');
   const incomePerSec = base * zoomieMult * treatMult.earnings * earnings;
   const rescueMult = statValue(state, 'rescueMult');
-  const offlineHours = BASE_OFFLINE_HOURS + statValue(state, 'offlineHours');
+  const offlineHours = L_BASE_OFFLINE_HOURS + statValue(state, 'offlineHours');
   // Park Value (docs/10 §2.2): max zoomies, no treats, population term with rescue potential
-  const digPerPup = (BASE_DIG_PER_MIN / SECONDS_PER_MIN) * layRate;
+  const digPerPup = (L_BASE_DIG_PER_MIN / L_SECONDS_PER_MIN) * layRate;
   const digRaw = state.pups * digPerPup;
   const shipFrac = digRaw > 0 ? Math.min(1, shipPerSec / digRaw) : 1;
   const emptySpace = Math.max(0, kennelCapacity - state.pups);
   const rescueRate = statValue(state, 'rescueRate');
-  const rescuePerMinPerKennel = (BASE_RESCUE_PER_MIN + rescueRate) * rescueMult;
+  const rescuePerMinPerKennel = (L_BASE_RESCUE_PER_MIN + rescueRate) * rescueMult;
   const popTerm =
     state.pups * shipFrac +
     0.2 * state.pups * (1 - shipFrac) +
@@ -225,19 +251,19 @@ export function computeStats(state: GameState): DerivedStats {
   const maxZoomieMult = 1 + maxZoomies * zoomieBonusPer;
   const parkValue =
     find.value * findValueMult * digPerPup * earningsBonus * maxZoomieMult * popTerm *
-    PARK_VALUE_SECONDS * earnings;
+    L_PARK_VALUE_SECONDS * earnings;
 
-  const adoptionCap = BASE_ADOPTION_CAP + statValue(state, 'adoptionCap');
+  const adoptionCap = L_BASE_ADOPTION_CAP + statValue(state, 'adoptionCap');
   const adoptionRefill =
-    (BASE_ADOPTION_REFILL + statValue(state, 'adoptionRefill')) * treatMult.adoption;
+    (L_BASE_ADOPTION_REFILL + statValue(state, 'adoptionRefill')) * treatMult.adoption;
   const rescuePerSec =
-    ((builtKennels * (BASE_RESCUE_PER_MIN + rescueRate)) / SECONDS_PER_MIN) *
+    ((builtKennels * (L_BASE_RESCUE_PER_MIN + rescueRate)) / L_SECONDS_PER_MIN) *
     treatMult.adoption *
     rescueMult;
 
-  const offlineCapSec = offlineHours * SECONDS_PER_HOUR;
+  const offlineCapSec = offlineHours * L_SECONDS_PER_HOUR;
 
-  const mailCapacity = BASE_MAIL_CAPACITY + Math.floor(statValue(state, 'mailCapacity'));
+  const mailCapacity = L_BASE_MAIL_CAPACITY + Math.floor(statValue(state, 'mailCapacity'));
   const squirrelHoundChance = clamp01(statValue(state, 'squirrelHound'));
   const autoWhistleFrac = clamp01(statValue(state, 'autoWhistle'));
   const automationUnlocked: Record<AutomationKey, boolean> = {
@@ -250,10 +276,10 @@ export function computeStats(state: GameState): DerivedStats {
 
   const prestigeGain = prestigeGainFor(state.runEarnings);
   const pupRank = pupRankFor(earningsBonus);
-  const maxCars = BASE_MAX_CARS + Math.floor(statValue(state, 'sledCars'));
+  const maxCars = L_BASE_MAX_CARS + Math.floor(statValue(state, 'sledCars'));
   const nextIdx = state.highestFindIndex + 1;
   const discoveredFind =
-    FINDS[nextIdx] && parkValue >= FINDS[nextIdx].unlockParkValue / DISCOVER_DIVISOR
+    L_FINDS[nextIdx] && parkValue >= L_FINDS[nextIdx].unlockParkValue / L_DISCOVER_DIVISOR
       ? nextIdx
       : state.highestFindIndex;
 
