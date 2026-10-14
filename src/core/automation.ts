@@ -9,7 +9,7 @@ import {
   TRAINING_TIERS,
   VEHICLES,
 } from '../data';
-import { buyKennel, buyTraining, buyVehicle, prestige, upgradeFind } from './actions';
+import { prestige, upgradeFind } from './actions';
 import { computeStats, costMultiplier } from './stats';
 
 export interface AutomationResult {
@@ -21,7 +21,12 @@ export interface AutomationResult {
 interface Candidate {
   cost: number;
   inBucket: boolean;
-  buy: () => boolean;
+  /** 0 kennel, 1 vehicle, 2 training */
+  kind: 0 | 1 | 2;
+  /** slot index (kennel / vehicle) or training def index */
+  idx: number;
+  /** tier or level to set */
+  to: number;
 }
 
 const SHIP_STATS: readonly Stat[] = ['shippingCapacity'];
@@ -77,7 +82,9 @@ function buyLoop(state: GameState): number {
         cands.push({
           cost: KENNELS[next].cost * kMult,
           inBucket: bucketKennels,
-          buy: () => buyKennel(state, slot).ok,
+          kind: 0,
+          idx: slot,
+          to: next,
         });
       }
       const vMult = costMultiplier(state, 'fleetDiscount');
@@ -89,13 +96,16 @@ function buyLoop(state: GameState): number {
         cands.push({
           cost: VEHICLES[next].cost * vMult,
           inBucket: bucketVehicles,
-          buy: () => buyVehicle(state, slot).ok,
+          kind: 1,
+          idx: slot,
+          to: next,
         });
       }
     }
     if (train) {
       const tMult = costMultiplier(state, 'researchDiscount');
-      for (const def of TRAINING) {
+      for (let d = 0; d < TRAINING.length; d++) {
+        const def = TRAINING[d];
         const level = state.training[def.id] ?? 0;
         if (level >= def.maxLevel) continue;
         const tier = TRAINING_TIERS.find((t) => t.tier === def.tier);
@@ -103,7 +113,9 @@ function buyLoop(state: GameState): number {
         cands.push({
           cost: def.baseCost * Math.pow(def.costGrowth, level) * tMult,
           inBucket: bucketStats.includes(def.stat),
-          buy: () => buyTraining(state, def.id, 1).ok,
+          kind: 2,
+          idx: d,
+          to: level + 1,
         });
       }
     }
@@ -133,7 +145,12 @@ function buyLoop(state: GameState): number {
       // nothing left in the priority bucket: spend on whatever is cheapest
       pick = cheapestAffordable;
     }
-    if (!pick || !pick.buy()) break;
+    if (!pick) break;
+    // same math as buyKennel / buyVehicle / buyTraining; validity was checked above
+    state.cash -= pick.cost;
+    if (pick.kind === 0) state.kennels[pick.idx] = pick.to;
+    else if (pick.kind === 1) state.vehicles[pick.idx] = pick.to;
+    else state.training[TRAINING[pick.idx].id] = pick.to;
     buys++;
   }
   return buys;
