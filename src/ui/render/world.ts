@@ -277,7 +277,7 @@ function lawn(ctx: Ctx, L: Layout): void {
   }
   // baked noise: tiny blades and specks, denser/larger toward the viewer
   const r = rng(1234);
-  const n = Math.floor((L.w * (L.roadTop - top)) / 38);
+  const n = Math.floor((L.w * (L.roadTop - top)) / 46);
   ctx.lineCap = 'round';
   for (let i = 0; i < n; i++) {
     const x = r() * L.w;
@@ -285,12 +285,12 @@ function lawn(ctx: Ctx, L: Layout): void {
     const yy = top + t * t * 0.0 + r() * (L.roadTop - top);
     const depth = 0.6 + 0.9 * ((yy - top) / (L.roadTop - top));
     const dark = r() < 0.5;
-    ctx.strokeStyle = dark ? 'rgba(40,120,45,0.28)' : 'rgba(210,255,170,0.3)';
-    ctx.lineWidth = 0.8 * depth;
+    ctx.strokeStyle = dark ? 'rgba(40,120,45,0.24)' : 'rgba(210,255,170,0.28)';
+    ctx.lineWidth = 0.75 * depth;
     ctx.beginPath();
     const lean = (r() - 0.5) * 2.4;
     ctx.moveTo(x, yy);
-    ctx.lineTo(x + lean, yy - (2.2 + r() * 2.6) * depth);
+    ctx.lineTo(x + lean, yy - (1.6 + r() * 2.0) * depth);
     ctx.stroke();
   }
   // haze toward the horizon (6% toward sky)

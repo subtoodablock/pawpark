@@ -172,8 +172,8 @@ function skeleton(b: Breed, pose: Pose, f: number, pup: boolean): Skel {
       ];
       for (const [x, near] of hind) sk.legs.push({ x, y: legTopY(sk.hip.y), a: near ? -0.12 : 0.14, len: -legTopY(sk.hip.y), near, front: false, lift: 0 });
       const fy = legTopY(sk.sh.y);
-      sk.legs.splice(1, 0, { x: fx + 1.6, y: fy, a: a0 ? -0.25 : -1.1, len: -fy * 0.95, near: false, front: true, lift: 0 });
-      sk.legs.push({ x: fx, y: fy, a: a0 ? -1.1 : -0.25, len: -fy * 0.95, near: true, front: true, lift: 0 });
+      sk.legs.splice(1, 0, { x: fx + 1.6, y: fy, a: a0 ? 0.45 : -0.75, len: -fy * 0.95, near: false, front: true, lift: a0 ? 0 : 2 });
+      sk.legs.push({ x: fx, y: fy, a: a0 ? -0.75 : 0.45, len: -fy * 0.95, near: true, front: true, lift: a0 ? 2 : 0 });
       sk.headRot = 0.95;
       sk.tailRest = 0.5;
       break;

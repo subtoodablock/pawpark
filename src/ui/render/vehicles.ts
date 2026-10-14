@@ -519,17 +519,16 @@ function drawRocket(ctx: Ctx): void {
   ctx.beginPath();
   ctx.arc(0.5, -24.5, 1.8, 0, Math.PI * 2);
   ctx.fill();
-  // flame
-  const fg = ctx.createLinearGradient(-36, 0, -62, 0);
-  fg.addColorStop(0, '#fff3a0');
-  fg.addColorStop(0.5, '#ffa63d');
-  fg.addColorStop(1, 'rgba(255,90,40,0)');
-  ctx.fillStyle = fg;
-  ctx.beginPath();
-  ctx.moveTo(-34, -28);
-  ctx.quadraticCurveTo(-52, -30, -64, -22);
-  ctx.quadraticCurveTo(-52, -16, -34, -16);
-  ctx.fill();
+  // flame (flat layered teardrops)
+  for (const [col, k] of [['#ff7a2f', 1], ['#ffc43d', 0.68], ['#fff6c0', 0.38]] as const) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(-33, -27 * k - 22 * (1 - k));
+    ctx.quadraticCurveTo(-50, -26 - 4 * k, -60 - 6 * k, -22);
+    ctx.quadraticCurveTo(-50, -18 + 4 * k, -33, -17 - 5 * (1 - k));
+    ctx.closePath();
+    ctx.fill();
+  }
   // carrier cradle
   ctx.fillStyle = '#3a3f4b';
   roundRect(ctx, -26, -8, 56, 4, 1.5);

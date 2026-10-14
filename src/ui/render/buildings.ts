@@ -15,7 +15,7 @@ import {
 } from './shade';
 import { P } from './palette';
 
-export const BLD_W = 150;
+export const BLD_W = 172;
 export const BLD_H = 148;
 export const BLD_AX = 62;
 export const BLD_AY = 126;

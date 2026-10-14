@@ -67,7 +67,7 @@ import { POSE_FRAMES, DOG_H, DOG_W, dogKey, drawDogFrame, drawTail, tailKey, TAI
 import type { Pose } from './render/dogSprite';
 
 const EMOJI_FONT = "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
-const MAX_VISIBLE = 64;
+const MAX_VISIBLE = 56;
 const DASH: number[] = [5, 4];
 const NO_DASH: number[] = [];
 
@@ -655,6 +655,8 @@ export class ParkScene {
       rs.avgMs = sum / this.msWin.length;
       rs.maxMs = max;
       rs.sprites = this.cache.size;
+      // debug handle for QA scripts (not used by the game)
+      if (!pp.scene) pp.scene = this;
     }
   }
 
@@ -817,7 +819,7 @@ export class ParkScene {
 
   private kennelSprite(tier: number): Sprite | null {
     const lit = this.tint.lit ? 1 : 0;
-    return this.cache.getOrNull(`kennel:${tier}:${lit}`, BLD_W, BLD_H, (ctx) => drawKennelBody(ctx, tier, lit === 1), 3);
+    return this.cache.getOrNull(`kennel:${tier}:${lit}`, BLD_W, BLD_H, (ctx) => drawKennelBody(ctx, tier, lit === 1), 3) ?? this.cache.peek(`kennel:${tier}:${1 - lit}`) ?? null;
   }
   private kennelShadow(tier: number): Sprite | null {
     return this.cache.getOrNull(`kshadow:${tier}`, BLD_W, BLD_H, (ctx, _w, _h, d) => drawKennelShadow(ctx, tier, d), 3);
@@ -1087,7 +1089,7 @@ export class ParkScene {
   private drawCenter(): void {
     const { ctx, dpr, L } = this;
     const lit = this.tint.lit ? 1 : 0;
-    const sp = this.cache.getOrNull(`adopt:${lit}`, ADOPT_W, ADOPT_H, (cx) => drawAdoptionCenter(cx, lit === 1), 3);
+    const sp = this.cache.getOrNull(`adopt:${lit}`, ADOPT_W, ADOPT_H, (cx) => drawAdoptionCenter(cx, lit === 1), 3) ?? this.cache.peek(`adopt:${1 - lit}`);
     if (!sp) return;
     const k = L.bs * 1.08;
     const sq = this.centerSquash;

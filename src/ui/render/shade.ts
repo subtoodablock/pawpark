@@ -76,6 +76,8 @@ export function easeOutBack(t: number, c1 = 1.70158): number {
 
 export function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number): void {
   const rr = Math.min(r, w / 2, h / 2);
+  // real contexts start a fresh path (Path2D has no beginPath and is already fresh)
+  if ('beginPath' in ctx) (ctx as CanvasRenderingContext2D).beginPath();
   ctx.moveTo(x + rr, y);
   ctx.arcTo(x + w, y, x + w, y + h, rr);
   ctx.arcTo(x + w, y + h, x, y + h, rr);
