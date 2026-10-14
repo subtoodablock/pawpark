@@ -63,11 +63,9 @@ export function showPrestigeInfo(c: GameController): void {
   const stick = FINDS[0];
   const body = [
     h('p', {
-      text:
-        p.gain >= 1
-          ? `Back to the ${stick?.icon ?? ''} ${stick?.name ?? 'Stick'} Era with +${formatNumber(p.gain)} Spirit Paws (+${formatNumber(p.pctGain)}% earnings). Spirit Paws are earned from everything you sold this prestige.`
-          : `Open a new park to go back to the ${stick?.icon ?? ''} ${stick?.name ?? 'Stick'} Era and earn Spirit Paws from everything you sold this prestige. Earn a bit more first.`,
+      text: `Back to the ${stick?.icon ?? ''} ${stick?.name ?? 'Stick'} Era with +${formatNumber(p.gain)} Spirit Paws (+${formatNumber(p.pctGain)}% earnings). Spirit Paws are earned from everything you sold this prestige.`,
     }),
+    p.gain >= 1 ? null : h('p', { cls: 'muted', text: 'Not enough sold yet to earn a Spirit Paw. Keep digging!' }),
     h(
       'ul',
       { cls: 'report-list' },

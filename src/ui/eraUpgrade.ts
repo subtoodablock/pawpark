@@ -1,4 +1,5 @@
 import { FINDS, formatMoney, formatNumber, nextFind, upgradeFind } from '../core';
+import type { GameState } from '../core';
 import type { GameController } from './GameController';
 import { h } from './dom';
 import { confetti } from './fx/confetti';
@@ -68,4 +69,15 @@ export function confirmEraUpgrade(c: GameController, onDone?: () => void): void 
       },
     ],
   );
+}
+
+/** 0..1 log-scale progress from the current Find's gate to the next one (same curve as the HUD ring). */
+export function eraProgress(s: GameState, parkValue: number): number {
+  const nf = nextFind(s);
+  if (!nf) return 1;
+  if (parkValue >= nf.unlockParkValue) return 1;
+  const cur = Math.max(1, FINDS[s.findIndex]?.unlockParkValue ?? 1);
+  const next = Math.max(cur * 1.0001, nf.unlockParkValue);
+  const frac = (Math.log(Math.max(1, parkValue)) - Math.log(cur)) / (Math.log(next) - Math.log(cur));
+  return Math.max(0, Math.min(1, frac));
 }

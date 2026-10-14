@@ -5,7 +5,7 @@ export const START_GOLDEN_BONES = 10;
 
 // ---- v4 Find eras (docs/08)
 /** Starting cash of a new era = ERA_START_CASH * costScale of the new Find (the first doghouse + bike) */
-export const ERA_START_CASH = 50;
+export const ERA_START_CASH = 600;
 /** price of tier t in a slot is multiplied by this per OTHER slot already holding tier >= t */
 export const DUPLICATE_GROWTH = 1.35;
 /** FINDS[k].costScale starting shape is (value_k / value_0) * HARDNESS^k */
@@ -31,7 +31,7 @@ export const ZOOMIE_DECAY_PER_SEC = 10;
 export const BASE_SPIRIT_PAW_BONUS = 0.1;
 export const BASE_COLLAR_BONUS = 1.05;
 export const PRESTIGE_DIVISOR = 1e6;
-export const PRESTIGE_EXPONENT = 0.2;
+export const PRESTIGE_EXPONENT = 0.19;
 export const PARK_VALUE_SECONDS = 3600;
 
 export const BASE_OFFLINE_HOURS = 8;

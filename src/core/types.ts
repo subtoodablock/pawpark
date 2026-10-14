@@ -30,6 +30,10 @@ export type Stat =
   // v3 (mult)
   | 'earnings' // multiplies incomePerSec and parkValue
   | 'mailRate' // divides MAIL_INTERVAL_SEC
+  // v5
+  | 'rescueMult' // mult: multiplies rescuePerSec
+  | 'offlineRescueMult' // mult: multiplies rescuePerSec ONLY while offline
+  | 'sledCars' // add: extra max sled cars per top-tier vehicle slot
   | 'researchDiscount'
   | 'kennelDiscount'
   | 'fleetDiscount';
@@ -48,6 +52,8 @@ export interface UpgradeDef {
   maxLevel: number;
   baseCost: number;
   costGrowth: number;
+  /** v5 doubler: if set, the item multiplies its stat by multPerLevel^level instead of (1 + perLevel*level). Stat must be a mult stat. */
+  multPerLevel?: number;
 }
 
 /** Common research ("Training"). Paid in cash, resets on prestige. */
@@ -160,6 +166,8 @@ export interface GameStats {
   squirrelsCaught: number;
   mailOpened: number;
   totalPlaySec: number;
+  /** v5: finds shipped (delivered) in this park, ever; used by Dog Show goals */
+  findsDelivered: number;
 }
 
 export interface GameState {
@@ -171,6 +179,8 @@ export interface GameState {
   kennels: (number | null)[];
   /** length MAX_FLEET_SLOTS; tier index into VEHICLES or null if empty */
   vehicles: (number | null)[];
+  /** v5: sled cars per vehicle slot (length MAX_FLEET_SLOTS); >=1 only when the slot holds the top tier, else 0 */
+  vehicleCars: number[];
   findIndex: number;
   highestFindIndex: number;
   /** training id -> level (resets on prestige) */
@@ -199,6 +209,10 @@ export interface GameState {
   endgameReached: boolean;
   daily: DailyState;
   premium: PremiumState;
+  /** v5: this week's Dog Show, or null */
+  show: DogShowState | null;
+  /** v5: last SHOW_HISTORY_WEEKS shows */
+  showHistory: DogShowResult[];
   /** find indices for which findUpgradeAvailable was already emitted this run */
   notifiedFinds: number[];
   runEarnings: number;
@@ -244,6 +258,12 @@ export interface DerivedStats {
   vipTier: number; // 0..VIP_TIERS.length-1
   // v4
   costScale: number; // FINDS[findIndex].costScale
+  // v5
+  pupRank: number; // floor(log10(earningsBonus*100)), min 0
+  pupRankTitle: string;
+  maxCars: number; // per top-tier slot
+  /** highest find index shown as discovered (parkValue >= gate / DISCOVER_DIVISOR, or ever reached) */
+  discoveredFind: number;
   modifier: DailyModifierDef | null;
   totalTrainingLevels: number;
   prestigeGain: number; // spirit paws if prestiged now
@@ -265,6 +285,9 @@ export type GameEvent =
   | { type: 'endgame' }
   | { type: 'dailyDigComplete'; index: number }
   | { type: 'streakMilestone'; streak: number; stars: number }
+  | { type: 'calendarCollar'; streak: number }
+  | { type: 'showGoalReached'; goalIndex: number }
+  | { type: 'showEnded'; weekKey: string; medals: number }
   | { type: 'mailArrived' }
   | { type: 'squirrelSpawned'; squirrelId: number }
   | { type: 'treatExpired'; treatId: string };
@@ -390,3 +413,37 @@ export interface PremiumState {
   shop: Record<string, number>;
 }
 
+
+// ---------------------------------------------------------------- v5: Dog Show
+// Spec: docs/10-egg-inc-model.md §3
+
+/** ISO week key 'YYYY-Www' (local time) */
+export type WeekKey = string;
+
+export interface DogShowGoal {
+  target: number; // finds delivered in the show park
+  claimed: boolean;
+}
+
+export interface DogShowState {
+  weekKey: WeekKey;
+  name: string;
+  findIndex: number;
+  joinedAt: number; // epoch ms
+  goals: DogShowGoal[]; // length 3: bronze, silver, gold
+  /** a full park simulated alongside home; meta fields mirrored from home each step; its own show is always null */
+  park: GameState;
+}
+
+export interface DogShowResult {
+  weekKey: WeekKey;
+  findIndex: number;
+  medals: number; // 0..3 goals reached
+}
+
+export interface DogShowRewardDef {
+  goalFraction: number; // × calibrated AFK deliveries
+  goldenBones: number;
+  treatId?: string;
+  collars: number;
+}

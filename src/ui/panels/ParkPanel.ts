@@ -13,6 +13,7 @@ import type { GameController } from '../GameController';
 import { h, meter, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
+import { eraProgress } from '../eraUpgrade';
 import { confirmPrestige, prestigeSummary } from '../prestige';
 import { createShareCard } from '../share';
 import { getDayNight, setDayNight } from '../prefs';
@@ -128,7 +129,7 @@ export function createParkPanel(c: GameController, openFind: () => void): Panel 
     if (nf) {
       const ready = d.parkValue >= nf.unlockParkValue;
       setText(nfDesc, ready ? `${nf.icon} ${nf.name} is ready to dig!` : `Next: ${nf.icon} ${nf.name} at Park Value ${formatMoney(nf.unlockParkValue)}`);
-      setMeter(nfMeter, nf.unlockParkValue > 0 ? d.parkValue / nf.unlockParkValue : 1);
+      setMeter(nfMeter, eraProgress(s, d.parkValue));
       setHidden(nfMeter.el, false);
     } else {
       setText(nfDesc, 'Every find discovered!');

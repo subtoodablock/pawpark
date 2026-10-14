@@ -2,7 +2,7 @@ import { FINDS, TROPHIES, computeStats, formatMoney, formatNumber, nextFind } fr
 import type { TrophyDef, TrophyKind } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
-import { confirmEraUpgrade } from '../eraUpgrade';
+import { confirmEraUpgrade, eraProgress } from '../eraUpgrade';
 import { reducedMotion, restart } from '../motion';
 import type { Panel } from './common';
 
@@ -234,10 +234,7 @@ export function createFindPanel(c: GameController, opts: { onPrestigeInfo: () =>
     setHidden(startBtn, !showStart);
     setHidden(lockBar, !showLock);
     if (showLock && nf) {
-      // log-scale progress from the current gate to the next, as in the HUD
-      const cur = Math.max(1, FINDS[s.findIndex]?.unlockParkValue ?? 1);
-      const next = Math.max(cur * 1.0001, nf.unlockParkValue);
-      const frac = (Math.log(Math.max(1, d.parkValue)) - Math.log(cur)) / (Math.log(next) - Math.log(cur));
+      const frac = eraProgress(s, d.parkValue);
       setMeter(lockMeter, frac);
       setText(lockText, `Unlocks at Park Value ${formatMoney(nf.unlockParkValue)}`);
     }
