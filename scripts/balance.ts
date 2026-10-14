@@ -588,6 +588,7 @@ const quant = (a: number[], q: number) => {
 const fx = (x: number, d = 1) => (Number.isNaN(x) ? 'n/a' : x.toFixed(d));
 const fT = (d: number) => (Number.isNaN(d) ? 'n/a' : d < 1 / 24 ? `${(d * 1440).toFixed(1)}m` : d < 2 ? `${(d * 24).toFixed(1)}h` : `${d.toFixed(1)}d`);
 
+const MIN_RATIO_BASE_DAYS = 5 / 1440;
 interface EraStats {
   /** L[k] = list of (run index, days spent in Find k before the gate) for complete eras */
   L: { run: number; len: number }[][];
@@ -606,7 +607,8 @@ function eraStats(r: Result): EraStats {
       L[k].push({ run: ri, len });
       if (k > 0 && run.entry[k - 1] !== undefined) {
         const prev = run.entry[k] - run.entry[k - 1];
-        if (prev > 0) ratios.push({ run: ri, k, ratio: len / prev });
+        // L_{k-1} under 5 min is 60 s-chunk quantisation noise (a 1 min era vs a 3 min era reads as x3)
+        if (prev >= MIN_RATIO_BASE_DAYS) ratios.push({ run: ri, k, ratio: len / prev });
       }
     }
   });

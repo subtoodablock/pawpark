@@ -1,10 +1,11 @@
 import { h, setClass, setDisabled, setText } from '../dom';
-import { formatRatio } from '../eraUpgrade';
 import { celebrateBuy, readyBounce } from '../motion';
 
 export interface Panel {
   el: HTMLElement;
   update(): void;
+  /** called by the Sheet each time the panel is opened */
+  onShow?(): void;
 }
 
 export interface Row {
@@ -48,22 +49,6 @@ export function setBtn(btn: HTMLButtonElement, label: string, enabled: boolean):
   if (enabled && wasDisabled && prev !== undefined && now - prev < 1000 && btn.isConnected && !btn.hidden && btn.offsetParent !== null) {
     readyBounce(btn);
   }
-}
-
-/** Small "Era prices ×N" note; hidden in the first era (costScale 1). */
-export function eraNote(): { el: HTMLElement; set(costScale: number): void } {
-  const el = h('div', { cls: 'era-note', attrs: { title: 'Every cash price here is multiplied by the current era scale' } });
-  el.hidden = true;
-  let last = NaN;
-  return {
-    el,
-    set(costScale: number): void {
-      if (costScale === last) return;
-      last = costScale;
-      el.hidden = !(costScale > 1.0001);
-      setText(el, `Era prices ×${formatRatio(costScale)}`);
-    },
-  };
 }
 
 export function section(title: string, ...kids: (Node | string)[]): HTMLElement {

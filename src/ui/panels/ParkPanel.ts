@@ -1,6 +1,5 @@
 import {
   FINDS,
-  TROPHIES,
   clearSave,
   computeStats,
   exportSave,
@@ -9,41 +8,28 @@ import {
   formatNumber,
   importSave,
   nextFind,
-  prestige,
 } from '../../core';
-import type { TrophyDef, TrophyKind } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
-import { confirmEraUpgrade } from '../eraUpgrade';
-import { confetti } from '../fx/confetti';
+import { confirmPrestige, prestigeSummary } from '../prestige';
 import { createShareCard } from '../share';
 import { getDayNight, setDayNight } from '../prefs';
 import { section, type Panel } from './common';
 
-export function createParkPanel(c: GameController): Panel {
+export function createParkPanel(c: GameController, openFind: () => void): Panel {
   const el = h('div', { cls: 'panel' });
 
-  // ---- next find card
+  // ---- current find / next era: the full carousel lives in the Find panel
+  const nfDisc = h('div', { cls: 'find-disc mini' }, h('span', { cls: 'find-disc-ico' }));
+  const nfIcon = nfDisc.firstElementChild as HTMLElement;
   const nfTitle = h('div', { cls: 'row-title' });
   const nfDesc = h('div', { cls: 'row-desc' });
   const nfMeter = meter('find-progress');
-  const nfLabel = h('div', { cls: 'row-meta' });
-  const nfBtn = h('button', {
-    cls: 'btn primary',
-    text: 'Start next era!',
-    on: {
-      click: () => confirmEraUpgrade(c, update),
-    },
-  });
-  const nfCard = h('div', { cls: 'card' }, nfTitle, nfDesc, nfMeter.el, nfLabel, nfBtn);
-  const ladder = FINDS.map((f, i) => {
-    const meta = h('span', { cls: 'row-meta' });
-    const row = h('div', { cls: 'ladder-row' }, h('span', { cls: 'ladder-icon', text: f.icon }), h('span', { cls: 'ladder-name', text: f.name }), meta);
-    return { i, row, meta, f };
-  });
-  el.append(section('\u{1F9B4} Finds', nfCard, h('div', { cls: 'ladder' }, ...ladder.map((l) => l.row))));
+  const nfBtn = h('button', { cls: 'btn', text: 'Open Finds \u2192', attrs: { type: 'button' }, on: { click: () => openFind() } });
+  const nfCard = h('div', { cls: 'card find-mini' }, h('div', { cls: 'find-mini-row' }, nfDisc, h('div', { cls: 'row-main' }, nfTitle, nfDesc)), nfMeter.el, nfBtn);
+  el.append(section('\u{1F9B4} Finds', nfCard));
 
   const shareCard = createShareCard(c);
   el.append(section('\u{1F4E4} Share', shareCard.el));
@@ -51,81 +37,8 @@ export function createParkPanel(c: GameController): Panel {
   // ---- prestige
   const prInfo = h('div', { cls: 'row-desc' });
   const prBonus = h('div', { cls: 'row-meta' });
-  const prBtn = h('button', { cls: 'btn primary', on: { click: () => confirmPrestige() } });
-  el.append(section('\u{1F3DE}️ Open a New Park', h('div', { cls: 'card' }, prInfo, prBonus, prBtn)));
-
-  function confirmPrestige(): void {
-    const d = computeStats(c.state);
-    showModal(
-      'Open a New Park?',
-      [
-        h('p', { text: `You will gain ${formatNumber(d.prestigeGain)} Spirit Paws \u{1F43E}.` }),
-        h('p', { text: 'Your cash, pups, kennels, fleet, finds and Training reset. Golden Bones, Academy, Spirit Paws, Legend Collars and trophies are kept.' }),
-      ],
-      [
-        { label: 'Not yet' },
-        {
-          label: 'Open it!',
-          primary: true,
-          onClick: () => {
-            const r = prestige(c.state);
-            if (c.check(r)) {
-              toast(`\u{1F43E} New park opened! +${formatNumber(r.gained ?? 0)} Spirit Paws`, 'gold', 5000);
-              confetti();
-              c.save();
-            }
-          },
-        },
-      ],
-    );
-  }
-
-  // ---- trophies
-  const KIND_TITLES: Record<TrophyKind, string> = {
-    pups: '\u{1F415} Pups',
-    lifetimeEarnings: '\u{1F4B0} Lifetime earnings',
-    prestiges: '\u{1F3DE}️ Parks opened',
-    find: '\u{1F9B4} Finds',
-  };
-  function thresholdLabel(t: TrophyDef): string {
-    switch (t.kind) {
-      case 'pups':
-        return `${formatNumber(t.threshold)} pups`;
-      case 'lifetimeEarnings':
-        return `${formatMoney(t.threshold)} earned`;
-      case 'prestiges':
-        return `${formatNumber(t.threshold)} park${t.threshold === 1 ? '' : 's'}`;
-      case 'find': {
-        const f = FINDS[t.threshold];
-        return f ? `${f.icon} ${f.name}` : `Find #${t.threshold + 1}`;
-      }
-    }
-  }
-  function rewardLabel(t: TrophyDef): string {
-    const parts: string[] = [];
-    if (t.collars > 0) parts.push(`+${t.collars}\u{1F3F7}️`);
-    if (t.goldenBones > 0) parts.push(`+${formatNumber(t.goldenBones)}\u{1F9B4}`);
-    return parts.join(' ');
-  }
-  const trophyEls = TROPHIES.map((t) => {
-    const e = h(
-      'div',
-      { cls: 'trophy' },
-      h('div', { cls: 'trophy-icon', text: t.icon }),
-      h('div', { cls: 'trophy-name', text: t.name }),
-      h('div', { cls: 'row-meta', text: thresholdLabel(t) }),
-      h('div', { cls: 'row-meta', text: rewardLabel(t) }),
-    );
-    return { t, e };
-  });
-  const collars = h('div', { cls: 'row-meta' });
-  const trophyGroups: Node[] = [];
-  for (const kind of ['pups', 'lifetimeEarnings', 'prestiges', 'find'] as TrophyKind[]) {
-    const items = trophyEls.filter((x) => x.t.kind === kind).sort((x, y) => x.t.threshold - y.t.threshold);
-    if (!items.length) continue;
-    trophyGroups.push(h('div', { cls: 'trophy-group', text: KIND_TITLES[kind] }), h('div', { cls: 'trophies' }, ...items.map((x) => x.e)));
-  }
-  el.append(section('\u{1F3C6} Trophies', collars, ...trophyGroups));
+  const prBtn = h('button', { cls: 'btn primary', on: { click: () => confirmPrestige(c) } });
+  el.append(section('\u{1F3DE}\uFE0F Open a New Park', h('div', { cls: 'card' }, prInfo, prBonus, prBtn)));
 
   // ---- stats
   const statsList = h('div', { cls: 'stats' });
@@ -207,52 +120,29 @@ export function createParkPanel(c: GameController): Panel {
     const s = c.state;
     const d = computeStats(s);
 
-    // next find
+    // current find + progress to the next era
+    const cf = FINDS[s.findIndex];
     const nf = nextFind(s);
-    setHidden(nfCard, false);
+    setText(nfIcon, cf?.icon ?? '');
+    setText(nfTitle, `${cf?.name ?? '?'} Era`);
     if (nf) {
       const ready = d.parkValue >= nf.unlockParkValue;
-      setText(nfTitle, `Next era: ${nf.icon} ${nf.name} (${formatMoney(nf.value)} each)`);
-      setText(nfDesc, nf.flavor);
+      setText(nfDesc, ready ? `${nf.icon} ${nf.name} is ready to dig!` : `Next: ${nf.icon} ${nf.name} at Park Value ${formatMoney(nf.unlockParkValue)}`);
       setMeter(nfMeter, nf.unlockParkValue > 0 ? d.parkValue / nf.unlockParkValue : 1);
-      setText(nfLabel, `Park value ${formatMoney(d.parkValue)} / ${formatMoney(nf.unlockParkValue)}` + (s.highestFindIndex < s.findIndex + 1 ? ` • first time: +${nf.unlockReward} \u{1F9B4}` : ''));
-      setDisabled(nfBtn, !ready);
-      setHidden(nfBtn, false);
+      setHidden(nfMeter.el, false);
     } else {
-      setText(nfTitle, 'Every find unlocked!');
-      setText(nfDesc, 'You are digging up the cosmos itself.');
-      setMeter(nfMeter, 1);
-      setText(nfLabel, '');
-      setHidden(nfBtn, true);
-    }
-    for (const l of ladder) {
-      const cur = l.i === s.findIndex;
-      const seen = l.i <= s.highestFindIndex;
-      setClass(l.row, 'current', cur);
-      setClass(l.row, 'unseen', !seen && !cur);
-      setText(l.meta, cur ? 'current' : seen ? `${formatMoney(l.f.value)}` : `Park ${formatMoney(l.f.unlockParkValue)}`);
+      setText(nfDesc, 'Every find discovered!');
+      setHidden(nfMeter.el, true);
     }
 
     shareCard.update();
 
     // prestige
-    const gain = d.prestigeGain;
-    const after = 1 + (s.spiritPaws + gain) * d.pawBonus * d.collarMult;
-    const pctGain = d.earningsBonus > 0 ? Math.round((after / d.earningsBonus - 1) * 100) : 0;
-    const stick = FINDS[0];
-    setText(
-      prInfo,
-      gain >= 1
-        ? `Back to the ${stick?.icon ?? ''} ${stick?.name ?? 'Stick'} Era with +${formatNumber(gain)} Spirit Paws (+${formatNumber(pctGain)}% earnings)`
-        : 'Earn more this run to gain Spirit Paws.',
-    );
-    setText(prBonus, `Earnings bonus: ×${formatNumber(d.earningsBonus)} → ×${formatNumber(after)}  •  run earnings ${formatMoney(s.runEarnings)}`);
-    setText(prBtn, gain >= 1 ? `Open a New Park (+${formatNumber(gain)} \u{1F43E})` : 'Not enough yet');
-    setDisabled(prBtn, gain < 1);
-
-    // trophies
-    setText(collars, `Legend Collars: ${s.legendCollars} (×${d.collarMult.toFixed(3)} paw bonus)`);
-    for (const { t, e } of trophyEls) setClass(e, 'owned', s.trophies.includes(t.id));
+    const pr = prestigeSummary(c);
+    setText(prInfo, pr.line);
+    setText(prBonus, `Earnings bonus: ×${formatNumber(pr.now)} → ×${formatNumber(pr.after)}  •  run earnings ${formatMoney(s.runEarnings)}`);
+    setText(prBtn, pr.gain >= 1 ? `Open a New Park (+${formatNumber(pr.gain)} \u{1F43E})` : 'Not enough yet');
+    setDisabled(prBtn, pr.gain < 1);
 
     // stats
     const vals = [

@@ -1,4 +1,4 @@
-import { FINDS, formatNumber, nextFind, upgradeFind } from '../core';
+import { FINDS, formatMoney, formatNumber, nextFind, upgradeFind } from '../core';
 import type { GameController } from './GameController';
 import { h } from './dom';
 import { confetti } from './fx/confetti';
@@ -27,7 +27,7 @@ export function confirmEraUpgrade(c: GameController, onDone?: () => void): void 
   if (!nf) return;
   const cur = FINDS[s.findIndex];
   const valueMult = cur && cur.value > 0 ? nf.value / cur.value : 1;
-  const priceMult = cur && cur.costScale > 0 ? nf.costScale / cur.costScale : nf.costScale;
+  const startIndex = s.findIndex;
   const list = (items: string[], mark: string): HTMLElement =>
     h('ul', { cls: 'era-list' }, ...items.map((t) => h('li', null, h('i', { text: mark }), h('span', { text: t }))));
   showModal(
@@ -36,8 +36,7 @@ export function confirmEraUpgrade(c: GameController, onDone?: () => void): void 
       h(
         'div',
         { cls: 'era-stats' },
-        h('div', { cls: 'era-stat good' }, h('b', { text: `×${formatRatio(valueMult)}` }), h('span', { text: 'Find value' })),
-        h('div', { cls: 'era-stat warn' }, h('b', { text: `×${formatRatio(priceMult)}` }), h('span', { text: 'Prices' })),
+        h('div', { cls: 'era-stat good' }, h('b', { text: `×${formatRatio(valueMult)}` }), h('span', { text: 'Find value' }), cur ? h('small', { text: `${formatMoney(cur.value)} → ${formatMoney(nf.value)} each` }) : null),
       ),
       h(
         'div',
@@ -52,6 +51,12 @@ export function confirmEraUpgrade(c: GameController, onDone?: () => void): void 
         label: 'Confirm',
         primary: true,
         onClick: () => {
+          // automation (or another panel) may have started this era while the modal was open:
+          // close quietly and just refresh, no error toast
+          if (c.state.findIndex !== startIndex) {
+            onDone?.();
+            return;
+          }
           const name = `${nf.icon} ${nf.name}`;
           if (c.check(upgradeFind(c.state))) {
             toast(`Welcome to the ${name} Era!`, 'gold', 5000);
