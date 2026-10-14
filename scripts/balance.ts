@@ -17,6 +17,7 @@ import {
   isTrainingTierUnlocked, kennelUpgradeCost, openAllMail, parkLevel, premiumCost, prestige, recycleRelic, refreshDaily, refreshShow, relicEffect, setAutomation,
   sledCarCost, statMode, statValue, tick, trainingCost, unequipRelic, vehicleUpgradeCost, SHOW_REWARDS, TROPHIES, STAR_CAPACITY_BONUS,
 } from '../src/core/index';
+import { BASE_OFFLINE_HOURS, BASE_RESCUE_PER_MIN, PV_EMPTY_SPACE_EXP, PV_RESCUE_FACTOR, PV_UNSHIPPED_WEIGHT } from '../src/data';
 import type { AutomationKey, GameState, Relic, Rng, Stat } from '../src/core/index';
 
 // ---------------------------------------------------------------- args
@@ -26,7 +27,7 @@ const flag = (name: string): string | null => {
   return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
 };
 const VERBOSE = argv.includes('--verbose');
-const MAX_DAYS = Number(flag('--days') ?? 200);
+let MAX_DAYS = Number(flag('--days') ?? 200);
 const PROFILE_ARG = flag('--profile') ?? 'all';
 /** diagnostic ablations for the Whale: ABL="vip,shop:star_spirit,..." zeroes those perks */
 const SEED = Number(flag('--seed') ?? 12345);
@@ -50,8 +51,10 @@ for (const id of (process.env.ABL ?? '').split(',').filter(Boolean)) {
 }
 const JSON_OUT = argv.includes('--json');
 /** diagnostic: stop the profile once this find index is reached (default: the last find) */
-const STOP_ARG = flag('--stop');
-const STOP_AT = Number(STOP_ARG ?? FINDS.length - 1);
+let STOP_ARG = flag('--stop');
+let STOP_AT = Number(STOP_ARG ?? FINDS.length - 1);
+/** --calibrate: gate calibration hook (see the calibration block below): running max of Park Value while in era `era` */
+let cal: { era: number; max: number; trace: [number, number][] } | null = null;
 /** --full: every profile runs on to the endgame (4 full Planet Paws + Academy maxed); default only AFK+Daily does */
 const FULL = argv.includes('--full');
 
@@ -169,6 +172,18 @@ function policyBuys(state: GameState, doBuild: boolean, doTrain: boolean): numbe
 // ---------------------------------------------------------------- simulation of one profile
 const fmtDays = (d: number | null) => (d === null ? 'n/a' : d < 1 / 24 ? `${(d * 1440).toFixed(1)} min` : d < 1 ? `${(d * 24).toFixed(1)} h (d${d.toFixed(2)})` : `day ${d.toFixed(1)}`);
 const fmtMin = (d: number | null) => (d === null ? 'n/a' : `${(d * 1440).toFixed(1)} min`);
+/** diagnostic: the Park Value popTerm components (docs/10 §2.2) of a state, for --verbose find events */
+function pvBreakdown(state: GameState): string {
+  const s = computeStats(state);
+  const lay = statValue(state, 'layRate');
+  const dig = state.pups * (6 / 60) * lay;
+  const shipFrac = dig > 0 ? Math.min(1, s.shipPerSec / dig) : 1;
+  const pupsT = state.pups * shipFrac + PV_UNSHIPPED_WEIGHT * state.pups * (1 - shipFrac);
+  const empty = Math.pow(Math.max(0, s.kennelCapacity - state.pups), PV_EMPTY_SPACE_EXP);
+  const rescue = PV_RESCUE_FACTOR * (BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')) * statValue(state, 'rescueMult') * s.builtKennels * (BASE_OFFLINE_HOURS + statValue(state, 'offlineHours')) * 60;
+  const f = (x: number) => x.toExponential(1);
+  return `pop[pups ${f(pupsT)} empty ${f(empty)} rescue ${f(rescue)}] cap ${f(s.kennelCapacity)} shipFrac ${shipFrac.toFixed(2)} PV ${f(s.parkValue)} inc ${f(s.incomePerSec)} B ${f(s.earningsBonus)}`;
+}
 const sig = (n: number) => (n >= 1e6 ? n.toExponential(2) : n >= 100 ? n.toFixed(0) : n.toFixed(1));
 
 interface DayRow {
@@ -295,6 +310,8 @@ function simulate(def: ProfileDef): Result {
   let endgameT: number | null = null;
   const stopRule = STOP_ARG !== null ? 'find' : def.name === 'afkdaily' || FULL ? 'endgame' : 'find';
 
+  let lastPv = '';
+  let lastPvT = 0;
   const observe = (t: number) => {
     // era rebuild
     if (state.prestigeCount > eraTrack.prestiges) {
@@ -336,8 +353,13 @@ function simulate(def: ProfileDef): Result {
       for (let k = lastHF + 1; k <= state.highestFindIndex; k++) { findT[k] = t / DAY; findLogB[k] = Math.log10(computeStats(state).earningsBonus); }
       lastHF = state.highestFindIndex;
       eventsT.push(t);
-      if (VERBOSE) console.log(`  [${fmtDays(t / DAY)}] FIND -> ${FINDS[lastHF].name}`);
+      if (VERBOSE) console.log(`  [${fmtDays(t / DAY)}] FIND -> ${FINDS[lastHF].name}  pre-upgrade ${lastPv}`);
     }
+    if (cal && state.findIndex === cal.era) {
+      const pv = computeStats(state).parkValue;
+      if (pv > cal.max) { cal.max = pv; cal.trace.push([t / DAY, pv]); }
+    }
+    if (VERBOSE && t - lastPvT >= 55) { lastPv = pvBreakdown(state); lastPvT = t; }
     if (state.trophies.length > lastTrophies) { lastTrophies = state.trophies.length; eventsT.push(t); }
     if (state.prestigeCount > lastPrestiges) {
       lastPrestiges = state.prestigeCount;
@@ -804,6 +826,40 @@ const selected = PROFILES.filter((p) => PROFILE_ARG === 'all' || PROFILE_ARG ===
 if (selected.length === 0) { console.error(`unknown profile ${PROFILE_ARG}`); process.exit(2); }
 // every comparison is against AFK+Daily (primary), so always simulate it
 const toSimulate = selected.some((p) => p.name === 'afkdaily') ? selected : [PROFILES[0], ...selected];
+
+// ---------------------------------------------------------------- gate calibration (--calibrate)
+/** target day on which AFK+Daily should unlock Find k (docs/10 §2.3) */
+const CAL_TARGET_DAYS: number[] = [0, 10 / 1440, 30 / 1440, 2 / 24, 1, 2.5, 5, 9, 15, 24, 36, 52, 75];
+if (argv.includes('--calibrate')) {
+  const from = Number(flag('--cal-from') ?? 1);
+  const to = Number(flag('--cal-to') ?? FINDS.length - 1);
+  const targetScale = Number(flag('--cal-scale') ?? 1);
+  STOP_ARG = '999';
+  STOP_AT = 999;
+  const out: string[] = [];
+  for (let k = from; k <= to; k++) {
+    for (let j = k; j < FINDS.length; j++) FINDS[j].unlockParkValue = Infinity;
+    const T = CAL_TARGET_DAYS[k] * targetScale;
+    MAX_DAYS = Math.ceil(T * 1.35 + 0.5);
+    cal = { era: k - 1, max: 0, trace: [] };
+    const r = simulate(PROFILES[0]);
+    // the gate that first opens closest to the target day: a record-setting Park Value in era k-1
+    let pick = cal.trace[cal.trace.length - 1];
+    let bestErr = Infinity;
+    for (const x of cal.trace) {
+      const err = Math.abs(Math.log((x[0] + 1e-4) / (T + 1e-4)));
+      if (err < bestErr) { bestErr = err; pick = x; }
+    }
+    if (!pick) { console.log(`k=${k}: no Park Value samples (era ${k - 1} never reached)`); break; }
+    const gate = Number((pick[1] * (1 - 1e-6)).toPrecision(3));
+    FINDS[k].unlockParkValue = gate;
+    const line = `${k} ${FINDS[k].name.padEnd(14)} gate ${gate.toExponential(2)}  opens at day ${pick[0].toFixed(3)} (target ${T.toFixed(3)})  [sim ${r.secs.toFixed(1)}s]`;
+    console.log(line);
+    out.push(`  ${k}: ${gate.toExponential(2)}`);
+  }
+  console.log('\nunlockParkValue per find:\n' + FINDS.map((f, i) => `${i}: ${f.unlockParkValue}`).join('\n'));
+  process.exit(0);
+}
 
 const T0 = Date.now();
 for (const p of toSimulate) results[p.name] = simulate(p);
