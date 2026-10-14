@@ -1,8 +1,17 @@
+import { SUFFIXES } from '../core/format';
+
 // Number suffixes are case-sensitive (q = quadrillion, Q = quintillion, o = octillion, d = decillion), but
 // buttons and labels are drawn with `text-transform: uppercase`, which would turn "$561.51o" into "$561.510".
 // This watches the game DOM and wraps such money amounts in <span class="nt"> (text-transform: none).
 
-const AMOUNT = /\$\d[\d.,]*[qsod](?![A-Za-z])|\b\d[\d.,]*[qo](?![A-Za-z])/g;
+const LOWER = SUFFIXES.filter((x) => /[a-z]/.test(x)).sort((a, b) => b.length - a.length);
+const MULTI = LOWER.filter((x) => x.length > 1);
+// Money: any suffix containing a lowercase letter. Bare numbers: only q/o and the two-letter suffixes
+// (a bare "5s"/"3d" is a duration, not a number).
+const AMOUNT = new RegExp(
+  `\\$\\d[\\d.,]*(?:${LOWER.join('|')})(?![A-Za-z])|\\b\\d[\\d.,]*(?:${[...MULTI, 'q', 'o'].join('|')})(?![A-Za-z])`,
+  'g',
+);
 const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'SVG']);
 
 function wrapNode(text: Text): void {

@@ -10,6 +10,7 @@ import {
   showWindow,
   FINDS,
 } from '../core';
+import { suffixName } from '../core/format';
 import type { GameController } from './GameController';
 import { h, meter, setClass, setHidden, setMeter, setText } from './dom';
 import { confirmEraUpgrade } from './eraUpgrade';
@@ -27,28 +28,12 @@ function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string,
   return el;
 }
 
-const UNIT_WORDS: Record<string, string> = {
-  K: 'Thousand',
-  M: 'Million',
-  B: 'Billion',
-  T: 'Trillion',
-  q: 'Quadrillion',
-  Q: 'Quintillion',
-  s: 'Sextillion',
-  S: 'Septillion',
-  o: 'Octillion',
-  N: 'Nonillion',
-  d: 'Decillion',
-  U: 'Undecillion',
-  D: 'Duodecillion',
-};
-
 /** "$1.25M" -> { num: "$1.25", unit: "Million" } for the Egg, Inc. style counter. */
 export function moneyParts(n: number): { num: string; unit: string } {
   const s = formatMoney(n);
-  const m = /^(-?\$[\d.]+)([A-Za-z]?)$/.exec(s);
+  const m = /^(-?\$[\d.]+)([A-Za-z]{0,2})$/.exec(s);
   if (!m) return { num: s, unit: '' };
-  return { num: m[1], unit: UNIT_WORDS[m[2]] ?? '' };
+  return { num: m[1], unit: suffixName(m[2]) };
 }
 
 export type NavId = 'research' | 'treats' | 'portal' | 'store' | 'menu';

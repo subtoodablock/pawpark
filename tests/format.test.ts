@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDuration, formatMoney, formatNumber, formatRate } from '../src/core';
+import { NUMBER_NAMES, SUFFIXES, numberName, suffixName } from '../src/core/format';
 
 describe('formatNumber', () => {
   it('shows small numbers with trimmed decimals', () => {
@@ -32,8 +33,8 @@ describe('formatNumber', () => {
     expect(formatNumber(999_994)).toBe('999.99K');
   });
   it('switches to scientific beyond the suffixes', () => {
-    expect(formatNumber(1.5e42)).toBe('1.5e42');
-    expect(formatNumber(1e100)).toBe('1e100');
+    expect(formatNumber(1.5e102)).toBe('1.5e102');
+    expect(formatNumber(1e100)).toBe('10Dg');
   });
   it('handles negatives, digits and non-finite', () => {
     expect(formatNumber(-1234)).toBe('-1.23K');
@@ -41,6 +42,36 @@ describe('formatNumber', () => {
     expect(formatNumber(1234, 0)).toBe('1K');
     expect(formatNumber(NaN)).toBe('0');
     expect(formatNumber(Infinity)).toBe('∞');
+  });
+});
+
+describe('extended suffixes', () => {
+  it('covers 1e42..1e99', () => {
+    expect(formatNumber(1e42)).toBe('1Td');
+    expect(formatNumber(1.5e48)).toBe('1.5Qd');
+    expect(formatNumber(1e48)).toBe('1Qd');
+    expect(formatNumber(1e51)).toBe('1sd');
+    expect(formatNumber(1e63)).toBe('1V');
+    expect(formatMoney(2.5e48)).toBe('$2.5Qd');
+    expect(formatNumber(1e93)).toBe('1Tg');
+    expect(formatNumber(1e99)).toBe('1Dg');
+    expect(formatNumber(9.999e101)).toBe('999.9Dg');
+  });
+  it('is unambiguous and aligned with names', () => {
+    expect(new Set(SUFFIXES).size).toBe(SUFFIXES.length);
+    expect(SUFFIXES.length).toBe(NUMBER_NAMES.length);
+    expect(formatNumber(1e102)).toBe('1e102');
+  });
+  it('has long names', () => {
+    expect(numberName(1)).toBe('Thousand');
+    expect(numberName(11)).toBe('Decillion');
+    expect(numberName(16)).toBe('Quindecillion');
+    expect(numberName(21)).toBe('Vigintillion');
+    expect(numberName(33)).toBe('Duotrigintillion');
+    expect(numberName(34)).toBe('');
+    expect(suffixName('Qd')).toBe('Quindecillion');
+    expect(suffixName('D')).toBe('Duodecillion');
+    expect(suffixName('')).toBe('');
   });
 });
 
