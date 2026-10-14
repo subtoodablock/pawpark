@@ -11,18 +11,18 @@ export const PRODUCTS: ProductDef[] = [
 
 export const VIP_TIERS: VipTierDef[] = [
   { tier: 0, name: 'None', icon: '', minSpendCents: 0, earningsBonus: 0, mailCapacity: 0, offlineHours: 0 },
-  { tier: 1, name: 'Bronze', icon: '🥉', minSpendCents: 500, earningsBonus: 0.02, mailCapacity: 0, offlineHours: 0 },
-  { tier: 2, name: 'Silver', icon: '🥈', minSpendCents: 2000, earningsBonus: 0.04, mailCapacity: 1, offlineHours: 0 },
-  { tier: 3, name: 'Gold', icon: '🥇', minSpendCents: 5000, earningsBonus: 0.06, mailCapacity: 1, offlineHours: 2 },
-  { tier: 4, name: 'Platinum', icon: '🏅', minSpendCents: 10000, earningsBonus: 0.08, mailCapacity: 1, offlineHours: 2 },
-  { tier: 5, name: 'Diamond', icon: '💎', minSpendCents: 25000, earningsBonus: 0.1, mailCapacity: 1, offlineHours: 2 },
+  { tier: 1, name: 'Bronze', icon: '🥉', minSpendCents: 500, earningsBonus: 0.01, mailCapacity: 0, offlineHours: 0 },
+  { tier: 2, name: 'Silver', icon: '🥈', minSpendCents: 2000, earningsBonus: 0.02, mailCapacity: 1, offlineHours: 0 },
+  { tier: 3, name: 'Gold', icon: '🥇', minSpendCents: 5000, earningsBonus: 0.03, mailCapacity: 1, offlineHours: 2 },
+  { tier: 4, name: 'Platinum', icon: '🏅', minSpendCents: 10000, earningsBonus: 0.04, mailCapacity: 1, offlineHours: 2 },
+  { tier: 5, name: 'Diamond', icon: '💎', minSpendCents: 25000, earningsBonus: 0.05, mailCapacity: 1, offlineHours: 2 },
 ];
 
 export const PREMIUM_SHOP: PremiumShopDef[] = [
-  { id: 'star_kibble', name: 'Star Kibble', icon: '⭐', description: 'Permanent +5% find value per level.', stat: 'findValue', perLevel: 0.05, maxLevel: 5, baseCost: 100, costGrowth: 1.5, requiredTier: 0 },
-  { id: 'star_beds', name: 'Star Beds', icon: '🛏️', description: 'Permanent +5% dig rate per level.', stat: 'layRate', perLevel: 0.05, maxLevel: 5, baseCost: 100, costGrowth: 1.5, requiredTier: 0 },
+  { id: 'star_kibble', name: 'Star Kibble', icon: '⭐', description: 'Permanent +3% find value per level.', stat: 'findValue', perLevel: 0.03, maxLevel: 5, baseCost: 100, costGrowth: 1.5, requiredTier: 0 },
+  { id: 'star_beds', name: 'Star Beds', icon: '🛏️', description: 'Permanent +3% dig rate per level.', stat: 'layRate', perLevel: 0.03, maxLevel: 5, baseCost: 100, costGrowth: 1.5, requiredTier: 0 },
   { id: 'star_jar', name: 'Star Treat Jar', icon: '🫙', description: '4 more offline hours per level.', stat: 'offlineHours', perLevel: 4, maxLevel: 3, baseCost: 150, costGrowth: 1.6, requiredTier: 1 },
   { id: 'star_mailbox', name: 'Star Mailbox', icon: '📮', description: 'Hold one more letter per level.', stat: 'mailCapacity', perLevel: 1, maxLevel: 2, baseCost: 200, costGrowth: 2, requiredTier: 1 },
-  { id: 'star_hound', name: 'Star Hound', icon: '🐕‍🦺', description: '+10% squirrel auto-catch per level.', stat: 'squirrelHound', perLevel: 0.1, maxLevel: 3, baseCost: 150, costGrowth: 1.6, requiredTier: 2 },
-  { id: 'star_spirit', name: 'Star Spirit', icon: '👻', description: 'Each Spirit Paw is worth a bit more.', stat: 'spiritPawBonus', perLevel: 0.005, maxLevel: 4, baseCost: 400, costGrowth: 1.6, requiredTier: 3 },
+  { id: 'star_hound', name: 'Star Hound', icon: '🐕‍🦺', description: '+3% squirrel auto-catch per level.', stat: 'squirrelHound', perLevel: 0.03, maxLevel: 3, baseCost: 150, costGrowth: 1.6, requiredTier: 2 },
+  { id: 'star_spirit', name: 'Star Spirit', icon: '👻', description: 'Each Spirit Paw is worth a bit more.', stat: 'spiritPawBonus', perLevel: 0.002, maxLevel: 4, baseCost: 400, costGrowth: 1.6, requiredTier: 3 },
 ];

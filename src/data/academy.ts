@@ -5,7 +5,7 @@ export const ACADEMY: AcademyDef[] = [
   { id: 'foreman_pup', name: 'Foreman Pup', icon: '👷', description: 'Automatically buys kennel and vehicle upgrades.', stat: 'autoBuild', perLevel: 1, maxLevel: 1, baseCost: 10, costGrowth: 1 },
   { id: 'head_trainer', name: 'Head Trainer', icon: '🎓', description: 'Automatically buys training levels.', stat: 'autoTraining', perLevel: 1, maxLevel: 1, baseCost: 30, costGrowth: 1 },
   { id: 'volunteer_walkers', name: 'Volunteer Walkers', icon: '🚶', description: 'Adopt pups for you from the adoption center, 20% of the refill rate per level.', stat: 'autoWhistle', perLevel: 0.2, maxLevel: 5, baseCost: 8, costGrowth: 1.4 },
-  { id: 'retirement_planner', name: 'Retirement Planner', icon: '🧳', description: 'Opens a new park automatically when it is worth it.', stat: 'autoPrestige', perLevel: 1, maxLevel: 1, baseCost: 500, costGrowth: 1 },
+  { id: 'retirement_planner', name: 'Retirement Planner', icon: '🧳', description: 'Opens a new park automatically when it is worth it.', stat: 'autoPrestige', perLevel: 1, maxLevel: 1, baseCost: 600, costGrowth: 1 },
   // being away
   { id: 'bigger_jar', name: 'Bigger Treat Jar', icon: '🫙', description: 'Two more offline hours of progress per level.', stat: 'offlineHours', perLevel: 2, maxLevel: 20, baseCost: 5, costGrowth: 1.2 },
   { id: 'bigger_mailbox', name: 'Bigger Mailbox', icon: '📮', description: 'Hold one more letter per level.', stat: 'mailCapacity', perLevel: 1, maxLevel: 6, baseCost: 12, costGrowth: 1.4 },
