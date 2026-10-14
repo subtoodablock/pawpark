@@ -1,131 +1,85 @@
 import { h, setClass } from './dom';
+import { icon, type IconName } from './icons';
 import { reducedMotion } from './motion';
 import type { Panel } from './panels/common';
 
+export type Tone = 'blue' | 'green' | 'purple' | 'red';
+
 export interface TabDef {
   id: string;
-  icon: string;
+  icon: IconName;
   label: string;
   panel: Panel;
-  /** no tab-bar button; opened via openById (e.g. from a HUD chip) */
-  hidden?: boolean;
+  /** colour of the solid header block */
+  tone: Tone;
+  /** the panel draws its own big coloured tabs (Find, Research): the sheet header is hidden */
+  ownHeader?: boolean;
+  /** short menu-style sheet that sizes to its content */
+  compact?: boolean;
 }
 
-/** Bottom tab bar (sliding pill) + spring bottom sheet with drag-to-dismiss. */
+/** Egg, Inc. style panel host: white rounded card, solid coloured header, red close circle. */
 export class Sheet {
-  /** layer element to mount in the game root (holds backdrop + sheet) */
+  /** layer element to mount in the game root (holds backdrop + panel) */
   readonly sheet: HTMLElement;
-  readonly tabbar: HTMLElement;
   private panelEl = h('div', { cls: 'sheet', attrs: { role: 'dialog', 'aria-label': 'Panel' } });
+  private card = h('div', { cls: 'sheet-card' });
   private backdrop = h('div', { cls: 'sheet-backdrop' });
   private body = h('div', { cls: 'sheet-body' });
+  private titleText = h('span');
   private title = h('div', { cls: 'sheet-title' });
-  private pill = h('div', { cls: 'tab-pill' });
+  private head = h('div', { cls: 'sheet-head' });
   private active: TabDef | null = null;
-  private buttons = new Map<string, HTMLButtonElement>();
   private closeTimer = 0;
 
   constructor(private tabs: TabDef[]) {
-    const close = h('button', { cls: 'sheet-close', text: '✕', attrs: { 'aria-label': 'Close panel', type: 'button' }, on: { click: () => this.open(null) } });
-    const grab = h('div', { cls: 'sheet-grab' }, h('div', { cls: 'sheet-handle' }), h('div', { cls: 'sheet-head' }, this.title, close));
-    // keep the close button from starting a drag
+    const close = h('button', { cls: 'sheet-close', attrs: { 'aria-label': 'Close panel', type: 'button' }, on: { click: () => this.open(null) } }, icon('x-bold', { size: 18, color: '#fff' }));
     close.addEventListener('pointerdown', (e) => e.stopPropagation());
-    this.panelEl.append(grab, this.body);
+    this.title.append(this.titleText);
+    this.head.append(this.title);
+    this.card.append(this.head, this.body);
+    this.panelEl.append(this.card, close);
     this.sheet = h('div', { cls: 'sheet-layer' }, this.backdrop, this.panelEl);
     this.sheet.hidden = true;
     this.backdrop.addEventListener('click', () => this.open(null));
-    this.setupDrag(grab);
-
-    this.tabbar = h('nav', { cls: 'tabbar' }, this.pill);
-    for (const t of tabs) {
-      if (t.hidden) continue;
-      const b = h(
-        'button',
-        { cls: 'tab', attrs: { type: 'button' }, on: { click: () => this.open(this.active === t ? null : t) } },
-        h('span', { cls: 'tab-icon', text: t.icon }),
-        h('span', { cls: 'tab-label', text: t.label }),
-      );
-      this.buttons.set(t.id, b);
-      this.tabbar.append(b);
-    }
-    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.placePill(true)).observe(this.tabbar);
+    this.setupDrag(this.head);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.active) this.open(null);
     });
   }
 
-  private placePill(snap = false): void {
-    const t = this.active;
-    const b = t ? this.buttons.get(t.id) : undefined;
-    if (!b || b.offsetWidth === 0) {
-      setClass(this.pill, 'on', false);
-      return;
-    }
-    const first = !this.pill.classList.contains('on');
-    if (snap || first || reducedMotion()) {
-      this.pill.classList.add('snap');
-      void this.pill.offsetWidth;
-    }
-    this.pill.style.width = `${b.offsetWidth}px`;
-    this.pill.style.transform = `translateX(${b.offsetLeft}px) scale(1)`;
-    setClass(this.pill, 'on', true);
-    if (this.pill.classList.contains('snap')) {
-      requestAnimationFrame(() => requestAnimationFrame(() => this.pill.classList.remove('snap')));
-    }
+  get activeId(): string | null {
+    return this.active?.id ?? null;
   }
 
   open(t: TabDef | null): void {
-    const prev = this.active;
     this.active = t;
-    for (const tab of this.tabs) {
-      const b = this.buttons.get(tab.id);
-      if (b) setClass(b, 'on', tab === t);
-    }
-    this.placePill();
-    if (t) {
-      const b = this.buttons.get(t.id);
-      const ico = b?.querySelector('.tab-icon');
-      if (ico && t !== prev && !reducedMotion()) {
-        ico.classList.remove('hop');
-        void (ico as HTMLElement).offsetWidth;
-        ico.classList.add('hop');
-      }
-    }
     if (!t) {
       this.close();
       return;
     }
     window.clearTimeout(this.closeTimer);
-    this.title.textContent = `${t.icon} ${t.label}`;
+    this.titleText.textContent = t.label;
+    this.title.replaceChildren(icon(t.icon, { size: 22 }), this.titleText);
+    for (const tone of ['blue', 'green', 'purple', 'red']) this.panelEl.classList.remove(`tone-${tone}`);
+    this.panelEl.classList.add(`tone-${t.tone}`);
+    setClass(this.panelEl, 'own-header', !!t.ownHeader);
+    setClass(this.panelEl, 'compact', !!t.compact);
+    this.head.hidden = !!t.ownHeader;
     this.body.replaceChildren(t.panel.el);
     t.panel.onShow?.();
     t.panel.update();
-    this.stagger();
 
     const wasOpen = !this.sheet.hidden && this.sheet.classList.contains('open');
     if (!wasOpen) this.sheet.hidden = false; // scrollTop is a no-op while display:none
     this.body.scrollTop = 0;
     this.sheet.classList.remove('closing');
     this.panelEl.style.transform = '';
-    this.panelEl.classList.remove('dragging', 'settle');
+    this.panelEl.classList.remove('dragging');
     if (!wasOpen) {
-      this.sheet.hidden = false;
       void this.sheet.offsetWidth; // commit the closed transform first
       requestAnimationFrame(() => this.sheet.classList.add('open'));
     }
-  }
-
-  /** Re-trigger the rise-in on a panel's top-level children. */
-  private stagger(): void {
-    if (reducedMotion()) return;
-    const root = this.body.firstElementChild as HTMLElement | null;
-    if (!root) return;
-    const kids = root.classList.contains('panel-stack') ? Array.from(root.children).flatMap((c) => Array.from(c.children)) : Array.from(root.children);
-    kids.slice(0, 14).forEach((k, i) => (k as HTMLElement).style.setProperty('--i', String(i)));
-    this.body.classList.remove('enter');
-    void this.body.offsetWidth;
-    this.body.classList.add('enter');
-    window.setTimeout(() => this.body.classList.remove('enter'), 900);
   }
 
   private close(): void {
@@ -142,11 +96,11 @@ export class Sheet {
           this.sheet.classList.remove('closing');
         }
       },
-      reducedMotion() ? 0 : 280,
+      reducedMotion() ? 0 : 220,
     );
   }
 
-  /** Drag the handle/header down to dismiss; fast flicks close regardless of distance. */
+  /** Drag the header down to dismiss; fast flicks close regardless of distance. */
   private setupDrag(grab: HTMLElement): void {
     let startY = 0;
     let lastY = 0;
@@ -166,7 +120,6 @@ export class Sheet {
       } catch {
         /* ignore */
       }
-      this.panelEl.classList.remove('settle');
       this.panelEl.classList.add('dragging');
     });
     grab.addEventListener('pointermove', (e) => {
@@ -176,10 +129,9 @@ export class Sheet {
       vel = vel * 0.6 + ((e.clientY - lastY) / dt) * 0.4;
       lastY = e.clientY;
       lastT = e.timeStamp;
-      // rubber-band upward drags
-      const y = dy < 0 ? dy * 0.18 : dy;
+      const y = Math.max(0, dy);
       this.panelEl.style.transform = `translateY(${y}px)`;
-      this.backdrop.style.opacity = String(Math.max(0, 1 - Math.max(0, y) / 400));
+      this.backdrop.style.opacity = String(Math.max(0, 1 - y / 400));
     });
     const end = (e: PointerEvent): void => {
       if (!dragging || e.pointerId !== id) return;
@@ -196,18 +148,11 @@ export class Sheet {
       if (e.type !== 'pointercancel' && ((fresh && vel > 0.45 && dy > 24) || dy > this.panelEl.offsetHeight * 0.3)) {
         this.open(null);
       } else {
-        this.panelEl.classList.add('settle');
         this.panelEl.style.transform = '';
-        window.setTimeout(() => this.panelEl.classList.remove('settle'), 450);
       }
     };
     grab.addEventListener('pointerup', end);
     grab.addEventListener('pointercancel', end);
-  }
-
-  setBadge(id: string, on: boolean): void {
-    const b = this.buttons.get(id);
-    if (b) setClass(b, 'badge', on);
   }
 
   openById(id: string): void {

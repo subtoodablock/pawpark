@@ -75,10 +75,10 @@ export function formatReward(r: RewardResult): string {
     case 'cash':
       return `+${formatMoney(r.amount)}`;
     case 'goldenBones':
-      return `+${formatNumber(r.amount)} \u{1F9B4}`;
+      return `+${formatNumber(r.amount)} Golden Bones`;
     case 'treat': {
       const t = TREATS.find((x) => x.id === r.treatId);
-      return `${t ? t.icon + ' ' + t.name : 'Treat'} (${formatTreatDuration(r.durationSec)})`;
+      return `${t ? t.name : 'Treat'} (${formatTreatDuration(r.durationSec)})`;
     }
   }
 }

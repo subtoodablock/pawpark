@@ -17,33 +17,33 @@ import {
 import type { DailyTreatReward } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setHidden, setMeter, setText } from '../dom';
+import { digIcon, icon, rich, setRich, statIcon } from '../icons';
 import { createShareCard } from '../share';
 import { toast } from '../Toasts';
-import { burst } from '../motion';
-import { confetti } from '../fx/confetti';
-import { section, setBtn, type Panel } from './common';
+import { section, setBtn, setSlot, type Panel } from './common';
 
+/** Short reward label for the 7-day strip (glyph tokens, see icons.ts). */
 export function rewardShort(r: DailyTreatReward): string {
   switch (r.kind) {
     case 'goldenBones':
-      return `${formatNumber(r.amount)}\u{1F9B4}`;
+      return `${formatNumber(r.amount)}{bone}`;
     case 'treat':
-      return TREATS.find((t) => t.id === r.treatId)?.icon ?? '\u{1F356}';
+      return TREATS.find((t) => t.id === r.treatId)?.name ?? 'Treat';
     case 'bundle':
-      return `${formatNumber(r.goldenBones)}\u{1F9B4}+${formatNumber(r.stars)}⭐`;
+      return `${formatNumber(r.goldenBones)}{bone}+${formatNumber(r.stars)}{star}`;
   }
 }
 
 function rewardLong(r: DailyTreatReward): string {
   switch (r.kind) {
     case 'goldenBones':
-      return `+${formatNumber(r.amount)} \u{1F9B4}`;
+      return `+${formatNumber(r.amount)} {bone}`;
     case 'treat': {
       const t = TREATS.find((x) => x.id === r.treatId);
-      return `${t?.icon ?? ''} ${t?.name ?? 'Treat'}`;
+      return t?.name ?? 'Treat';
     }
     case 'bundle':
-      return `+${formatNumber(r.goldenBones)} \u{1F9B4} +${formatNumber(r.stars)} ⭐`;
+      return `+${formatNumber(r.goldenBones)} {bone} +${formatNumber(r.stars)} {star}`;
   }
 }
 
@@ -70,7 +70,7 @@ export function createTodayPanel(c: GameController): Panel {
   const streakLine = h('div', { cls: 'row-title' });
   const bestLine = h('div', { cls: 'row-meta' });
   const cells = DAILY_TREATS.map((r, i) =>
-    h('div', { cls: 'day-cell' }, h('div', { cls: 'day-n', text: `Day ${i + 1}` }), h('div', { cls: 'day-r', text: rewardShort(r) })),
+    h('div', { cls: 'day-cell' }, h('div', { cls: 'day-n', text: `DAY ${i + 1}` }), h('div', { cls: 'day-r' }, ...rich(rewardShort(r), 14))),
   );
   const claimBtn = h('button', {
     cls: 'btn primary',
@@ -79,8 +79,7 @@ export function createTodayPanel(c: GameController): Panel {
       click: () => {
         const r = claimDailyTreat(c.state, c.today());
         if (c.check(r)) {
-          if (r.reward) toast(`\u{1F381} Daily Treat: ${rewardLong(r.reward)}  \u{1F525} ${r.streak ?? ''}`, 'gold', 4500);
-          burst(claimBtn, 'bones', 10);
+          if (r.reward) toast(`{gift} Daily Treat: ${rewardLong(r.reward)}  {fire} ${r.streak ?? ''}`, 'gold', 4500);
           c.save();
         }
         update();
@@ -88,13 +87,13 @@ export function createTodayPanel(c: GameController): Panel {
     },
   });
   const freezeLine = h('div', { cls: 'row-desc' });
-  el.append(section('\u{1F4C5} Daily Treat', h('div', { cls: 'card' }, streakLine, bestLine, h('div', { cls: 'day-strip' }, ...cells), freezeLine, claimBtn)));
+  el.append(section('{cal} Daily Treat', h('div', { cls: 'card' }, streakLine, bestLine, h('div', { cls: 'day-strip' }, ...cells), freezeLine, claimBtn)));
 
   // ---- park of the day
   const modIcon = h('div', { cls: 'row-icon' });
   const modName = h('div', { cls: 'row-title' });
   const modDesc = h('div', { cls: 'row-desc' });
-  el.append(section('\u{1F31E} Park of the Day', h('div', { cls: 'row' }, modIcon, h('div', { cls: 'row-main' }, modName, modDesc))));
+  el.append(section('{sun} Park of the Day', h('div', { cls: 'row' }, modIcon, h('div', { cls: 'row-main' }, modName, modDesc))));
 
   // ---- digs
   const countdown = h('div', { cls: 'row-meta' });
@@ -109,7 +108,6 @@ export function createTodayPanel(c: GameController): Panel {
       on: {
         click: () => {
           if (c.check(claimDailyDig(c.state, i))) {
-            burst(btn, 'bones');
             c.save();
           }
           update();
@@ -125,20 +123,18 @@ export function createTodayPanel(c: GameController): Panel {
     on: {
       click: () => {
         if (c.check(claimDailyDigBonus(c.state))) {
-          toast(`\u{1F389} All Digs done! +${DIG_BONUS_BONES} \u{1F9B4} +${DIG_BONUS_STARS} ⭐`, 'gold', 4500);
-          burst(bonusBtn, 'stars', 10);
-          confetti({ y: window.innerHeight * 0.5 });
+          toast(`{tick} All Digs done! +${DIG_BONUS_BONES} {bone} +${DIG_BONUS_STARS} {star}`, 'gold', 4500);
           c.save();
         }
         update();
       },
     },
   });
-  el.append(section('⛏️ Daily Digs', countdown, ...digRows.map((r) => r.row), bonusBtn));
+  el.append(section('{shovel} Daily Digs', countdown, ...digRows.map((r) => r.row), bonusBtn));
 
   // ---- share
   const share = createShareCard(c);
-  el.append(section('\u{1F4E4} Share', share.el));
+  el.append(section('{share} Share', share.el));
 
   function update(): void {
     const s = c.state;
@@ -148,18 +144,17 @@ export function createTodayPanel(c: GameController): Panel {
     const next = claimed ? d.streak : projectedStreak(c);
     const pos = (Math.max(1, next) - 1) % 7;
 
-    setText(streakLine, `\u{1F525} ${d.streak}-day streak`);
+    setRich(streakLine, `{fire} ${d.streak}-day streak`, 20);
     setText(bestLine, `Best: ${d.bestStreak}${claimed ? ' • Come back tomorrow!' : ''}`);
     cells.forEach((cell, i) => {
       setClass(cell, 'done', claimed ? i <= pos : i < pos);
       setClass(cell, 'today', !claimed && i === pos);
     });
-    setText(freezeLine, `❄️ Streak Freezes: ${d.streakFreezes}/${MAX_STREAK_FREEZES} (save your streak if you miss a day; buy in the ⭐ shop)`);
-    setBtn(claimBtn, claimed ? 'Claimed today ✓' : `Claim Daily Treat (day ${pos + 1})`, !claimed);
-    setClass(claimBtn, 'pulse', !claimed);
+    setRich(freezeLine, `{snow} Streak Freezes: ${d.streakFreezes}/${MAX_STREAK_FREEZES} (save your streak if you miss a day; buy in the {star} shop)`, 15);
+    setBtn(claimBtn, claimed ? 'Claimed today {tick}' : `Claim Daily Treat (day ${pos + 1})`, !claimed);
 
     const mod = computeStats(s).modifier;
-    setText(modIcon, mod?.icon ?? '\u{1F31E}');
+    setSlot(modIcon, mod?.stat ?? 'none', () => icon(mod ? statIcon(mod.stat) : 'sun', { size: 26, color: 'var(--blue)' }));
     setText(modName, mod?.name ?? 'Quiet day');
     setText(modDesc, mod?.description ?? 'No modifier today.');
 
@@ -174,18 +169,18 @@ export function createTodayPanel(c: GameController): Panel {
       }
       const def = DAILY_DIG_POOL.find((x) => x.kind === dig.kind);
       const p = dailyDigProgress(s, i);
-      setText(r.icon, def?.icon ?? '⛏️');
+      setSlot(r.icon, dig.kind, () => icon(digIcon(dig.kind), { size: 26, color: 'var(--blue)' }));
       setText(r.title, (def?.text ?? dig.kind).replace('{n}', formatNumber(dig.target)));
       setMeter(r.m, p.target > 0 ? p.value / p.target : 0);
       setText(r.meta, `${formatNumber(Math.min(p.value, p.target))} / ${formatNumber(p.target)}`);
       setClass(r.row, 'locked', dig.claimed);
-      if (dig.claimed) setBtn(r.btn, 'Claimed ✓', false);
-      else setBtn(r.btn, p.done ? `Claim +${def?.rewardBones ?? 5} \u{1F9B4}` : 'In progress', p.done);
+      if (dig.claimed) setBtn(r.btn, 'Claimed {tick}', false);
+      else setBtn(r.btn, p.done ? `Claim +${def?.rewardBones ?? 5} {bone}` : 'In progress', p.done);
       if (!dig.claimed) allClaimed = false;
     });
     setHidden(bonusBtn, false);
-    if (d.digBonusClaimed) setBtn(bonusBtn, 'All-3 bonus claimed ✓', false);
-    else setBtn(bonusBtn, `Bonus for all 3: +${DIG_BONUS_BONES} \u{1F9B4} +${DIG_BONUS_STARS} ⭐`, allClaimed);
+    if (d.digBonusClaimed) setBtn(bonusBtn, 'All-3 bonus claimed {tick}', false);
+    else setBtn(bonusBtn, `Bonus for all 3: +${DIG_BONUS_BONES} {bone} +${DIG_BONUS_STARS} {star}`, allClaimed);
 
     share.update();
   }

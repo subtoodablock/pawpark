@@ -25,7 +25,7 @@ export function createLevelPanel(c: GameController): Panel {
   }
   el.append(section('Titles', h('div', { cls: 'ladder' }, ...entries.map((e) => e.el))));
   const share = createShareCard(c);
-  el.append(section('\u{1F4E4} Share', share.el));
+  el.append(section('{share} Share', share.el));
 
   function update(): void {
     const s = c.state;

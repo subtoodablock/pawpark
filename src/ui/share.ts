@@ -1,6 +1,7 @@
 import { shareText } from '../core';
 import type { GameController } from './GameController';
 import { h, setText } from './dom';
+import { rich } from './icons';
 import { toast } from './Toasts';
 
 export async function shareNow(c: GameController): Promise<void> {
@@ -25,7 +26,7 @@ export async function shareNow(c: GameController): Promise<void> {
 /** Share card: text preview + button. */
 export function createShareCard(c: GameController): { el: HTMLElement; update(): void } {
   const pre = h('pre', { cls: 'share-preview' });
-  const btn = h('button', { cls: 'btn primary', text: '\u{1F4E4} Share', attrs: { type: 'button' }, on: { click: () => void shareNow(c) } });
+  const btn = h('button', { cls: 'btn primary', attrs: { type: 'button' }, on: { click: () => void shareNow(c) } }, ...rich('{share} Share', 18));
   const el = h('div', { cls: 'card' }, h('div', { cls: 'row-title', text: 'Brag to your friends' }), pre, btn);
   return { el, update: () => setText(pre, shareText(c.state, c.today())) };
 }

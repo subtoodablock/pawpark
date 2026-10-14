@@ -1,4 +1,4 @@
-// TS mirror of the CSS design tokens in src/style.css (spec: docs/07-art-direction.md section 3 and 7).
+// TS mirror of the CSS design tokens in src/style.css (spec: docs/12-art-direction-v2.md section 2).
 // Canvas / JS code that cannot read CSS variables imports from here.
 
 export const palette = {
@@ -19,20 +19,17 @@ export const palette = {
   road: '#5b6270',
   roadLine: '#fff1b8',
   uiBg: '#ffffff',
-  uiBg2: '#f4f8f1',
-  uiText: '#24342a',
-  uiMuted: '#6b7d70',
-  btnGreen: '#45c766',
-  btnGreenEdge: '#2f9b4c',
-  btnGold: '#ffcb3d',
-  btnGoldEdge: '#e29a00',
-  btnBlue: '#4aa8ff',
-  btnBlueEdge: '#2a7fd1',
-  btnDisabled: '#d5dcd6',
-  btnDisabledEdge: '#b4bdb6',
-  danger: '#ff6159',
-  star: '#ffcf33',
-  bone: '#fff4dc',
+  uiText: '#111111',
+  uiMuted: '#6b6b6b',
+  blue: '#2f6fdc',
+  blueDeep: '#1f57b8',
+  purple: '#7a1fd1',
+  purpleDeep: '#5e12a8',
+  green: '#20a63a',
+  greenDeep: '#178a2e',
+  red: '#e8241c',
+  gold: '#f2b417',
+  disabled: '#cfd3d8',
 } as const;
 
 export const motion = {
@@ -40,19 +37,17 @@ export const motion = {
   dur: 200,
   durSlow: 320,
   easeOut: 'cubic-bezier(.2,.8,.2,1)',
-  easeSpring: 'cubic-bezier(.34,1.56,.64,1)',
 } as const;
 
-export const radius = { sm: 10, btn: 14, card: 18, sheet: 26 } as const;
+export const radius = { sm: 10, btn: 18, card: 20, sheet: 28 } as const;
 
-/** Confetti colours: bright, toy-like, drawn from the palette. */
+/** Confetti colours: flat UI chrome colours. */
 export const confettiColors: readonly string[] = [
-  palette.btnGold,
-  palette.btnGreen,
-  palette.btnBlue,
-  palette.danger,
-  palette.roofPurple,
-  palette.star,
+  palette.gold,
+  palette.green,
+  palette.blue,
+  palette.red,
+  palette.purple,
   '#ffffff',
 ];
 

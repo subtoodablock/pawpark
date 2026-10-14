@@ -1,4 +1,5 @@
 import { h } from './dom';
+import { rich } from './icons';
 import { reducedMotion } from './motion';
 
 export type ToastKind = 'info' | 'good' | 'warn' | 'gold';
@@ -17,14 +18,15 @@ function dismiss(t: HTMLElement): void {
   t.style.maxHeight = t.offsetHeight + 'px';
   void t.offsetHeight;
   t.classList.add('out');
-  window.setTimeout(() => t.remove(), reducedMotion() ? 0 : 320);
+  window.setTimeout(() => t.remove(), reducedMotion() ? 0 : 240);
 }
 
+/** `msg` may contain glyph tokens such as "{bone}" (see icons.ts). */
 export function toast(msg: string, kind: ToastKind = 'info', ms = 3200): void {
   if (!host) return;
   const live = Array.from(host.children).filter((c) => !c.classList.contains('out'));
   while (live.length >= MAX) dismiss(live.shift() as HTMLElement);
-  const t = h('div', { cls: `toast ${kind}`, text: msg });
+  const t = h('div', { cls: `toast ${kind}` }, ...rich(msg, 16));
   t.addEventListener('click', () => dismiss(t));
   host.appendChild(t);
   window.setTimeout(() => dismiss(t), ms);

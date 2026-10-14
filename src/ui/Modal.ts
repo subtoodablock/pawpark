@@ -1,5 +1,6 @@
 import { h, type Child } from './dom';
 import { confetti } from './fx/confetti';
+import { rich } from './icons';
 import { reducedMotion } from './motion';
 
 export interface ModalAction {
@@ -12,6 +13,8 @@ export interface ModalAction {
 export interface ModalOpts {
   /** celebration modal: fires a confetti burst when it opens */
   celebrate?: boolean;
+  /** colour of the header block (default blue) */
+  tone?: 'blue' | 'green' | 'purple' | 'red';
 }
 
 let host: HTMLElement | null = null;
@@ -43,31 +46,34 @@ export function showModal(title: string, body: Child[], actions: ModalAction[], 
     closed = true;
     overlay.classList.add('closing');
     overlay.style.pointerEvents = 'none';
-    window.setTimeout(() => overlay.remove(), reducedMotion() ? 0 : 190);
+    window.setTimeout(() => overlay.remove(), reducedMotion() ? 0 : 160);
     openCount--;
     // let the leaving modal fade before the next one enters
     window.setTimeout(() => queue.shift()?.(), reducedMotion() ? 0 : 200);
   };
   const buttons = actions.map((a) =>
-    h('button', {
-      cls: 'btn ' + (a.primary ? 'primary' : a.danger ? 'danger' : 'ghost'),
-      text: a.label,
-      attrs: { type: 'button' },
-      on: {
-        click: () => {
-          close();
-          a.onClick?.();
+    h(
+      'button',
+      {
+        cls: 'btn ' + (a.primary ? 'primary' : a.danger ? 'danger' : 'ghost'),
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            close();
+            a.onClick?.();
+          },
         },
       },
-    }),
+      ...rich(a.label, 18),
+    ),
   );
   const overlay = h(
     'div',
     { cls: 'modal-overlay' },
     h(
       'div',
-      { cls: 'modal', attrs: { role: 'dialog', 'aria-modal': 'true' } },
-      h('h2', { text: title }),
+      { cls: `modal tone-${opts.tone ?? (actions.some((a) => a.danger) ? 'red' : 'blue')}`, attrs: { role: 'dialog', 'aria-modal': 'true' } },
+      h('h2', null, ...rich(title, 22)),
       h('div', { cls: 'modal-body' }, ...body),
       h('div', { cls: 'modal-actions' }, ...buttons),
     ),

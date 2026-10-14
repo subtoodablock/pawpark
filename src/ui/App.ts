@@ -1,13 +1,15 @@
-import { FINDS, TROPHIES, computeStats, formatDuration, formatMoney, formatNumber } from '../core';
+import { TROPHIES, computeStats, formatDuration, formatMoney, formatNumber } from '../core';
 import type { OfflineReport } from '../core';
 import { GameController } from './GameController';
 import { HUD } from './HUD';
 import { ParkScene } from './ParkScene';
 import { Sheet } from './Sheet';
 import { h } from './dom';
+import { artImg } from './gameArt';
+import { rich } from './icons';
+import { createMenuPanel } from './panels/MenuPanel';
 import { initModal, showModal } from './Modal';
 import { initToasts } from './Toasts';
-import { confetti } from './fx/confetti';
 import { createFleetPanel } from './panels/FleetPanel';
 import { createKennelsPanel } from './panels/KennelsPanel';
 import { createLevelPanel } from './panels/LevelPanel';
@@ -25,29 +27,49 @@ export function startApp(root: HTMLElement): GameController {
   const scene = new ParkScene(controller);
   hud.onAdopt = () => scene.bounce();
 
+  const research = createResearchPanel(controller);
+  const park = createParkPanel(controller, () => sheet.openById('find'));
+  const go = (id: string): void => sheet.openById(id);
+
   const sheet: Sheet = new Sheet([
-    { id: 'today', icon: '\u{1F4C5}', label: 'Today', panel: createTodayPanel(controller) },
-    { id: 'kennels', icon: '\u{1F3E0}', label: 'Kennels', panel: createKennelsPanel(controller) },
-    { id: 'fleet', icon: '\u{1F69A}', label: 'Fleet', panel: createFleetPanel(controller) },
-    { id: 'research', icon: '\u{1F9EA}', label: 'Research', panel: createResearchPanel(controller) },
-    { id: 'park', icon: '\u{1F3DE}\uFE0F', label: 'Park', panel: createParkPanel(controller, () => sheet.openById('find')) },
-    { id: 'find', icon: '\u{1F50D}', label: 'Finds', panel: createFindPanel(controller, { onPrestigeInfo: () => showPrestigeInfo(controller) }), hidden: true },
-    { id: 'level', icon: '\u{1F3C5}', label: 'Park Level', panel: createLevelPanel(controller), hidden: true },
-    { id: 'store', icon: '\u2B50', label: 'Kennel Club', panel: createStorePanel(controller, new MockProvider()), hidden: true },
+    { id: 'menu', icon: 'squares-four', label: 'Menu', tone: 'blue', compact: true, panel: createMenuPanel(controller, go, () => {
+      go('park');
+      park.scrollToSettings();
+    }) },
+    { id: 'today', icon: 'calendar-check', label: 'Today', tone: 'blue', panel: createTodayPanel(controller) },
+    { id: 'kennels', icon: 'house', label: 'Kennels', tone: 'blue', panel: createKennelsPanel(controller) },
+    { id: 'fleet', icon: 'truck', label: 'Fleet', tone: 'blue', panel: createFleetPanel(controller) },
+    { id: 'research', icon: 'flask', label: 'Research', tone: 'blue', ownHeader: true, panel: research },
+    { id: 'park', icon: 'tree', label: 'Park', tone: 'green', panel: park },
+    { id: 'find', icon: 'magnifying-glass', label: 'Finds', tone: 'blue', ownHeader: true, panel: createFindPanel(controller, { onPrestigeInfo: () => showPrestigeInfo(controller) }) },
+    { id: 'level', icon: 'medal', label: 'Park Level', tone: 'green', panel: createLevelPanel(controller) },
+    { id: 'store', icon: 'diamond', label: 'Kennel Club', tone: 'purple', panel: createStorePanel(controller, new MockProvider()) },
   ]);
   hud.onOpenFind = () => sheet.openById('find');
   hud.onOpenLevel = () => sheet.openById('level');
   hud.onOpenStore = () => sheet.openById('store');
+  hud.onNav = (id) => {
+    if (id === 'store') sheet.openById('store');
+    else if (id === 'menu') {
+      if (sheet.activeId === 'menu') sheet.open(null);
+      else sheet.openById('menu');
+    }
+    else if (id === 'research') sheet.openById('research');
+    else {
+      sheet.openById('research');
+      research.showTab('epic');
+      research.scrollToTreats();
+    }
+  };
 
-  const app = h('div', { cls: 'game' }, hud.top, scene.el, hud.controls, sheet.sheet, sheet.tabbar);
+  const app = h('div', { cls: 'game' }, hud.top, scene.el, hud.controls, sheet.sheet);
   root.replaceChildren(app);
   initToasts(app);
   initModal(app);
 
   controller.subscribe((e) => {
-    if (e.type === 'mailArrived') scene.floater('\u{1F4EC}', scene.el.clientWidth - 32, 100);
+    if (e.type === 'mailArrived') scene.floater('MAIL', scene.el.clientWidth - 32, 100);
     if (e.type === 'endgame') showEndgame(controller);
-    if (e.type === 'streakMilestone') confetti({ count: 90 });
   });
   controller.onOffline((r) => {
     showWelcomeBack(r);
@@ -62,12 +84,12 @@ export function startApp(root: HTMLElement): GameController {
     if (acc >= 0.25) {
       acc = 0;
       sheet.update();
-      sheet.setBadge('today', treatReady(controller));
+      hud.setDot('menu', treatReady(controller));
     }
   });
   hud.update();
   controller.start();
-  sheet.setBadge('today', treatReady(controller));
+  hud.setDot('menu', treatReady(controller));
   return controller;
 }
 
@@ -76,20 +98,20 @@ function showWelcomeBack(r: OfflineReport): void {
   const add = (label: string, value: string, show: boolean): void => {
     if (show) rows.push([label, value]);
   };
-  add('\u{1F4B0} Cash earned', `+${formatMoney(r.earned)}`, r.earned > 0);
+  add('{coins} Cash earned', `+${formatMoney(r.earned)}`, r.earned > 0);
   const pups = Math.round(r.pupsGained);
-  add('\u{1F415} Pups', `${pups > 0 ? '+' : ''}${formatNumber(pups)}`, pups !== 0);
-  add('\u{1F528} Automation purchases', formatNumber(r.purchases), r.purchases > 0);
-  add('\u{1F3DE}️ New parks opened', `${r.prestiges} (+${formatNumber(r.spiritPawsGained)} \u{1F43E})`, r.prestiges > 0);
-  add('\u{1F9B4} Golden Bones', `+${formatNumber(r.goldenBonesGained)}`, r.goldenBonesGained > 0);
-  add('\u{1F43F}️ Squirrels caught by hound', formatNumber(r.squirrelsCaught), r.squirrelsCaught > 0);
-  add('\u{1F4EC} Letters waiting', formatNumber(r.mailWaiting), r.mailWaiting > 0);
+  add('{dog} Pups', `${pups > 0 ? '+' : ''}${formatNumber(pups)}`, pups !== 0);
+  add('{hammer} Automation purchases', formatNumber(r.purchases), r.purchases > 0);
+  add('{tree} New parks opened', `${r.prestiges} (+${formatNumber(r.spiritPawsGained)} {paw})`, r.prestiges > 0);
+  add('{bone} Golden Bones', `+${formatNumber(r.goldenBonesGained)}`, r.goldenBonesGained > 0);
+  add('{dog} Squirrels caught by hound', formatNumber(r.squirrelsCaught), r.squirrelsCaught > 0);
+  add('{mail} Letters waiting', formatNumber(r.mailWaiting), r.mailWaiting > 0);
 
-  const finds = r.findsUnlocked.map((i) => FINDS[i]?.icon ?? '?').join(' ');
-  const trophies = r.trophies.map((id) => TROPHIES.find((t) => t.id === id)).map((t) => t?.icon ?? '\u{1F3C6}').join(' ');
+  const finds = r.findsUnlocked.map((i) => artImg('find', i, 30));
+  const row = (label: string, ...value: (Node | string)[]): HTMLElement => h('li', null, h('span', null, ...rich(label, 16)), h('b', null, ...value));
 
   showModal(
-    'Welcome back! \u{1F415}',
+    'Welcome back!',
     [
       h('p', { text: `You were away for ${formatDuration(r.elapsedSec)}.` }),
       r.lostSec > 0
@@ -101,12 +123,13 @@ function showWelcomeBack(r: OfflineReport): void {
       h(
         'ul',
         { cls: 'report-list' },
-        ...rows.map(([k, v]) => h('li', null, h('span', { text: k }), h('b', { text: v }))),
-        r.findsUnlocked.length ? h('li', null, h('span', { text: '\u{1F50D} New eras reached' }), h('b', { text: finds })) : null,
-        r.trophies.length ? h('li', null, h('span', { text: '\u{1F3C6} Trophies earned' }), h('b', { text: trophies })) : null,
+        ...rows.map(([k, v]) => row(k, ...rich(v, 14))),
+        r.findsUnlocked.length ? h('li', null, h('span', { text: 'New eras reached' }), h('b', { cls: 'finds' }, ...finds)) : null,
+        r.trophies.length ? row('{trophy} Trophies earned', String(r.trophies.length)) : null,
       ),
     ],
-    [{ label: 'Yay!', primary: true }],
+    [{ label: 'Collect', primary: true }],
+    { tone: 'blue' },
   );
 }
 
@@ -114,7 +137,7 @@ function showEndgame(controller: GameController): void {
   const s = controller.state;
   const d = computeStats(s);
   showModal(
-    '\u{1F30C} Paw Park Legend!',
+    'Paw Park Legend!',
     [
       h('p', { text: 'Congratulations! You dug up the Cosmic Bone and became a Paw Park Legend.' }),
       h(
@@ -132,6 +155,6 @@ function showEndgame(controller: GameController): void {
       h('p', { cls: 'muted', text: 'The game keeps going. Keep opening parks and collecting everything!' }),
     ],
     [{ label: 'Keep playing', primary: true }],
-    { celebrate: true },
+    { celebrate: true, tone: 'purple' },
   );
 }

@@ -168,6 +168,22 @@ const TOKENS: Record<string, IconName> = {
   timer: 'timer',
   sparkle: 'sparkle',
   tree: 'tree',
+  gear: 'gear-six',
+  cal: 'calendar-check',
+  chart: 'chart-bar',
+  house: 'house',
+  truck: 'truck',
+  share: 'share-fat',
+  sun: 'sun',
+  hammer: 'hammer',
+  school: 'graduation-cap',
+  crown: 'crown',
+  gem: 'diamond',
+  coins: 'coins',
+  flask: 'flask',
+  shovel: 'shovel',
+  search: 'magnifying-glass',
+  cart: 'storefront',
 };
 
 const TOKEN_RE = /\{([a-z]+)\}/g;
