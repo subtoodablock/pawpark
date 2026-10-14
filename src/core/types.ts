@@ -171,7 +171,7 @@ export interface GameStats {
 }
 
 export interface GameState {
-  version: 5;
+  version: 6;
   cash: number;
   pups: number;
   adoptionStock: number;
@@ -213,6 +213,8 @@ export interface GameState {
   show: DogShowState | null;
   /** v5: last SHOW_HISTORY_WEEKS shows */
   showHistory: DogShowResult[];
+  /** v6: the Paw Portal (null until unlocked & built) */
+  portal: PortalState | null;
   /** find indices for which findUpgradeAvailable was already emitted this run */
   notifiedFinds: number[];
   runEarnings: number;
@@ -288,6 +290,8 @@ export type GameEvent =
   | { type: 'calendarCollar'; streak: number }
   | { type: 'showGoalReached'; goalIndex: number }
   | { type: 'showEnded'; weekKey: string; medals: number }
+  | { type: 'portalUnlocked' }
+  | { type: 'expeditionReturned'; slot: number; bestRarity: RelicRarity }
   | { type: 'mailArrived' }
   | { type: 'squirrelSpawned'; squirrelId: number }
   | { type: 'treatExpired'; treatId: string };
@@ -446,4 +450,83 @@ export interface DogShowRewardDef {
   goldenBones: number;
   treatId?: string;
   collars: number;
+}
+
+// ---------------------------------------------------------------- v6: Paw Portal
+// Spec: docs/11-paw-portal.md
+
+export type RelicRarity = 0 | 1 | 2 | 3; // Common, Rare, Epic, Legendary
+export type ExpeditionLength = 'short' | 'standard' | 'long';
+
+export interface CrewDef {
+  id: string;
+  name: string;
+  /** runs of the previous crew required to unlock (0 for the first) */
+  unlockRuns: number;
+  durationsSec: Record<ExpeditionLength, number>;
+  /** base number of loot items per length */
+  capacity: Record<ExpeditionLength, number>;
+  /** run counts at which the crew earns a star (each star: +capacity and better rarity odds) */
+  starRuns: number[];
+}
+
+export interface DimensionDef {
+  id: string;
+  name: string;
+  description: string;
+  /** min crew index required */
+  minCrew: number;
+  /** relic family ids weighted toward on this dimension */
+  familyWeights: Record<string, number>;
+}
+
+export interface RelicFamilyDef {
+  id: string;
+  name: string;
+  description: string;
+  stat: Stat;
+  /** effect by tier (index 0..3) × rarity (index 0..3); mult stats: +fraction, add stats: amount */
+  effect: number[][];
+}
+
+export interface StoneDef {
+  id: string;
+  name: string;
+  stat: Stat;
+  /** effect by stone tier 0..2 */
+  effect: number[];
+}
+
+export interface Relic {
+  id: number;
+  family: string;
+  tier: number; // 0..3
+  rarity: RelicRarity;
+  /** socketed stones: entries are `${stoneId}:${tier}` */
+  stones: string[];
+}
+
+export interface Expedition {
+  crewId: string;
+  dimensionId: string;
+  length: ExpeditionLength;
+  launchedAt: number; // epoch ms
+  returnsAt: number; // epoch ms
+  /** rolled at launch (seeded) so reloading can't change it; revealed on collect */
+  loot: { relics: Omit<Relic, 'id' | 'stones'>[]; stones: string[]; goldenBones: number };
+}
+
+export interface PortalState {
+  built: boolean;
+  slots: (Expedition | null)[]; // length = portal slot count
+  crews: Record<string, { runs: number }>;
+  relics: Relic[];
+  nextRelicId: number;
+  /** equipped relic ids (length 4) */
+  equipped: (number | null)[];
+  /** stone inventory: `${stoneId}:${tier}` -> count */
+  stones: Record<string, number>;
+  craftXp: number;
+  /** seed counter so each launch rolls differently but deterministically */
+  launchSeq: number;
 }
