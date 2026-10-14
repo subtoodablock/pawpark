@@ -114,6 +114,8 @@ export class HUD {
   private navBtns = new Map<NavId, HTMLButtonElement>();
 
   private holdTimer: number | null = null;
+  private cashLine = h('div', { cls: 'cash-line' });
+  private cashFitKey = '';
   private cashAnim = new DampedValue(0, 0.05);
   private lastCash = NaN;
   private lastFrame = performance.now();
@@ -128,6 +130,7 @@ export class HUD {
     this.upgradePill.addEventListener('click', () => {
       confirmEraUpgrade(c);
     });
+    this.cashLine.append(this.cash, this.cashUnit);
     this.top = h(
       'header',
       { cls: 'hud-top' },
@@ -141,7 +144,7 @@ export class HUD {
           h(
             'div',
             { cls: 'cash-col' },
-            h('div', { cls: 'cash-line' }, this.cash, this.cashUnit),
+            this.cashLine,
             h('div', { cls: 'sub-line' }, this.income, h('span', { cls: 'pups-chip', attrs: { title: 'Pups / kennel capacity' } }, icon('dog', { size: 15 }), this.pups)),
           ),
           h('div', { cls: 'chips' }, this.bones.el, this.paws.el),
@@ -254,6 +257,21 @@ export class HUD {
     });
   }
 
+  /** Shrink the cash figure until number + unit word fit the centre column (re-measured only when the text shape changes). */
+  private fitCash(key: string): void {
+    if (key === this.cashFitKey) return;
+    this.cashFitKey = key;
+    const line = this.cashLine;
+    line.style.removeProperty('--cash-fs');
+    line.style.removeProperty('--unit-fs');
+    let fs = parseFloat(getComputedStyle(this.cash).fontSize) || 42;
+    while (line.scrollWidth > line.clientWidth + 1 && fs > 22) {
+      fs -= 2;
+      line.style.setProperty('--cash-fs', `${fs}px`);
+      line.style.setProperty('--unit-fs', `${Math.max(12, Math.round(fs * 0.4))}px`);
+    }
+  }
+
   /** Update a chip; flash it when the value went up. */
   private setChip(ch: Chip, n: number, text: string): void {
     setText(ch.val, text);
@@ -283,6 +301,7 @@ export class HUD {
     const cp = moneyParts(this.cashAnim.step(dt));
     setText(this.cash, cp.num);
     setText(this.cashUnit, cp.unit);
+    this.fitCash(`${cp.num.length}:${cp.unit}`);
     setText(this.income, `+${formatMoney(d.incomePerSec)}/s` + (d.zoomieMult > 1.001 ? `  ×${d.zoomieMult.toFixed(2)}` : ''));
     this.setChip(this.bones, Math.floor(s.goldenBones), formatNumber(Math.floor(s.goldenBones)));
     this.setChip(this.level, d.parkLevel, `LV ${d.parkLevel}`);

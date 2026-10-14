@@ -177,9 +177,10 @@ strong {
 .btn.buy {
   --c: var(--green);
   --cd: var(--green-deep);
-  flex: 0 0 112px;
-  width: 112px;
-  padding: 6px 8px;
+  flex: 0 0 104px;
+  width: 104px;
+  padding: 6px 6px;
+  font-size: 17px;
   white-space: nowrap;
 }
 .btn.primary {
@@ -335,16 +336,17 @@ strong {
   gap: 6px;
   white-space: nowrap;
   min-height: 40px;
+  overflow: hidden;
 }
 .cash {
-  font-size: 42px;
+  font-size: var(--cash-fs, 42px);
   font-weight: 300;
   line-height: 1;
   letter-spacing: 0.01em;
   color: var(--ui-text);
 }
 .cash-unit {
-  font-size: 17px;
+  font-size: var(--unit-fs, 17px);
   font-weight: 500;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -837,9 +839,9 @@ strong {
 .row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 8px;
-  padding: 10px 12px 10px 10px;
+  padding: 10px 10px 10px 10px;
   border-radius: var(--r-card);
   background: var(--ui-soft);
 }
@@ -848,8 +850,8 @@ strong {
 }
 .row-icon {
   flex: none;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   display: grid;
   place-items: center;
   border-radius: 16px;
@@ -861,7 +863,7 @@ strong {
   min-width: 0;
 }
 .row-title {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 500;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -1585,6 +1587,7 @@ strong {
   color: #fff;
 }
 .tier-head {
+  scroll-margin-top: 70px;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1720,7 +1723,7 @@ strong {
 }
 .rcard-check {
   flex: none;
-  width: 112px;
+  width: 104px;
   display: flex;
   justify-content: center;
 }
@@ -1728,6 +1731,9 @@ strong {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.rcard-btns .btn.buy {
+  flex: none;
 }
 .btn.star-buy {
   --c: var(--gold);
@@ -2018,13 +2024,13 @@ strong {
    ===================================================================== */
 @media (max-width: 380px) {
   .cash {
-    font-size: 36px;
+    font-size: var(--cash-fs, 36px);
   }
   .cash-line {
     min-height: 34px;
   }
   .cash-unit {
-    font-size: 15px;
+    font-size: var(--unit-fs, 15px);
   }
   .sub-line {
     font-size: 15px;
@@ -2126,4 +2132,18 @@ strong {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+.dig-bonus {
+  display: flex;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.btn.star-buy .ico,
+.btn.gold .ico {
+  color: #111 !important;
+}
+.btn.star-buy:disabled .ico {
+  color: var(--disabled-text) !important;
 }
