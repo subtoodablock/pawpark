@@ -142,3 +142,27 @@ src/ui/dom.ts              tiny h() helper for creating elements
   formatting.
 - `npm run build` succeeds.
 - `npm run balance` prints a milestone table against the targets in the design §9.
+
+## 6. v2 API additions (see `04-long-game-afk.md`)
+
+```ts
+// simulation (tick.ts) — single code path for online + offline
+stepSimulation(state, dt, rng, opts: { offline: boolean }): GameEvent[]   // now exported from barrel
+runAutomation(state: GameState): GameEvent[]        // one automation pass (§3.3); exported for tests
+
+// automation
+setAutomation(state: GameState, key: AutomationKey, enabled: boolean): ActionResult  // fails if locked
+setAutoPrestigeThreshold(state: GameState, t: number): ActionResult                  // must be in AUTO_PRESTIGE_THRESHOLDS
+
+// mail
+openMail(state, rng?): RewardResult | null          // opens ONE letter (mailCount > 0)
+openAllMail(state, rng?): RewardResult[]
+
+// offline
+applyOfflineProgress(state, now): OfflineReport | null   // richer report, runs automation offline
+```
+New constants: `BASE_OFFLINE_HOURS=8`, `OFFLINE_MAX_CHUNK_SEC=60`, `BASE_RESCUE_PER_MIN=2`,
+`BASE_MAIL_CAPACITY=3`, `MAIL_INTERVAL_SEC=1800`, `AUTOMATION_INTERVAL_SEC=2`,
+`AUTOMATION_MAX_BUYS=50`, `AUTO_SPLURGE_FRACTION=0.1`, `AUTO_PRESTIGE_MIN_RUN_SEC=600`,
+`AUTO_PRESTIGE_THRESHOLDS=[0.1,0.25,0.5,1,2]`, `DEFAULT_AUTO_PRESTIGE_THRESHOLD=0.5`, `SAVE_VERSION=2`.
+Removed: `OFFLINE_RESCUE_BASE`, `OFFLINE_CHUNKS`, stat `offlineRescue`.

@@ -20,7 +20,13 @@ export type Stat =
   | 'spiritPawBonus'
   | 'collarBonus'
   | 'offlineHours'
-  | 'offlineRescue'
+  | 'mailCapacity'
+  | 'squirrelHound' // chance 0..1 that an uncaught squirrel is auto-caught
+  // automation: unlock flags (>= 1 = unlocked) and auto-whistle strength
+  | 'autoBuild'
+  | 'autoTraining'
+  | 'autoPrestige'
+  | 'autoWhistle' // fraction of adoptionRefill auto-adopted per second
   | 'researchDiscount'
   | 'kennelDiscount'
   | 'fleetDiscount';
@@ -96,12 +102,31 @@ export interface TreatDef {
   cost: number; // Golden Bones
 }
 
+export type TrophyKind = 'pups' | 'lifetimeEarnings' | 'prestiges' | 'find';
+
 export interface TrophyDef {
   id: string;
   name: string;
   icon: string;
-  pupsRequired: number;
+  kind: TrophyKind;
+  /** pups count, lifetime earnings, prestige count, or find index (vs highestFindIndex) */
+  threshold: number;
   collars: number;
+  goldenBones: number;
+}
+
+// ---------------------------------------------------------------- automation
+
+export type AutomationKey = 'find' | 'build' | 'training' | 'whistle' | 'prestige';
+
+export interface AutomationSettings {
+  find: boolean;
+  build: boolean;
+  training: boolean;
+  whistle: boolean;
+  prestige: boolean;
+  /** auto-prestige when gain >= max(1, prestigeThreshold × spiritPaws) */
+  prestigeThreshold: number;
 }
 
 // ---------------------------------------------------------------- runtime state
@@ -132,7 +157,7 @@ export interface GameStats {
 }
 
 export interface GameState {
-  version: 1;
+  version: 2;
   cash: number;
   pups: number;
   adoptionStock: number;
@@ -157,7 +182,15 @@ export interface GameState {
   squirrelTimer: number;
   nextSquirrelId: number;
   mailTimer: number;
-  mailReady: boolean;
+  /** letters waiting, capped at DerivedStats.mailCapacity */
+  mailCount: number;
+  automation: AutomationSettings;
+  /** seconds until the next automation pass (online); offline runs once per chunk */
+  automationTimer: number;
+  /** seconds (online + offline) since this park was opened; resets on prestige */
+  runTimeSec: number;
+  /** true once the endgame event has fired */
+  endgameReached: boolean;
   /** find indices for which findUpgradeAvailable was already emitted this run */
   notifiedFinds: number[];
   runEarnings: number;
@@ -192,6 +225,11 @@ export interface DerivedStats {
   adoptionRefill: number; // stock / sec
   rescuePerSec: number; // pups / sec
   offlineCapSec: number;
+  mailCapacity: number;
+  squirrelHoundChance: number; // 0..1
+  autoWhistleFrac: number; // 0..1
+  /** unlocked (not necessarily enabled) automation */
+  automationUnlocked: Record<AutomationKey, boolean>;
   totalTrainingLevels: number;
   prestigeGain: number; // spirit paws if prestiged now
 }
@@ -204,8 +242,12 @@ export interface ActionResult {
 }
 
 export type GameEvent =
-  | { type: 'trophy'; trophyId: string; collars: number }
+  | { type: 'trophy'; trophyId: string; collars: number; goldenBones: number }
   | { type: 'findUpgradeAvailable'; findIndex: number }
+  | { type: 'findUnlocked'; findIndex: number; auto: boolean; firstTime: boolean }
+  | { type: 'autoPrestige'; gained: number }
+  | { type: 'squirrelHound'; reward: RewardResult }
+  | { type: 'endgame' }
   | { type: 'mailArrived' }
   | { type: 'squirrelSpawned'; squirrelId: number }
   | { type: 'treatExpired'; treatId: string };
@@ -218,8 +260,18 @@ export type RewardResult =
 export interface OfflineReport {
   elapsedSec: number;
   simulatedSec: number; // after Treat Jar cap
-  earned: number;
-  pupsGained: number;
+  lostSec: number; // elapsedSec - simulatedSec
+  earned: number; // cash earned from income (all parks, incl. across prestiges)
+  pupsGained: number; // net change in pups (may be negative after a prestige)
+  purchases: number; // automation buys
+  findsUnlocked: number[]; // find indices upgraded to
+  prestiges: number;
+  spiritPawsGained: number;
+  goldenBonesGained: number;
+  squirrelsCaught: number;
+  trophies: string[];
+  mailWaiting: number;
+  endgame: boolean;
 }
 
 /** Injectable RNG returning [0, 1). Defaults to Math.random. */
