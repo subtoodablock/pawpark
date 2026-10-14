@@ -178,7 +178,7 @@ export function stepShow(home: GameState, dt: number, rng: Rng, offline: boolean
   const stepDt = Math.min(dt, remainingMs / 1000);
   syncShowMeta(home, park);
   const before = show.goals.map((_, i) => goalReached(show, i));
-  stepSimulationDetailed(park, stepDt, rng, { offline });
+  stepSimulationDetailed(park, stepDt, rng, { offline, showPark: true });
   park.lastSaved += stepDt * 1000;
   show.goals.forEach((_, i) => {
     if (!before[i] && goalReached(show, i)) events.push({ type: 'showGoalReached', goalIndex: i });

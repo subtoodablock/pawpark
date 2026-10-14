@@ -32,6 +32,8 @@ export interface StepOptions {
   offline: boolean;
   /** wall-clock epoch ms used for expedition returns (defaults to Date.now()) */
   now?: number;
+  /** Dog Show park: its kennels are "show kennels", so Calm Kennels applies online too (never worse than AFK). */
+  showPark?: boolean;
 }
 
 export interface StepResult {
@@ -122,8 +124,8 @@ export function stepSimulationDetailed(
   autoWhistle(state, s, dt);
 
   // 2. rescue (100% offline too)
-  // Calm Kennels (offlineRescueMult) applies only while offline
-  const rescuePerSec = offline ? s.rescuePerSec * statValue(state, 'offlineRescueMult') : s.rescuePerSec;
+  // Calm Kennels (offlineRescueMult) applies while offline, and always in the Dog Show park (opts.showPark)
+  const rescuePerSec = offline || opts.showPark ? s.rescuePerSec * statValue(state, 'offlineRescueMult') : s.rescuePerSec;
   if (rescuePerSec > 0) {
     state.pups = Math.max(state.pups, Math.min(s.kennelCapacity, state.pups + rescuePerSec * dt));
   }

@@ -209,6 +209,28 @@ describe('show park rules', () => {
   });
 });
 
+describe('show park Calm rule', () => {
+  it('applies Calm Kennels online in the show park but not at home', () => {
+    const calm = (s: GameState) => {
+      s.academy.calm_kennels = 10;
+      s.kennels = [4, null, null, null];
+      s.pups = 0;
+    };
+    const h = home();
+    calm(h);
+    const s = joined(MONDAY, h);
+    const park = s.show!.park;
+    park.kennels = [4, null, null, null];
+    park.pups = 0;
+    const homeBefore = s.pups;
+    tick(s, 1, seeded(1));
+    const homeGain = s.pups - homeBefore;
+    const rate = computeStats(park).rescuePerSec;
+    expect(park.pups).toBeCloseTo(rate * 3, 6); // x3 Calm at max, while online
+    expect(homeGain).toBeCloseTo(computeStats(s).rescuePerSec, 6); // no Calm at home online
+  });
+});
+
 describe('claims, end of week', () => {
   it('claims reward the home park and need a reached, unclaimed goal', () => {
     const s = joined();
