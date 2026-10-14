@@ -1,4 +1,4 @@
-import type { AutomationKey, DerivedStats, GameState, Stat, StatMode, TreatEffect, UpgradeDef } from './types';
+import type { AutomationKey, DailyModifierDef, DerivedStats, GameState, Stat, StatMode, TreatEffect, UpgradeDef } from './types';
 import {
   ACADEMY,
   BASE_ADOPTION_CAP,
@@ -12,11 +12,15 @@ import {
   BASE_OFFLINE_HOURS,
   BASE_SPIRIT_PAW_BONUS,
   BASE_ZOOMIE_BONUS,
+  DAILY_MODIFIERS,
   FINDS,
   KENNELS,
   MAX_FLEET_SLOTS,
   MIN_COST_MULTIPLIER,
+  PARK_LEVEL_THRESHOLDS,
+  PARK_TITLES,
   PARK_VALUE_SECONDS,
+  PREMIUM_SHOP,
   PRESTIGE_DIVISOR,
   PRESTIGE_EXPONENT,
   SECONDS_PER_HOUR,
@@ -25,19 +29,45 @@ import {
   TRAINING,
   TREATS,
   VEHICLES,
+  VIP_TIERS,
 } from '../data';
 
 interface Source {
   def: UpgradeDef;
-  kind: 'training' | 'academy';
+  kind: 'training' | 'academy' | 'premium';
 }
 
 const SOURCES: Record<string, Source[]> = {};
 for (const def of TRAINING) (SOURCES[def.stat] ??= []).push({ def, kind: 'training' });
 for (const def of ACADEMY) (SOURCES[def.stat] ??= []).push({ def, kind: 'academy' });
+for (const def of PREMIUM_SHOP) (SOURCES[def.stat] ??= []).push({ def, kind: 'premium' });
 
 export function statMode(stat: Stat): StatMode {
   return STAT_MODES[stat];
+}
+
+/** Park Level: number of thresholds reached (minimum 1). Never decreases with lifetime earnings. */
+export function parkLevel(lifetimeEarnings: number): number {
+  let lo = 0;
+  let hi = PARK_LEVEL_THRESHOLDS.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (PARK_LEVEL_THRESHOLDS[mid] <= lifetimeEarnings) lo = mid + 1;
+    else hi = mid;
+  }
+  return Math.max(1, lo);
+}
+
+export function parkTitle(level: number): string {
+  const i = Math.min(PARK_TITLES.length - 1, Math.max(0, Math.floor(level / 10)));
+  return PARK_TITLES[i];
+}
+
+/** Kennel Club tier for a lifetime spend in cents. */
+export function vipTierFor(spendCents: number): number {
+  let tier = 0;
+  for (const t of VIP_TIERS) if (spendCents >= t.minSpendCents) tier = t.tier;
+  return tier;
 }
 
 /** M(stat) for mult stats (product of 1 + perLevel*level), A(stat) for add stats (sum). */
@@ -45,12 +75,28 @@ export function statValue(state: GameState, stat: Stat): number {
   const mode = STAT_MODES[stat];
   let acc = mode === 'mult' ? 1 : 0;
   for (const { def, kind } of SOURCES[stat] ?? []) {
-    const level = (kind === 'training' ? state.training[def.id] : state.academy[def.id]) ?? 0;
+    const level =
+      (kind === 'training' ? state.training[def.id] : kind === 'academy' ? state.academy[def.id] : state.premium.shop[def.id]) ?? 0;
     if (level <= 0) continue;
     if (mode === 'mult') acc *= 1 + def.perLevel * level;
     else acc += def.perLevel * level;
   }
+  // Kennel Club perks: the current tier replaces lower ones (no stacking)
+  const vip = VIP_TIERS[vipTierFor(state.premium.spendCents)];
+  if (vip) {
+    if (stat === 'earnings') acc *= 1 + vip.earningsBonus;
+    else if (stat === 'mailCapacity') acc += vip.mailCapacity;
+    else if (stat === 'offlineHours') acc += vip.offlineHours;
+  }
+  // Park of the Day
+  const mod = currentModifier(state);
+  if (mod && mod.stat === stat && mode === 'mult') acc *= mod.multiplier;
   return acc;
+}
+
+function currentModifier(state: GameState): DailyModifierDef | null {
+  const id = state.daily.modifierId;
+  return (id && DAILY_MODIFIERS.find((m) => m.id === id)) || null;
 }
 
 /** Cost multiplier from a discount stat, clamped at MIN_COST_MULTIPLIER. */
@@ -126,8 +172,9 @@ export function computeStats(state: GameState): DerivedStats {
   const zoomieMult = 1 + Math.floor(state.zoomies) * zoomieBonusPer;
 
   const base = deliveredPerSec * findValue * earningsBonus;
-  const incomePerSec = base * zoomieMult * treatMult.earnings;
-  const parkValue = base * PARK_VALUE_SECONDS;
+  const earnings = statValue(state, 'earnings');
+  const incomePerSec = base * zoomieMult * treatMult.earnings * earnings;
+  const parkValue = base * PARK_VALUE_SECONDS * earnings;
 
   const adoptionCap = BASE_ADOPTION_CAP + statValue(state, 'adoptionCap');
   const adoptionRefill =
@@ -181,6 +228,10 @@ export function computeStats(state: GameState): DerivedStats {
     squirrelHoundChance,
     autoWhistleFrac,
     automationUnlocked,
+    parkLevel: parkLevel(state.lifetimeEarnings),
+    parkTitle: parkTitle(parkLevel(state.lifetimeEarnings)),
+    vipTier: vipTierFor(state.premium.spendCents),
+    modifier: currentModifier(state),
     totalTrainingLevels: totalTrainingLevels(state),
     prestigeGain,
   };

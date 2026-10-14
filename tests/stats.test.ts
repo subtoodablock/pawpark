@@ -14,7 +14,7 @@ describe('stat modes', () => {
     expect(statMode('squirrelRate')).toBe('mult');
     expect(statMode('fleetSlots')).toBe('add');
     expect(statMode('fleetDiscount')).toBe('add');
-    expect(Object.keys(STAT_MODES)).toHaveLength(23);
+    expect(Object.keys(STAT_MODES)).toHaveLength(25);
   });
 });
 

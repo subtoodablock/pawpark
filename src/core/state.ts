@@ -12,6 +12,7 @@ import {
   START_GOLDEN_BONES,
 } from '../data';
 import { computeStats } from './stats';
+import { createDailyState } from './counters';
 
 function emptySlots(n: number): (number | null)[] {
   const slots: (number | null)[] = new Array(n).fill(null);
@@ -32,7 +33,7 @@ export function defaultAutomation(): AutomationSettings {
 
 export function createInitialState(now: number): GameState {
   return {
-    version: SAVE_VERSION as 2,
+    version: SAVE_VERSION as 3,
     cash: START_CASH,
     pups: 0,
     adoptionStock: BASE_ADOPTION_CAP,
@@ -58,6 +59,8 @@ export function createInitialState(now: number): GameState {
     automationTimer: AUTOMATION_INTERVAL_SEC,
     runTimeSec: 0,
     endgameReached: false,
+    daily: createDailyState(),
+    premium: { stars: 0, spendCents: 0, receipts: [], shop: {} },
     notifiedFinds: [],
     runEarnings: 0,
     lifetimeEarnings: 0,

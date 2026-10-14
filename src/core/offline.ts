@@ -2,6 +2,7 @@ import type { GameState, OfflineReport } from './types';
 import { OFFLINE_MAX_CHUNK_SEC, OFFLINE_MIN_SEC } from '../data';
 import { computeStats } from './stats';
 import { stepSimulationDetailed } from './tick';
+import { syncDigNotifications } from './daily';
 
 const MS_PER_SEC = 1000;
 
@@ -45,6 +46,7 @@ export function applyOfflineProgress(state: GameState, now: number): OfflineRepo
     }
   }
 
+  syncDigNotifications(state);
   state.lastSaved = now;
   return {
     elapsedSec,

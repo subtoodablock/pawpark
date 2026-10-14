@@ -11,6 +11,7 @@ import {
 } from '../data';
 import { prestige, upgradeFind } from './actions';
 import { computeStats, costMultiplier } from './stats';
+import { bumpCounter } from './counters';
 
 export interface AutomationResult {
   events: GameEvent[];
@@ -151,6 +152,7 @@ function buyLoop(state: GameState): number {
     if (pick.kind === 0) state.kennels[pick.idx] = pick.to;
     else if (pick.kind === 1) state.vehicles[pick.idx] = pick.to;
     else state.training[TRAINING[pick.idx].id] = pick.to;
+    bumpCounter(state, pick.kind === 2 ? 'training' : 'buildings');
     buys++;
   }
   return buys;

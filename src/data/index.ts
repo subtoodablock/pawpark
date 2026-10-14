@@ -6,3 +6,5 @@ export * from './training';
 export * from './academy';
 export * from './treats';
 export * from './trophies';
+export * from './daily';
+export * from './premium';

@@ -59,7 +59,7 @@ export const MAIL_CASH_SECONDS = 300;
 export const MIN_COST_MULTIPLIER = 0.25;
 export const AUTOSAVE_INTERVAL_SEC = 10;
 export const SAVE_KEY = 'pawpark.save.v1';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 // ---- automation ("The Pack")
 export const AUTOMATION_INTERVAL_SEC = 2;
@@ -76,6 +76,8 @@ export const STAT_MODES: Record<Stat, StatMode> = {
   kennelCapacity: 'mult',
   shippingCapacity: 'mult',
   squirrelRate: 'mult',
+  earnings: 'mult',
+  mailRate: 'mult',
   adoptionCap: 'add',
   adoptionRefill: 'add',
   rescueRate: 'add',

@@ -22,6 +22,8 @@ import {
 import { adopt, catchSquirrel, randInt } from './actions';
 import { automate } from './automation';
 import { computeStats, statValue } from './stats';
+import { bumpCounter } from './counters';
+import { checkDigCompletion } from './daily';
 
 export interface StepOptions {
   /** Offline mode: no zoomies, squirrels resolve instantly via the hound, automation fires once per call. */
@@ -129,8 +131,8 @@ export function stepSimulationDetailed(
     if (state.zoomieIdle > ZOOMIE_GRACE_SEC) {
       state.zoomies = Math.max(0, state.zoomies - ZOOMIE_DECAY_PER_SEC * dt);
     }
-    state.stats.totalPlaySec += dt;
   }
+  state.stats.totalPlaySec += dt;
   state.runTimeSec += dt;
 
   // 4. earnings (stats from the start of the step)
@@ -138,6 +140,7 @@ export function stepSimulationDetailed(
   state.cash += earned;
   state.runEarnings += earned;
   state.lifetimeEarnings += earned;
+  bumpCounter(state, 'earn', earned);
 
   // 5. treats
   for (const t of state.treats) t.remaining -= dt;
@@ -191,8 +194,9 @@ export function stepSimulationDetailed(
   // 7. mail: letters pile up to the mailbox capacity, timer carries over
   state.mailTimer -= dt;
   if (state.mailTimer <= 0) {
-    const letters = 1 + Math.floor(-state.mailTimer / MAIL_INTERVAL_SEC);
-    state.mailTimer += letters * MAIL_INTERVAL_SEC;
+    const interval = MAIL_INTERVAL_SEC / statValue(state, 'mailRate');
+    const letters = 1 + Math.floor(-state.mailTimer / interval);
+    state.mailTimer += letters * interval;
     const before = state.mailCount;
     state.mailCount = Math.min(s.mailCapacity, state.mailCount + letters);
     if (state.mailCount > before) events.push({ type: 'mailArrived' });
@@ -226,6 +230,8 @@ export function stepSimulationDetailed(
       }
     }
   }
+
+  if (!offline) events.push(...checkDigCompletion(state));
 
   return { events, purchases };
 }

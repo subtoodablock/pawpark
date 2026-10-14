@@ -7,6 +7,9 @@ export {
   computeStats,
   costMultiplier,
   totalTrainingLevels,
+  parkLevel,
+  parkTitle,
+  vipTierFor,
 } from './stats';
 export { tick, stepSimulation } from './tick';
 export { runAutomation } from './automation';
@@ -43,4 +46,20 @@ export {
   clearSave,
 } from './save';
 export type { StorageLike } from './save';
+export {
+  dayKeyOf,
+  dayDiff,
+  hashString,
+  seededRng,
+  createDailyState,
+  emptyCounters,
+  refreshDaily,
+  claimDailyTreat,
+  claimDailyDig,
+  claimDailyDigBonus,
+  dailyDigProgress,
+  shareText,
+} from './daily';
+export { bumpCounter } from './counters';
+export { grantPurchase, buyPremium, premiumCost, buyStreakFreeze } from './premium';
 export { formatNumber, formatMoney, formatRate, formatDuration } from './format';

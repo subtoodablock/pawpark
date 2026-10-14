@@ -17,6 +17,7 @@ import {
   VEHICLES,
 } from '../data';
 import { computeStats, costMultiplier } from './stats';
+import { bumpCounter } from './counters';
 import { resetForPrestige } from './state';
 
 // ---------------------------------------------------------------- helpers
@@ -48,7 +49,10 @@ export function adopt(state: GameState, n: number, fromTap: boolean): number {
   state.stats.totalAdopted += k;
   if (fromTap) {
     state.stats.totalTaps += 1;
+    bumpCounter(state, 'whistle', k);
+    const before = state.zoomies;
     state.zoomies = Math.min(s.maxZoomies, state.zoomies + k);
+    if (before < s.maxZoomies && state.zoomies >= s.maxZoomies) bumpCounter(state, 'zoomies');
     state.zoomieIdle = 0;
   }
   return k;
@@ -134,6 +138,7 @@ function buySlot(
   state.cash -= cost;
   const cur = slots[slot];
   slots[slot] = cur === null || cur === undefined ? 0 : cur + 1;
+  bumpCounter(state, 'buildings');
   return OK;
 }
 
@@ -175,6 +180,7 @@ export function buyTraining(state: GameState, id: string, levels = 1): ActionRes
   }
   state.cash -= total;
   state.training[id] = current + n;
+  bumpCounter(state, 'training', n);
   return OK;
 }
 
@@ -212,12 +218,22 @@ export function upgradeFind(state: GameState): ActionResult {
   return OK;
 }
 
-export function buyTreat(state: GameState, id: string): ActionResult {
+export function buyTreat(
+  state: GameState,
+  id: string,
+  currency: 'bones' | 'stars' = 'bones',
+): ActionResult {
   const def = TREATS.find((t) => t.id === id);
   if (!def) return fail('Unknown treat.');
-  if (state.goldenBones < def.cost) return fail('Not enough Golden Bones.');
-  state.goldenBones -= def.cost;
+  if (currency === 'stars') {
+    if (state.premium.stars < def.starCost) return fail('Not enough Pup Stars.');
+    state.premium.stars -= def.starCost;
+  } else {
+    if (state.goldenBones < def.cost) return fail('Not enough Golden Bones.');
+    state.goldenBones -= def.cost;
+  }
   addTreat(state, id, def.durationSec);
+  bumpCounter(state, 'treat');
   return OK;
 }
 
@@ -228,6 +244,7 @@ export function catchSquirrel(state: GameState, squirrelId: number): RewardResul
   if (idx < 0) return null;
   const [sq] = state.squirrels.splice(idx, 1);
   state.stats.squirrelsCaught += 1;
+  bumpCounter(state, 'squirrels');
   const r = sq.reward;
   if (r.kind === 'cash') {
     const rate = Math.max(computeStats(state).incomePerSec, MIN_SQUIRREL_CASH_RATE);
@@ -247,6 +264,7 @@ export function openMail(state: GameState, rng: Rng = Math.random): RewardResult
   if (!(state.mailCount > 0)) return null;
   state.mailCount -= 1;
   state.stats.mailOpened += 1;
+  bumpCounter(state, 'letters');
   const roll = rng();
   if (roll < MAIL_BONES_CHANCE) {
     const amount = randInt(rng, MAIL_BONES_MIN, MAIL_BONES_MAX);

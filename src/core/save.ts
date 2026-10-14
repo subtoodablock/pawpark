@@ -2,8 +2,11 @@ import type { AutomationKey, GameState } from './types';
 import {
   ACADEMY,
   AUTO_PRESTIGE_THRESHOLDS,
+  DAILY_DIG_POOL,
   FINDS,
   KENNELS,
+  MAX_STREAK_FREEZES,
+  PREMIUM_SHOP,
   KENNEL_SLOTS,
   MAX_FLEET_SLOTS,
   SAVE_KEY,
@@ -13,6 +16,7 @@ import {
   VEHICLES,
 } from '../data';
 import { createInitialState } from './state';
+import { createDailyState, emptyCounters } from './counters';
 import { computeStats } from './stats';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -53,6 +57,53 @@ function cleanLevels(raw: unknown, defs: { id: string; maxLevel: number }[]): Re
   return out;
 }
 
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const cleanDay = (v: unknown): string | null => (typeof v === 'string' && DAY_RE.test(v) ? v : null);
+const cleanCount = (v: unknown): number => (isNum(v) && v > 0 ? Math.floor(v) : 0);
+
+function cleanDaily(raw: unknown): GameState['daily'] {
+  const out = createDailyState();
+  if (!isObj(raw)) return out;
+  out.lastSeenDay = cleanDay(raw.lastSeenDay);
+  out.lastClaimDay = cleanDay(raw.lastClaimDay);
+  out.streak = cleanCount(raw.streak);
+  out.bestStreak = Math.max(out.streak, cleanCount(raw.bestStreak));
+  out.streakFreezes = Math.min(MAX_STREAK_FREEZES, cleanCount(raw.streakFreezes));
+  out.streakMilestones = Array.isArray(raw.streakMilestones) ? raw.streakMilestones.filter(isNum) : [];
+  out.digsDay = cleanDay(raw.digsDay);
+  out.digBonusClaimed = raw.digBonusClaimed === true;
+  out.modifierId = typeof raw.modifierId === 'string' ? raw.modifierId : null;
+  if (isObj(raw.counters)) {
+    for (const k of Object.keys(out.counters) as (keyof typeof out.counters)[]) {
+      const v = raw.counters[k];
+      if (isNum(v) && v > 0) out.counters[k] = v;
+    }
+  }
+  out.digs = Array.isArray(raw.digs)
+    ? raw.digs
+        .filter(
+          (d): d is { kind: string; target: number; claimed?: unknown } =>
+            isObj(d) && DAILY_DIG_POOL.some((p) => p.kind === d.kind) && isNum(d.target),
+        )
+        .map((d) => ({ kind: d.kind as GameState['daily']['digs'][number]['kind'], target: d.target, claimed: d.claimed === true }))
+    : [];
+  if (out.digs.length === 0) {
+    out.digsDay = null;
+    out.counters = emptyCounters();
+  }
+  return out;
+}
+
+function cleanPremium(raw: unknown, base: GameState['premium']): GameState['premium'] {
+  const out = { ...base, receipts: [] as string[], shop: {} as Record<string, number> };
+  if (!isObj(raw)) return out;
+  out.stars = Math.floor(isNum(raw.stars) && raw.stars > 0 ? raw.stars : 0);
+  out.spendCents = Math.floor(isNum(raw.spendCents) && raw.spendCents > 0 ? raw.spendCents : 0);
+  out.receipts = Array.isArray(raw.receipts) ? raw.receipts.filter((r): r is string => typeof r === 'string') : [];
+  out.shop = cleanLevels(raw.shop, PREMIUM_SHOP);
+  return out;
+}
+
 export function deserialize(json: string): GameState | null {
   let parsed: unknown;
   try {
@@ -60,7 +111,7 @@ export function deserialize(json: string): GameState | null {
   } catch {
     return null;
   }
-  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 1)) return null;
+  if (!isObj(parsed) || (parsed.version !== SAVE_VERSION && parsed.version !== 2 && parsed.version !== 1)) return null;
   for (const k of NUMERIC_KEYS) {
     if (k in parsed && !isNum(parsed[k])) return null;
   }
@@ -69,7 +120,7 @@ export function deserialize(json: string): GameState | null {
   const base = createInitialState(Date.now());
   const merged = { ...base, ...parsed } as GameState;
 
-  merged.version = SAVE_VERSION as 2;
+  merged.version = SAVE_VERSION as 3;
   merged.kennels = cleanSlots(parsed.kennels ?? base.kennels, KENNEL_SLOTS, KENNELS.length);
   merged.vehicles = cleanSlots(parsed.vehicles ?? base.vehicles, MAX_FLEET_SLOTS, VEHICLES.length);
   merged.training = cleanLevels(parsed.training, TRAINING);
@@ -79,6 +130,9 @@ export function deserialize(json: string): GameState | null {
     Math.max(merged.findIndex, Math.floor(merged.highestFindIndex)),
     FINDS.length - 1,
   );
+
+  merged.daily = cleanDaily(parsed.daily);
+  merged.premium = cleanPremium(parsed.premium, base.premium);
 
   merged.trophies = Array.isArray(parsed.trophies)
     ? parsed.trophies.filter((t): t is string => typeof t === 'string')

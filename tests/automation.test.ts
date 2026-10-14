@@ -466,7 +466,7 @@ describe('save migration v1 -> v2', () => {
       mailTimer: 12,
     };
     const g = deserialize(JSON.stringify(v1))!;
-    expect(g.version).toBe(2);
+    expect(g.version).toBe(3);
     expect('mailReady' in g).toBe(false);
     expect(g.mailCount).toBe(1);
     expect(g.academy).toEqual({ epic_digging: 2, foreman_pup: 1 });
