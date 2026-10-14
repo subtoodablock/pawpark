@@ -235,6 +235,9 @@ needs this loop:
    `src/data/daily.ts`.
 3. Check the Whale (≥ 0.75) on a few `--seed`s: single runs vary by ±0.03.
 
+> Superseded by `docs/10-egg-inc-model.md` §6 (v5/v6 balance: timeline, gates, ratios and the
+> Academy costs changed). The caps in §10 above still apply and are met there.
+
 ## 11. Balance results
 Seed 12345, full run (`--profile all`) ≈ 41 s. Bone flow and Park of the Day
 change pacing a lot (the pure-AFK bot with no daily ritual now needs 141 days,

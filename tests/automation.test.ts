@@ -3,6 +3,7 @@ import {
   applyOfflineProgress,
   AUTOMATION_MAX_BUYS,
   AUTO_PRESTIGE_MIN_RUN_SEC,
+  DEFAULT_AUTO_PRESTIGE_THRESHOLD,
   FINDS,
   MAIL_INTERVAL_SEC,
   PRESTIGE_DIVISOR,
@@ -226,10 +227,10 @@ describe('runAutomation: purchases', () => {
 });
 
 describe('auto prestige', () => {
-  const GAIN = Math.floor(1e5 ** PRESTIGE_EXP_EARLY);
+  const GAIN = Math.floor(1e3 ** PRESTIGE_EXP_EARLY);
   function ready(): GameState {
     const s = withAutomation({ prestige: true });
-    s.runEarnings = PRESTIGE_DIVISOR * 1e5; // gain GAIN
+    s.runEarnings = PRESTIGE_DIVISOR * 1e3; // gain GAIN
     s.runTimeSec = AUTO_PRESTIGE_MIN_RUN_SEC;
     return s;
   }
@@ -480,7 +481,7 @@ describe('save migration v1 -> v2', () => {
     expect(g.mailCount).toBe(1);
     expect(g.academy).toEqual({ epic_digging: 2, foreman_pup: 1 });
     expect(g.automation).toEqual({
-      find: true, build: true, training: false, whistle: false, prestige: false, prestigeThreshold: 0.5,
+      find: true, build: true, training: false, whistle: false, prestige: false, prestigeThreshold: DEFAULT_AUTO_PRESTIGE_THRESHOLD,
     });
     expect(g.runTimeSec).toBe(0);
     expect(g.automationTimer).toBe(0);
@@ -503,7 +504,7 @@ describe('save migration v1 -> v2', () => {
       find: false, build: true, training: false, whistle: false, prestige: false, prestigeThreshold: 2,
     });
     const bad = deserialize(JSON.stringify({ ...s, automation: { prestigeThreshold: 7, build: 'x' } }))!;
-    expect(bad.automation.prestigeThreshold).toBe(0.5);
+    expect(bad.automation.prestigeThreshold).toBe(DEFAULT_AUTO_PRESTIGE_THRESHOLD);
     expect(bad.automation.find).toBe(true);
     expect(SAVE_KEY).toBe('pawpark.save.v1');
   });

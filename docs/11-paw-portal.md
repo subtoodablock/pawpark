@@ -40,11 +40,14 @@ cost in the current era. It is permanent and survives prestige.
   | # | Crew | Unlock | Lengths (short / standard / long) |
   |---|---|---|---|
   | 1 | Puppy Scouts | start | 30 m / 3 h / 12 h |
-  | 2 | Fetch Squad | 6 runs of #1 | 1 h / 4 h / 12 h |
-  | 3 | Rescue Rangers | 10 runs of #2 | 2 h / 6 h / 16 h |
-  | 4 | Sky Hounds | 15 runs of #3 | 3 h / 8 h / 24 h |
-  | 5 | Star Retrievers | 20 runs of #4 | 4 h / 12 h / 36 h |
-  | 6 | Infinity Pack | 30 runs of #5 | 6 h / 18 h / 48 h |
+  | 2 | Fetch Squad | 20 runs of #1 | 1 h / 4 h / 12 h |
+  | 3 | Rescue Rangers | 50 runs of #2 | 2 h / 6 h / 16 h |
+  | 4 | Sky Hounds | 100 runs of #3 | 3 h / 8 h / 24 h |
+  | 5 | Star Retrievers | 150 runs of #4 | 4 h / 12 h / 36 h |
+  | 6 | Infinity Pack | 250 runs of #5 | 6 h / 18 h / 48 h |
+
+  (Unlock runs were 6/10/15/20/30 in the first draft; see §9.) Loot per run is
+  short 1, standard 1/1/1/2/2/2 and long 1/2/2/3/3/4 items for crews 1…6.
 
   Higher crews bring **more and better loot** per run (capacity), and longer
   runs bring more again. Crew stars (from runs completed) add +capacity and
@@ -82,11 +85,11 @@ cost in the current era. It is permanent and survives prestige.
 
   | Relic | Stat | T1 → T4L |
   |---|---|---|
-  | Bacon Prism | layRate | +5% → +100% |
-  | Squeaky Orb | findValue | +5% → +100% |
+  | Bacon Prism | layRate | +2.5% → +197% (tier-driven grid: `0.025 × 3.3^tier × 1.3^rarity`) |
+  | Squeaky Orb | findValue | +2.5% → +197% (same grid) |
   | Pocket Kennel Key | kennelCapacity | +3% → +40% |
-  | Wormhole Leash | shippingCapacity | +5% → +100% |
-  | Rescue Beacon | rescueMult | +5% → +120% |
+  | Wormhole Leash | shippingCapacity | +3% → +100% |
+  | Rescue Beacon | rescueMult | +3% → +120% |
   | Time-Fold Collar | offlineHours | +1 h → +12 h |
   | Lucky Acorn | squirrelRate | +10% → +150% |
   | Ancient Bark Tablet | spiritPawBonus | +0.2% → +3% per paw |
@@ -166,3 +169,46 @@ Build v6 **after the v5 engine work lands**:
 2. UI: the panel and the portal art in the scene.
 3. Balance v5 + v6 together, as one pass that includes relics.
 4. Browser QA, then republish the play link.
+
+## 9. Balance results
+Measured with `scripts/balance.ts` (docs/10 §6), seed 12345, AFK+Daily unless
+noted. The same run also fixes the Find gates, so relics are inside the fitted
+timeline.
+
+| Check | Result | Target |
+|---|---|---|
+| Relic power at day 30 (Park Value ratio with / without the equipped relics, max-zoomies factor removed) | ×2.1 (raw product of the multiplier relics ×2.3) | ×2–3 |
+| Relic power at day 100 | ×7.5 (raw ×9.8) | ×5–10 |
+| Portal built | day 0.58 (Rawhide era after the first prestige) | day 1–2 |
+| Expeditions in 108 days | 774 launched, 422 skipped for lack of fuel cash, 771 collected | 3 slots kept busy |
+| Crafts / recycles | 130 / 851 | |
+| Crew runs (crews 1–6) | 21 / 60 / 101 / 260 / 319 / 10; crew 6 unlocks at day ~98 | |
+| Best relic tier | T4 (the first T4 relics appear in the first month, driven by the craft chain) | |
+| Golden Bones from loot / recycling | 967 / 465 over 108 days (≈ 9 + 4 per day) | a small share of the Academy's 18.4k |
+
+What the bot does: launches the plan with the best (loot × quality) per hour that
+returns by a check-in (rotating through the three dimensions that favour the
+families it values), pays Treat Fuel in cash and skips a slot it cannot afford,
+crafts 3 → 1 whenever it can pay the fee, equips the four best families by the
+estimated change in income and Park Value (one relic per family) and recycles
+dominated T4 relics and any family/tier stack above 9. It does not socket stones.
+
+**Changes (data only, `src/data/portal.ts`)**
+| What | First draft | Now | Why |
+|---|---|---|---|
+| Crew unlock runs (2…6) | 6 / 10 / 15 / 20 / 30 | 20 / 50 / 100 / 150 / 250 | crews 5–6 were open on day 14 and handed out T4 relics (×8) by day 20 |
+| Loot per run | short 1…4, standard 2…8, long 4…16 | short 1, standard 1/1/1/2/2/2, long 1/2/2/3/3/4 | the bot launched ~6 runs a day and recycled 3,000 relics worth 72k 🦴 (Academy maxed on day 60) |
+| Layout of layRate / findValue grids | geometric over 16 cells, +5% → +100% | `0.025 × 3.3^tier × 1.3^rarity` (T1 Common +2.5%, T4 Common +90%, T4 Legendary +197%) | tier, not rarity luck, drives power; the big numbers wait behind the craft chain |
+| Other families | +5% … | +3% … (shipping, rescue); the rest unchanged | |
+| Rarity odds T3 / T4 Legendary | 2% / 5% | 1% / 2% | one lucky roll was worth ×2 at day 20 |
+| `RARITY_STAR_BOOST`, craft-XP boost cap | 0.25, 1.5 | 0.08, 0.4 | same |
+| `STAR_CAPACITY_BONUS` | 0.12 | 0.08 | |
+| Fuel (short / standard / long) | 300 / 1,800 / 7,200 s of income | 1,200 / 7,200 / 28,800 s | expeditions are now a spending decision; the bot often picks shorter plans |
+| Craft fee (T1→2 / 2→3 / 3→4) | 900 / 3,600 / 14,400 s of income | 5,400 / 21,600 / 86,400 s | T4 relics arrived on day 14 |
+| Recycle bones (Common … Legendary, T1…T4) | up to 80 | up to 8 (`[[0,0,0,1],[0,0,1,2],[0,1,2,4],[1,2,4,8]]`) | recycling had become the main source of Golden Bones |
+
+The relic budget is noisy, because a few Epic or Legendary rolls move it
+noticeably between seeds. The figure is a Park Value ratio, so relic families that
+only act through other stats (shipping, kennel capacity, rescue, jar hours) are
+not counted; the "raw product" counts every multiplier relic.
+

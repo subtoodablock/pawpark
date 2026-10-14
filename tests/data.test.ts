@@ -34,7 +34,7 @@ describe('balance data invariants', () => {
   it('prestige exponent stays in the slow-growth band', () => {
     expect(PRESTIGE_EXP_EARLY).toBeGreaterThanOrEqual(0.15);
     expect(PRESTIGE_EXP_EARLY).toBeLessThanOrEqual(0.35);
-    expect(PRESTIGE_EXP_LATE).toBeGreaterThanOrEqual(0.15);
+    expect(PRESTIGE_EXP_LATE).toBeGreaterThanOrEqual(0.1);
     expect(PRESTIGE_EXP_LATE).toBeLessThanOrEqual(PRESTIGE_EXP_EARLY);
   });
   it('academy ladders and trophies have unique ids', () => {

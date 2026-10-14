@@ -17,21 +17,22 @@ export const PORTAL_BUILD_COST = 1e6;
 
 export const EXPEDITION_LENGTHS: readonly ExpeditionLength[] = ['short', 'standard', 'long'];
 
-/** loot items per run: short 1, standard round(scale), long round(2 x scale) (balance pass: relics are a bounded layer, docs/11 §5) */
-const CAP_SCALE = [1, 1.3, 1.6, 2, 2.4, 3];
+/** loot items per run by crew (balance pass: relics are a bounded layer, docs/11 §5) */
+const CAP_STANDARD = [1, 1, 1, 2, 2, 2];
+const CAP_LONG = [1, 2, 2, 3, 3, 4];
 const cap = (i: number): Record<ExpeditionLength, number> => ({
   short: 1,
-  standard: Math.max(1, Math.round(CAP_SCALE[i])),
-  long: Math.max(2, Math.round(2 * CAP_SCALE[i])),
+  standard: CAP_STANDARD[i],
+  long: CAP_LONG[i],
 });
 
 export const CREWS: CrewDef[] = [
   { id: 'puppy_scouts', name: 'Puppy Scouts', unlockRuns: 0, durationsSec: { short: 0.5 * H, standard: 3 * H, long: 12 * H }, capacity: cap(0), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'fetch_squad', name: 'Fetch Squad', unlockRuns: 15, durationsSec: { short: 1 * H, standard: 4 * H, long: 12 * H }, capacity: cap(1), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'rescue_rangers', name: 'Rescue Rangers', unlockRuns: 30, durationsSec: { short: 2 * H, standard: 6 * H, long: 16 * H }, capacity: cap(2), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'sky_hounds', name: 'Sky Hounds', unlockRuns: 60, durationsSec: { short: 3 * H, standard: 8 * H, long: 24 * H }, capacity: cap(3), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'star_retrievers', name: 'Star Retrievers', unlockRuns: 100, durationsSec: { short: 4 * H, standard: 12 * H, long: 36 * H }, capacity: cap(4), starRuns: [5, 12, 25, 45, 75] },
-  { id: 'infinity_pack', name: 'Infinity Pack', unlockRuns: 150, durationsSec: { short: 6 * H, standard: 18 * H, long: 48 * H }, capacity: cap(5), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'fetch_squad', name: 'Fetch Squad', unlockRuns: 20, durationsSec: { short: 1 * H, standard: 4 * H, long: 12 * H }, capacity: cap(1), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'rescue_rangers', name: 'Rescue Rangers', unlockRuns: 50, durationsSec: { short: 2 * H, standard: 6 * H, long: 16 * H }, capacity: cap(2), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'sky_hounds', name: 'Sky Hounds', unlockRuns: 100, durationsSec: { short: 3 * H, standard: 8 * H, long: 24 * H }, capacity: cap(3), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'star_retrievers', name: 'Star Retrievers', unlockRuns: 150, durationsSec: { short: 4 * H, standard: 12 * H, long: 36 * H }, capacity: cap(4), starRuns: [5, 12, 25, 45, 75] },
+  { id: 'infinity_pack', name: 'Infinity Pack', unlockRuns: 250, durationsSec: { short: 6 * H, standard: 18 * H, long: 48 * H }, capacity: cap(5), starRuns: [5, 12, 25, 45, 75] },
 ];
 
 export const DIMENSIONS: DimensionDef[] = [
@@ -67,12 +68,21 @@ function grid(lo: number, hi: number, digits: number): number[][] {
   return out;
 }
 
+/**
+ * Earnings-relevant families (dig rate, find value): effect = lo x tierFactor^tier x rarityFactor^rarity, so the TIER is what
+ * counts (a T4 Common beats a T3 Legendary) and the big numbers wait behind the crafting chain (balance pass, docs/11 §9).
+ */
+function tiered(lo: number, tierFactor: number, rarityFactor: number, digits: number): number[][] {
+  const p = 10 ** digits;
+  return [0, 1, 2, 3].map((t) => [0, 1, 2, 3].map((r) => Math.round(lo * tierFactor ** t * rarityFactor ** r * p) / p));
+}
+
 export const RELIC_FAMILIES: RelicFamilyDef[] = [
-  { id: 'bacon_prism', name: 'Bacon Prism', description: 'Pups dig faster.', stat: 'layRate', effect: grid(0.03, 0.75, 4) },
-  { id: 'squeaky_orb', name: 'Squeaky Orb', description: 'Finds are worth more.', stat: 'findValue', effect: grid(0.03, 0.75, 4) },
+  { id: 'bacon_prism', name: 'Bacon Prism', description: 'Pups dig faster.', stat: 'layRate', effect: tiered(0.025, 3.3, 1.3, 4) },
+  { id: 'squeaky_orb', name: 'Squeaky Orb', description: 'Finds are worth more.', stat: 'findValue', effect: tiered(0.025, 3.3, 1.3, 4) },
   { id: 'kennel_key', name: 'Pocket Kennel Key', description: 'Kennels hold more pups.', stat: 'kennelCapacity', effect: grid(0.03, 0.4, 4) },
-  { id: 'wormhole_leash', name: 'Wormhole Leash', description: 'Vehicles carry more.', stat: 'shippingCapacity', effect: grid(0.03, 0.75, 4) },
-  { id: 'rescue_beacon', name: 'Rescue Beacon', description: 'More pups are rescued.', stat: 'rescueMult', effect: grid(0.03, 0.9, 4) },
+  { id: 'wormhole_leash', name: 'Wormhole Leash', description: 'Vehicles carry more.', stat: 'shippingCapacity', effect: grid(0.03, 1.0, 4) },
+  { id: 'rescue_beacon', name: 'Rescue Beacon', description: 'More pups are rescued.', stat: 'rescueMult', effect: grid(0.03, 1.2, 4) },
   { id: 'timefold_collar', name: 'Time-Fold Collar', description: 'Longer Treat Jar (hours).', stat: 'offlineHours', effect: grid(1, 12, 2) },
   { id: 'lucky_acorn', name: 'Lucky Acorn', description: 'Squirrels visit more often.', stat: 'squirrelRate', effect: grid(0.1, 1.5, 4) },
   { id: 'bark_tablet', name: 'Ancient Bark Tablet', description: 'More power per Spirit Paw.', stat: 'spiritPawBonus', effect: grid(0.002, 0.03, 5) },
@@ -100,14 +110,14 @@ export const RARITY_NAMES: readonly string[] = ['Common', 'Rare', 'Epic', 'Legen
 export const RARITY_ODDS: number[][] = [
   [0.8, 0.17, 0.028, 0.002],
   [0.7, 0.23, 0.065, 0.005],
-  [0.6, 0.28, 0.1, 0.02],
-  [0.5, 0.3, 0.15, 0.05],
+  [0.61, 0.28, 0.1, 0.01],
+  [0.53, 0.3, 0.15, 0.02],
 ];
 /** each crew star raises the rare+ weights: weight_r x (1 + boost x r) */
-export const RARITY_STAR_BOOST = 0.25;
+export const RARITY_STAR_BOOST = 0.08;
 /** craftXp -> same boost, capped */
 export const RARITY_CRAFT_XP_BOOST = 0.01;
-export const RARITY_CRAFT_XP_BOOST_CAP = 1.5;
+export const RARITY_CRAFT_XP_BOOST_CAP = 0.4;
 /** +capacity fraction per crew star */
 export const STAR_CAPACITY_BONUS = 0.08;
 
@@ -116,11 +126,11 @@ export const STONE_DROP_CHANCE = 0.18;
 export const GOLDEN_BONES_CHANCE = 0.4;
 
 /** Fuel: cash = max(income, MIN) x seconds of income; Golden Bones as the alternative */
-export const FUEL_INCOME_SEC: Record<ExpeditionLength, number> = { short: 300, standard: 1800, long: 7200 };
+export const FUEL_INCOME_SEC: Record<ExpeditionLength, number> = { short: 1200, standard: 7200, long: 28800 };
 export const FUEL_BONES: Record<ExpeditionLength, number> = { short: 2, standard: 6, long: 15 };
 
 /** Craft fee into tier t+1 (index t = source tier 0..2): seconds of income */
-export const CRAFT_INCOME_SEC: number[] = [900, 3600, 14400];
+export const CRAFT_INCOME_SEC: number[] = [5400, 21600, 86400];
 /** craftXp gained per craft into tier t+1 */
 export const CRAFT_XP: number[] = [1, 3, 8];
 export const CRAFT_COUNT = 3;

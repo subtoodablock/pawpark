@@ -40,7 +40,7 @@ const BASE_TRAINING: TrainingDef[] = [
   { tier: 5, id: 'celebrity_pups', name: 'Celebrity Pups', icon: '🌟', description: 'Famous paws, famous prices.', stat: 'findValue', perLevel: 1, maxLevel: 6, baseCost: 1e17, costGrowth: 3.5 },
   { tier: 5, id: 'hyper_shipping', name: 'Hyper Shipping', icon: '⚡', description: 'Next-nanosecond delivery.', stat: 'shippingCapacity', perLevel: 0.6, maxLevel: 6, baseCost: 3e17, costGrowth: 3.5 },
   { tier: 5, id: 'dimension_kennels', name: 'Dimension Kennels', icon: '🌀', description: 'Bigger on the inside.', stat: 'kennelCapacity', perLevel: 0.6, maxLevel: 6, baseCost: 5e17, costGrowth: 3.5 },
-  { tier: 5, id: 'pup_portals', name: 'Pup Portals', icon: '🌌', description: 'Pups arrive through the portal by the thousand.', stat: 'rescueRate', perLevel: 2500, maxLevel: 6, baseCost: 8e17, costGrowth: 3.5 },
+  { tier: 5, id: 'pup_portals', name: 'Pup Portals', icon: '🌌', description: 'Pups arrive through the portal by the thousand.', stat: 'rescueRate', perLevel: 4500, maxLevel: 6, baseCost: 8e17, costGrowth: 3.5 },
   { tier: 5, id: 'rescue_armada', name: 'Rescue Armada', icon: '🛟', description: 'All rescues +100% per level.', stat: 'rescueMult', perLevel: 1, maxLevel: 5, baseCost: 2e18, costGrowth: 4 },
   { tier: 5, id: 'turbo_paws', name: 'Turbo Paws', icon: '🐾', description: 'Dig rate x2 per level.', stat: 'layRate', perLevel: 0, multPerLevel: 2, maxLevel: 3, baseCost: 5e18, costGrowth: 9 },
   { tier: 5, id: 'gravity_sleds', name: 'Gravity Sleds', icon: '🛷', description: 'Shipping capacity x2 per level.', stat: 'shippingCapacity', perLevel: 0, multPerLevel: 2, maxLevel: 2, baseCost: 8e18, costGrowth: 12 },

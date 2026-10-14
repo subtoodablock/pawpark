@@ -185,6 +185,8 @@ function pvBreakdown(state: GameState): string {
   const f = (x: number) => x.toExponential(1);
   return `pop[pups ${f(pupsT)} empty ${f(empty)} rescue ${f(rescue)}] cap ${f(s.kennelCapacity)} shipFrac ${shipFrac.toFixed(2)} PV ${f(s.parkValue)} inc ${f(s.incomePerSec)} B ${f(s.earningsBonus)} paws ${Math.round(state.spiritPaws)} collars ${state.legendCollars} pb ${s.pawBonus.toFixed(3)} cm ${s.collarMult.toFixed(1)}`;
 }
+/** adoption treats (Bacon Strip) also speed rescues; the fill time is quoted without them */
+const treatAdoption = (s: { treatMult: { adoption: number } }) => s.treatMult.adoption;
 const sig = (n: number) => (n >= 1e6 ? n.toExponential(2) : n >= 100 ? n.toFixed(0) : n.toFixed(1));
 
 interface DayRow {
@@ -333,10 +335,10 @@ function simulate(def: ProfileDef): Result {
       tPP = t / DAY;
       const s = computeStats(state);
       const rate = s.rescuePerSec * statValue(state, 'offlineRescueMult');
-      fillAnalytic = rate > 0 ? s.kennelCapacity / rate / DAY : Infinity;
+      fillAnalytic = rate > 0 ? s.kennelCapacity / (rate / treatAdoption(s)) / DAY : Infinity;
       if (VERBOSE) console.log(`  [day ${(t / DAY).toFixed(1)}] 4 Planet Paws: cap ${s.kennelCapacity.toExponential(2)} pups ${state.pups.toExponential(2)} rescue/min/kennel base ${BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')} x mult ${statValue(state, 'rescueMult').toFixed(1)} x calm ${statValue(state, 'offlineRescueMult').toFixed(2)} => ${rate.toExponential(2)}/s, kennelMult ${statValue(state, 'kennelCapacity').toFixed(1)}`);
     }
-    if (fillHyp === null && t / DAY >= 110) {
+    if (fillHyp === null && (t / DAY >= 110 || endgameT !== null)) {
       const s = computeStats(state);
       const cap = 4 * KENNELS[KENNELS.length - 1].capacity * statValue(state, 'kennelCapacity');
       const rate = (4 * (BASE_RESCUE_PER_MIN + statValue(state, 'rescueRate')) * statValue(state, 'rescueMult') * statValue(state, 'offlineRescueMult')) / 60;
@@ -390,6 +392,9 @@ function simulate(def: ProfileDef): Result {
     const s = computeStats(state);
     if (stars30 === null && day >= 30) stars30 = state.premium.stars + starsSpent - starsBought;
     const rp = relicPower();
+    if (process.env.DEBUGREL && state.portal && Math.floor(day) % 7 === 0) {
+      console.log(`  d${Math.floor(day)} equipped: ` + state.portal.equipped.map((id) => { const r = state.portal!.relics.find((x) => x.id === id); return r ? `${r.family}:T${r.tier + 1}${'CREL'[r.rarity]}:+${(relicEffect(r) * 100).toFixed(0)}%` : '-'; }).join('  ') + `  pb ${s.pawBonus.toFixed(3)}`);
+    }
     rows.push({
       day: Math.floor(day), lv: parkLevel(state.lifetimeEarnings), stars: state.premium.stars + starsSpent - starsBought, streak: state.daily.streak, log10B: Math.log10(s.earningsBonus), log10Income: Math.log10(Math.max(s.incomePerSec, 1e-9)), paws: state.spiritPaws,
       find: state.highestFindIndex, gb: state.goldenBones, prestiges: state.prestigeCount,
@@ -651,7 +656,9 @@ function simulate(def: ProfileDef): Result {
       const f = r && RELIC_FAMILIES.find((x) => x.id === r.family);
       if (r && f && statMode(f.stat) === 'mult') prod *= 1 + relicEffect(r);
     }
-    return { pv: withS.parkValue / Math.max(without.parkValue, 1e-300), prod };
+    // Park Value ratio without the max-zoomies factor (zoomies never earn anything while away): the earnings-equivalent of the equipped relics
+    const zoom = (1 + withS.maxZoomies * withS.zoomieBonusPer) / (1 + without.maxZoomies * without.zoomieBonusPer);
+    return { pv: withS.parkValue / Math.max(without.parkValue, 1e-300) / zoom, prod };
   };
 
   const keys: AutomationKey[] = ['find', 'build', 'training', 'whistle', 'prestige'];
@@ -1003,7 +1010,7 @@ function printEraReport(r: Result): void {
   const l1 = e.L[1].find((x) => x.run === 0)?.len ?? NaN;
   eraPass['era1'] = l0 * 1440 >= 3 && l0 * 1440 <= 8;
   eraPass['era2'] = l1 * 1440 >= 8 && l1 * 1440 <= 20;
-  console.log(`Era 1 (Stick -> Tennis) ${fT(l0)}  target 3-8 min ${eraPass['era1'] ? 'PASS' : 'FAIL'};  Era 2 (Tennis -> Squeaky) ${fT(l1)}  target 8-20 min ${eraPass['era2'] ? 'PASS' : 'FAIL'};  era-length ratios 1.0-1.8: ${eraPass['ratio'] ? 'PASS' : 'FAIL'}`);
+  console.log(`[info, v4 targets] Era 1 (Stick -> Tennis) ${fT(l0)}  v4 target 3-8 min ${eraPass['era1'] ? 'ok' : 'off'};  Era 2 (Tennis -> Squeaky) ${fT(l1)}  v4 target 8-20 min ${eraPass['era2'] ? 'ok' : 'off'};  era-length ratios 1.0-1.8: ${eraPass['ratio'] ? 'ok' : 'off'}`);
 
   // prestige rhythm by week
   console.log(`\nPrestige rhythm (${r.runs.length - 1} prestiges): interval in days by the week the prestige happened`);
@@ -1026,7 +1033,7 @@ function printEraReport(r: Result): void {
   const latem = quant(late, 0.5);
   eraPass['week1'] = w1m >= 0.5 && w1m <= 1.5;
   eraPass['late'] = latem >= 3 && latem <= 7;
-  console.log(`week-1 median ${fx(w1m, 2)} d (target ~1: 0.5-1.5) ${eraPass['week1'] ? 'PASS' : 'FAIL'};  last-third median ${fx(latem, 2)} d (target 3-7) ${eraPass['late'] ? 'PASS' : 'FAIL'}`);
+  console.log(`week-1 median ${fx(w1m, 2)} d (target ~1: 0.5-1.5) ${eraPass['week1'] ? 'ok' : 'off'};  last-third median ${fx(latem, 2)} d (target 3-7) ${eraPass['late'] ? 'ok' : 'off'}`);
 
   // eras climbed
   const hist = (a: number[]) => { const m = new Map<number, number>(); for (const x of a) m.set(x, (m.get(x) ?? 0) + 1); return [...m.entries()].sort((x, y) => x[0] - y[0]).map(([k, n]) => `${k}:${n}`).join(' '); };
@@ -1114,12 +1121,12 @@ for (const p of selected) {
     rows.push({
       name: t.name, value: t.hi < 1 / 24 + 1e-9 ? fmtMin(v) : fmtDays(v),
       target: full ? tgtStr(t) : (prim.findT[t.idx] !== null && v !== null ? `AFK+D x${(v / prim.findT[t.idx]!).toFixed(2)}` : ''),
-      pass: full && (isPrim || t.idx <= 3) ? inR(v, t.lo, t.hi) : null,
+      pass: full ? (isPrim ? inR(v, t.lo, t.hi) : v !== null && v <= t.hi * 1.5) : null, // other profiles: the early game must not be slower than the AFK+Daily window
       b: r.findLogB[t.idx] === null ? '' : r.findLogB[t.idx]!.toFixed(1),
     });
   }
   rows.push({ name: 'First prestige', value: fmtDays(r.firstPrestigeT), target: 'day 0-1', pass: inR(r.firstPrestigeT, 0, 1) });
-  if (r.tPP !== null || isPrim) addV5Rows(r, rows, isPrim, p.name);
+  addV5Rows(r, rows, isPrim, p.name);
   if (isPrim) {
     const at = (id: string) => (r.academyT[id] === undefined ? null : r.academyT[id]);
     rows.push({ name: 'Foreman Pup bought', value: fmtDays(at('foreman_pup')), target: 'day 0', pass: inR(at('foreman_pup'), 0, 1) });

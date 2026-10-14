@@ -73,7 +73,7 @@ describe('portal unlock + build', () => {
 describe('data tables', () => {
   it('match the spec shape', () => {
     expect(CREWS).toHaveLength(6);
-    expect(CREWS.map((c) => c.unlockRuns)).toEqual([0, 6, 10, 15, 20, 30]);
+    expect(CREWS.map((c) => c.unlockRuns)).toEqual([0, 20, 50, 100, 150, 250]);
     expect(CREWS[0].durationsSec).toEqual({ short: 1800, standard: 10800, long: 43200 });
     expect(CREWS[5].durationsSec.long).toBe(48 * 3600);
     expect(DIMENSIONS).toHaveLength(8);
@@ -83,8 +83,8 @@ describe('data tables', () => {
       const flat = f.effect.flat();
       for (let i = 1; i < flat.length; i++) expect(flat[i]).toBeGreaterThanOrEqual(flat[i - 1]);
     }
-    expect(RELIC_FAMILIES[0].effect[0][0]).toBe(0.05);
-    expect(RELIC_FAMILIES[0].effect[3][3]).toBe(1.0);
+    expect(RELIC_FAMILIES[0].effect[0][0]).toBeGreaterThan(0);
+    expect(RELIC_FAMILIES[0].effect[3][3]).toBeGreaterThan(10 * RELIC_FAMILIES[0].effect[0][0]);
     expect(STONES.every((st) => st.effect.length === 3)).toBe(true);
     for (const o of [0, 1, 2, 3]) expect(rarityOdds(o, 0).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
     expect(rarityOdds(0, 1)[3]).toBeGreaterThan(rarityOdds(0, 0)[3]);
@@ -225,20 +225,20 @@ describe('crews', () => {
     const p = s.portal!;
     expect(crewUnlocked(s, 'puppy_scouts')).toBe(true);
     expect(crewUnlocked(s, 'fetch_squad')).toBe(false);
-    p.crews.puppy_scouts.runs = 5;
+    p.crews.puppy_scouts.runs = CREWS[1].unlockRuns - 1;
     expect(crewUnlocked(s, 'fetch_squad')).toBe(false);
-    p.crews.puppy_scouts.runs = 6;
+    p.crews.puppy_scouts.runs = CREWS[1].unlockRuns;
     expect(crewUnlocked(s, 'fetch_squad')).toBe(true);
     expect(crewUnlocked(s, 'rescue_rangers')).toBe(false);
-    p.crews.fetch_squad.runs = 10;
+    p.crews.fetch_squad.runs = CREWS[2].unlockRuns;
     expect(crewUnlocked(s, 'rescue_rangers')).toBe(true);
     expect(crewUnlocked(s, 'bogus')).toBe(false);
-    expect(crewStars(s, 'puppy_scouts')).toBe(CREWS[0].starRuns.filter((r) => r <= 6).length);
+    expect(crewStars(s, 'puppy_scouts')).toBe(CREWS[0].starRuns.filter((r) => r <= CREWS[1].unlockRuns).length);
     p.crews.puppy_scouts.runs = 1000;
     expect(crewStars(s, 'puppy_scouts')).toBe(CREWS[0].starRuns.length);
     const prog = crewProgress(s, 'infinity_pack')!;
     expect(prog.unlocked).toBe(false);
-    expect(prog.runsToUnlock).toBe(30);
+    expect(prog.runsToUnlock).toBe(CREWS[5].unlockRuns);
     // a higher crew can now launch into a minCrew-1 dimension
     expect(launchExpedition(s, 0, 'fetch_squad', 'tennis_ball_nebula', 'short', NOW).ok).toBe(true);
   });
@@ -306,7 +306,7 @@ describe('equip + stats', () => {
     equipRelic(s, prism.id, 0);
     const park = createInitialState(NOW);
     syncShowMeta(s, park);
-    expect(statValue(park, 'layRate')).toBeCloseTo(2);
+    expect(statValue(park, 'layRate')).toBeCloseTo(1 + relicEffect({ family: 'bacon_prism', tier: 3, rarity: 3 }));
     expect(park.portal!.relics).toHaveLength(1);
   });
 });

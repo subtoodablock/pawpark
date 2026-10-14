@@ -192,11 +192,14 @@ describe('training', () => {
 describe('academy', () => {
   it('spends golden bones, rounds cost up, enforces max', () => {
     const s = newState();
-    expect(academyCost(s, 'epic_digging')).toBe(5);
+    const dig = ACADEMY.find((d) => d.id === 'epic_digging')!;
+    const c0 = Math.ceil(dig.baseCost);
+    s.goldenBones = c0 + 5;
+    expect(academyCost(s, 'epic_digging')).toBe(c0);
     expect(buyAcademy(s, 'epic_digging').ok).toBe(true);
     expect(s.goldenBones).toBe(5);
     expect(s.academy.epic_digging).toBe(1);
-    expect(academyCost(s, 'epic_digging')).toBe(6); // ceil(5.9)
+    expect(academyCost(s, 'epic_digging')).toBe(Math.ceil(dig.baseCost * dig.costGrowth)); // rounded up
     s.goldenBones = 1e9;
     for (let i = 0; i < 60; i++) buyAcademy(s, 'epic_digging');
     expect(s.academy.epic_digging).toBe(50);
@@ -336,8 +339,8 @@ describe('prestige', () => {
   });
   it('computes gain, resets run state, keeps meta state', () => {
     const s = newState();
-    s.runEarnings = PRESTIGE_DIVISOR * 1e5;
-    const gain = Math.floor(1e5 ** PRESTIGE_EXP_EARLY);
+    s.runEarnings = PRESTIGE_DIVISOR * 1e3;
+    const gain = Math.floor(1e3 ** PRESTIGE_EXP_EARLY);
     s.lifetimeEarnings = 5e10;
     s.cash = 123456;
     s.pups = 200;
@@ -395,10 +398,10 @@ describe('prestige', () => {
   });
   it('earnings bonus rises after prestige', () => {
     const s = newState();
-    s.runEarnings = PRESTIGE_DIVISOR * 1e5;
+    s.runEarnings = PRESTIGE_DIVISOR * 1e3;
     const before = computeStats(s).earningsBonus;
     const gained = prestige(s).gained!;
-    expect(gained).toBe(Math.floor((1e5) ** PRESTIGE_EXP_EARLY));
+    expect(gained).toBe(Math.floor((1e3) ** PRESTIGE_EXP_EARLY));
     expect(computeStats(s).earningsBonus).toBeCloseTo(1 + gained * BASE_SPIRIT_PAW_BONUS, 10);
     expect(computeStats(s).earningsBonus).toBeGreaterThan(before);
   });
