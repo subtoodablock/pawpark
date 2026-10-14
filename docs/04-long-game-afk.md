@@ -254,7 +254,14 @@ policy. Before owning retirement_planner, prestige manually if `gain ≥ max(1,
 real offline path (cap, chunking, automation) is what gets tested. Online
 sessions tick at dt = 1 s (Active may use dt = 2 s). The sim goes up to day 200.
 
-### Targets (AFK profile unless noted)
+> **v3 update (docs/06 §10–§11):** the primary profile is now **AFK+Daily** (AFK
+> check-ins plus the daily ritual), and the Daily/Active ratios are measured
+> against it. The Daily and Active bots also do the daily ritual, and Minnow and
+> Whale profiles were added. The timeline below is judged on AFK+Daily; the
+> numbers in §7 are the v2 results (pure AFK) and were superseded by docs/06
+> §11 (find gates 5–12, Retirement Planner cost and daily rewards changed).
+
+### Targets (AFK+Daily profile unless noted)
 | Milestone | Target |
 |---|---|
 | Tennis Ball | ≤ 10 min |
@@ -271,8 +278,10 @@ sessions tick at dt = 1 s (Active may use dt = 2 s). The sim goes up to day 200.
 | Time Bone | day 76–95 |
 | **Cosmic Bone (endgame)** | **day 95–125** |
 | Longest drought with no milestone event (new find record, trophy, Academy level, prestige) | ≤ 3 days |
-| Daily profile reaches Cosmic Bone | ≤ 1.5 × AFK days |
-| Active profile reaches Cosmic Bone | ≥ 0.7 × AFK days (active play helps, but by no more than ~30%) |
+| Daily profile reaches Cosmic Bone | ≤ 1.5 × AFK+Daily days |
+| Active profile reaches Cosmic Bone | ≥ 0.7 × AFK+Daily days (active play helps, but by no more than ~30%) |
+| Whale (Diamond, shop maxed, Bacon every evening) | ≥ 0.75 × AFK+Daily days (docs/06 §8.4) |
+| Minnow ($4.99) | ≥ 0.92 × AFK+Daily days |
 
 The report has a milestone table with PASS/FAIL for each profile and a
 per-day log for AFK (day, log10 B, log10 income, paws, finds, GB, prestiges,

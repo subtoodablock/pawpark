@@ -47,13 +47,31 @@ export const DAILY_MODIFIERS: DailyModifierDef[] = [
   { id: 'mail_rush', name: 'Mail Rush', icon: '📬', description: 'Letters arrive twice as often today.', stat: 'mailRate', multiplier: 2 },
 ];
 
-/** Park Level thresholds: lifetime earnings needed for level i+1. Geometric, x10^0.25 per level from $1K. */
-export const PARK_LEVEL_THRESHOLDS: number[] = Array.from({ length: 150 }, (_, i) =>
-  Number((1e3 * Math.pow(10, 0.25 * i)).toPrecision(3)),
-);
+/**
+ * Park Level thresholds: lifetime earnings needed for level i+1 (docs/06 section 6, fitted by `npm run balance -- --fit`).
+ * Fitted to the AFK+Daily bot so levels are spread roughly evenly in days: Lv 20 on day 0, ~40 by day 14, ~70 by day 50,
+ * Lv 100 at the Cosmic Bone. Levels 101-120 continue at x10^0.15 per level.
+ */
+export const PARK_LEVEL_THRESHOLDS: number[] = [
+  1000, 2500, 7800, 24300, 76000, 237000, 740000, 2310000,
+  7210000, 22500000, 70200000, 219000000, 684000000, 2130000000, 6660000000, 20800000000,
+  64800000000, 202000000000, 631000000000, 1970000000000, 64100000000000, 2.55e15, 5.91e16, 9.08e17,
+  7.58e18, 9.28e19, 3.91e20, 1.51e21, 5.68e21, 1.91e22, 4.12e22, 8.44e22,
+  1.62e23, 2.99e23, 5.41e23, 8.55e23, 1.26e24, 2.03e24, 2.93e24, 4.14e24,
+  9.37e24, 1.98e25, 3.86e25, 6.35e25, 9.83e25, 1.41e26, 1.87e26, 2.44e26,
+  3.47e26, 4.86e26, 6.63e26, 9.82e26, 1.47e27, 2.37e27, 3.59e27, 5.2e27,
+  7.66e27, 1.18e28, 1.65e28, 2.28e28, 3.12e28, 4.09e28, 5.23e28, 6.7e28,
+  8.66e28, 1.06e29, 1.27e29, 1.49e29, 1.8e29, 2.23e29, 3.19e29, 4.68e29,
+  6.87e29, 1e30, 1.6e30, 2.61e30, 4.13e30, 6.6e30, 1.04e31, 1.55e31,
+  2.25e31, 3.23e31, 4.51e31, 6.06e31, 8.17e31, 1.11e32, 1.49e32, 1.98e32,
+  2.7e32, 3.76e32, 5.16e32, 6.86e32, 9.14e32, 1.24e33, 1.58e33, 1.99e33,
+  2.42e33, 2.85e33, 3.26e33, 3.71e33, 5.24e33, 7.4e33, 1.04e34, 1.48e34,
+  2.08e34, 2.94e34, 4.16e34, 5.88e34, 8.3e34, 1.17e35, 1.66e35, 2.34e35,
+  3.3e35, 4.67e35, 6.59e35, 9.31e35, 1.32e36, 1.86e36, 2.62e36, 3.71e36,
+];
 
-/** One title per 10 levels: index = floor(level / 10), clamped. */
+/** One title per 10 levels: index = floor(level / 10), clamped. Lv 100 (the Cosmic Bone) is the last title. */
 export const PARK_TITLES: string[] = [
   'Puppy Walker', 'Dog Sitter', 'Pack Walker', 'Kennel Keeper', 'Top Dog', 'Hound Master',
-  'Park Ranger', 'Canine Captain', 'Dog Mayor', 'Pup Tycoon', 'Galactic Alpha', 'Paw Park Legend',
+  'Park Ranger', 'Canine Captain', 'Dog Mayor', 'Pup Tycoon', 'Paw Park Legend',
 ];

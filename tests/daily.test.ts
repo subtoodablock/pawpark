@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACADEMY, DAILY_DIG_POOL, DAILY_MODIFIERS, DAILY_TREATS, DIGS_PER_DAY, DIG_BONUS_BONES, DIG_BONUS_STARS,
-  EARN_DIG_MIN, PARK_LEVEL_THRESHOLDS, PARK_TITLES, STREAK_MILESTONES, TRAINING, TROPHIES,
+  EARN_DIG_MIN, PARK_LEVEL_THRESHOLDS, PARK_TITLES, STREAK_MILESTONES, TRAINING, TROPHIES, VIP_TIERS,
   applyOfflineProgress, buyKennel, buyTraining, buyTreat, catchSquirrel, claimDailyDig, claimDailyDigBonus,
   claimDailyTreat, computeStats, createInitialState, dailyDigProgress, dayDiff, dayKeyOf, deserialize,
   hashString, openMail, parkLevel, parkTitle, prestige, refreshDaily, runAutomation, seededRng, serialize,
@@ -53,7 +53,7 @@ describe('daily treat streak', () => {
     expect(r.ok).toBe(true);
     expect(r.streak).toBe(1);
     expect(r.reward).toEqual(DAILY_TREATS[0]);
-    expect(s.goldenBones).toBe(bones + 5);
+    expect(s.goldenBones).toBe(bones + (DAILY_TREATS[0] as { amount: number }).amount);
   });
   it('same-day double claim fails', () => {
     const s = newState();
@@ -72,8 +72,9 @@ describe('daily treat streak', () => {
     const bones = s.goldenBones;
     const r7 = claimDailyTreat(s, d(7));
     expect(r7.streak).toBe(7);
-    expect(s.goldenBones).toBe(bones + 20);
-    expect(s.premium.stars).toBe(5);
+    const bundle = DAILY_TREATS[6] as { goldenBones: number; stars: number };
+    expect(s.goldenBones).toBe(bones + bundle.goldenBones);
+    expect(s.premium.stars).toBe(bundle.stars);
     expect(claimDailyTreat(s, d(8)).reward).toEqual(DAILY_TREATS[0]); // cycle wraps
     expect(s.daily.bestStreak).toBe(8);
   });
@@ -117,13 +118,13 @@ describe('daily treat streak', () => {
     const r = claimDailyTreat(s, d(2));
     expect(r.streak).toBe(30);
     expect(r.events).toEqual([{ type: 'streakMilestone', streak: 30, stars: STREAK_MILESTONES[0].stars }]);
-    expect(s.premium.stars).toBe(25);
+    expect(s.premium.stars).toBe(STREAK_MILESTONES[0].stars);
     // lose the streak then climb to 30 again
     s.daily.streak = 29; s.daily.lastClaimDay = d(10);
     const r2 = claimDailyTreat(s, d(11));
     expect(r2.streak).toBe(30);
     expect(r2.events).toEqual([]);
-    expect(s.premium.stars).toBe(25);
+    expect(s.premium.stars).toBe(STREAK_MILESTONES[0].stars);
   });
 });
 
@@ -192,7 +193,7 @@ describe('daily digs', () => {
     expect(dailyDigProgress(s, 0)).toEqual({ value: 4, target: 4, done: true });
     const bones = s.goldenBones;
     expect(claimDailyDig(s, 0).ok).toBe(true);
-    expect(s.goldenBones).toBe(bones + 5);
+    expect(s.goldenBones).toBe(bones + DAILY_DIG_POOL.find((p) => p.kind === 'letters')!.rewardBones);
     expect(claimDailyDig(s, 0).ok).toBe(false);
     expect(claimDailyDigBonus(s).ok).toBe(false); // not all claimed
     claimDailyDig(s, 1); claimDailyDig(s, 2);
@@ -378,15 +379,15 @@ describe('modifier, park level, vip in stats', () => {
     const mail0 = computeStats(s).mailCapacity;
     const off0 = computeStats(s).offlineCapSec;
     s.premium.spendCents = 500;
-    expect(statValue(s, 'earnings')).toBeCloseTo(1.02);
+    expect(statValue(s, 'earnings')).toBeCloseTo(1 + VIP_TIERS[1].earningsBonus);
     s.premium.spendCents = 2000;
-    expect(statValue(s, 'earnings')).toBeCloseTo(1.04);
+    expect(statValue(s, 'earnings')).toBeCloseTo(1 + VIP_TIERS[2].earningsBonus);
     expect(computeStats(s).mailCapacity).toBe(mail0 + 1);
     s.premium.spendCents = 5000;
-    expect(statValue(s, 'earnings')).toBeCloseTo(1.06);
+    expect(statValue(s, 'earnings')).toBeCloseTo(1 + VIP_TIERS[3].earningsBonus);
     expect(computeStats(s).offlineCapSec).toBe(off0 + 2 * 3600);
     s.premium.spendCents = 25000;
-    expect(statValue(s, 'earnings')).toBeCloseTo(1.1);
+    expect(statValue(s, 'earnings')).toBeCloseTo(1 + VIP_TIERS[5].earningsBonus);
     expect(computeStats(s).vipTier).toBe(5);
   });
 });
@@ -394,7 +395,7 @@ describe('modifier, park level, vip in stats', () => {
 describe('share text', () => {
   it('matches the snapshot format', () => {
     const s = newState();
-    s.lifetimeEarnings = 1e9;
+    s.lifetimeEarnings = PARK_LEVEL_THRESHOLDS[24]; // Park Level 25
     s.findIndex = 2;
     s.spiritPaws = 3_400_000;
     s.trophies = ['a', 'b'];
@@ -402,6 +403,7 @@ describe('share text', () => {
     withDigs(s, ['letters', 'squirrels', 'treat'], '2026-10-14');
     s.daily.digs[0].claimed = true;
     s.daily.counters.squirrels = 3;
+    expect(parkLevel(s.lifetimeEarnings)).toBe(25);
     expect(shareText(s, '2026-10-14')).toMatchInlineSnapshot(`
       "🐾 Paw Park — Lv 25 · Pack Walker
       🧸 Squeaky Toy · 🔥 12-day streak

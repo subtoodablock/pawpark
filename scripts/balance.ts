@@ -316,7 +316,7 @@ function simulate(def: ProfileDef): Result {
   const claimDigs = () => {
     const d = state.daily;
     for (let i = 0; i < d.digs.length; i++) claimDailyDig(state, i);
-    if (process.env.DIGLOG && VERBOSE) console.log(`  dig d${d.digsDay} ${d.digs.map((x, i) => `${x.kind}${x.claimed ? '+' : '-'}`).join(' ')} mod ${d.modifierId}`);
+    if (process.env.DIGLOG && VERBOSE) console.log(`  dig d${d.digsDay} ${d.digs.map((x) => `${x.kind}${x.claimed ? '+' : '-'}`).join(' ')} mod ${d.modifierId}`);
     claimDailyDigBonus(state);
   };
   const dayIdxOf = (t: number) => Math.floor((t + START_HOUR * H) / DAY);
@@ -507,8 +507,17 @@ if (argv.includes('--fit') && prim.findT[12] !== null) {
     }
     return c[c.length - 1][1];
   };
+  // smooth in log-time (+-12%) so prestige/find lumps in the lifetime curve do not make uneven $ steps
+  const smooth = (d: number) => {
+    let acc = 0;
+    for (let k = -4; k <= 4; k++) acc += at(d * Math.exp(0.03 * k));
+    return acc / 9;
+  };
   const th: number[] = [1000];
-  for (let L = 2; L <= 100; L++) th.push(Math.max(th[th.length - 1] * 1.05, Number(Math.pow(10, at(levelTargetDay(L, cosmicDay))).toPrecision(3))));
+  // Lv2..Lv20: geometric from $2.5K (the first minutes) to the fitted Lv20 threshold
+  const lv20 = Math.pow(10, smooth(levelTargetDay(20, cosmicDay)));
+  for (let L = 2; L <= 20; L++) th.push(2500 * Math.pow(lv20 / 2500, (L - 2) / 18));
+  for (let L = 21; L <= 100; L++) th.push(Math.max(th[th.length - 1] * 1.05, Math.pow(10, smooth(levelTargetDay(L, cosmicDay)))));
   const top = th[th.length - 1];
   for (let L = 101; L <= 120; L++) th.push(Number((top * Math.pow(10, 0.15 * (L - 100))).toPrecision(3)));
   console.log('PARK_LEVEL_THRESHOLDS fit:\n' + JSON.stringify(th.map((x) => Number(x.toPrecision(3)))));

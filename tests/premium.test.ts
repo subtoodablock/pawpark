@@ -44,7 +44,7 @@ describe('premium shop', () => {
     const before = statValue(s, 'findValue');
     expect(buyPremium(s, 'star_kibble').ok).toBe(true);
     expect(s.premium.stars).toBe(9_900);
-    expect(statValue(s, 'findValue')).toBeCloseTo(before * 1.05);
+    expect(statValue(s, 'findValue')).toBeCloseTo(before * (1 + PREMIUM_SHOP.find((d) => d.id === 'star_kibble')!.perLevel));
     for (let i = 0; i < 4; i++) expect(buyPremium(s, 'star_kibble').ok).toBe(true);
     expect(buyPremium(s, 'star_kibble').ok).toBe(false);
     expect(s.premium.shop.star_kibble).toBe(5);
@@ -63,7 +63,7 @@ describe('premium shop', () => {
     expect(buyPremium(s, 'star_hound').ok).toBe(false);
     s.premium.spendCents = 2000;
     expect(buyPremium(s, 'star_hound').ok).toBe(true);
-    expect(computeStats(s).squirrelHoundChance).toBeCloseTo(0.1);
+    expect(computeStats(s).squirrelHoundChance).toBeCloseTo(PREMIUM_SHOP.find((d) => d.id === 'star_hound')!.perLevel);
     const poor = newState();
     expect(buyPremium(poor, 'star_beds').ok).toBe(false);
     expect(buyPremium(poor, 'nope').ok).toBe(false);
