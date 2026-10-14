@@ -27,13 +27,13 @@ export const MAX_COST_SCALE = 1.5;
  */
 export const KENNEL_COST_GROWTH = 40;
 export const VEHICLE_COST_GROWTH = 150;
-export const KENNEL_EXTRA_GROWTH: number = 3.62;
+export const KENNEL_EXTRA_GROWTH: number = 3.7;
 export const VEHICLE_EXTRA_GROWTH: number = 3;
 export const LADDER_STEEP_FROM = 3;
 export const TRAINING_TIER_COST_SCALE: number = 20;
 
 /** global multiplier on the long Academy ladders (balance knob; 1 = as authored in academy.ts) */
-export const ACADEMY_LADDER_COST_SCALE: number = 1.25;
+export const ACADEMY_LADDER_COST_SCALE: number = 1.35;
 
 export const KENNEL_SLOTS = 4;
 export const BASE_FLEET_SLOTS = 4;
@@ -73,7 +73,7 @@ export const BASE_MAX_CARS = 5;
 /** adding a car to a slot with c cars costs topTierCost * CAR_COST_GROWTH^c */
 export const CAR_COST_GROWTH = 3;
 
-export const BASE_OFFLINE_HOURS = 10;
+export const BASE_OFFLINE_HOURS = 12;
 /** offline simulation runs stepSimulation in chunks of at most this many seconds */
 export const OFFLINE_MAX_CHUNK_SEC = 60;
 export const OFFLINE_MIN_SEC = 5;

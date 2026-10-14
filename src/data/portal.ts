@@ -19,7 +19,7 @@ export const EXPEDITION_LENGTHS: readonly ExpeditionLength[] = ['short', 'standa
 
 /** loot items per run by crew (balance pass: relics are a bounded layer, docs/11 §5) */
 const CAP_STANDARD = [1, 1, 1, 2, 2, 2];
-const CAP_LONG = [1, 2, 2, 3, 3, 4];
+const CAP_LONG = [2, 3, 4, 5, 6, 8];
 const cap = (i: number): Record<ExpeditionLength, number> => ({
   short: 1,
   standard: CAP_STANDARD[i],
@@ -137,10 +137,10 @@ export const CRAFT_COUNT = 3;
 
 /** golden bones for recycling a relic: [tier][rarity] */
 export const RECYCLE_BONES: number[][] = [
-  [0, 0, 0, 1],
-  [0, 0, 1, 2],
-  [0, 1, 2, 4],
-  [1, 2, 4, 8],
+  [1, 1, 1, 2],
+  [1, 1, 2, 3],
+  [1, 2, 3, 4],
+  [1, 2, 3, 4],
 ];
 
 export const RELIC_STATS: readonly Stat[] = RELIC_FAMILIES.map((f) => f.stat);

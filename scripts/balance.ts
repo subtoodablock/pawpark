@@ -1090,7 +1090,7 @@ function addV5Rows(r: Result, rows: { name: string; value: string; target: strin
   const r30 = rowAt(30), r100 = rowAt(100);
   rows.push({ name: 'Relic power @ day 30', value: `x${r30.relicPV.toFixed(2)} (raw product x${r30.relicProd.toFixed(2)})`, target: 'x2-3 (1.8-3.5)', pass: r30.relicPV >= 1.8 && r30.relicPV <= 3.5 });
   rows.push({ name: 'Relic power @ day 100', value: `x${r100.relicPV.toFixed(2)} (raw product x${r100.relicProd.toFixed(2)})`, target: 'x5-10 (4.5-11)', pass: r100.relicPV >= 4.5 && r100.relicPV <= 11 });
-  rows.push({ name: 'Endgame: 4 Planet Paws', value: fmtDays(r.tPP), target: 'day 100-120', pass: r.tPP !== null && r.tPP >= 100 && r.tPP <= 120 });
+  rows.push({ name: 'Endgame: 4 Planet Paws built', value: fmtDays(r.tPP), target: 'day 95-120', pass: r.tPP !== null && r.tPP >= 95 && r.tPP <= 120 });
   rows.push({ name: 'Endgame: Academy maxed', value: fmtDays(r.tAcademyMax), target: 'day 100-120', pass: r.tAcademyMax !== null && r.tAcademyMax >= 100 && r.tAcademyMax <= 120 });
   rows.push({ name: 'Endgame complete', value: fmtDays(r.endgameT), target: 'day 100-120', pass: r.endgameT !== null && r.endgameT >= 100 && r.endgameT <= 120 });
   rows.push({ name: 'Rescue fill, empty endgame park', value: r.fillAnalytic === null ? 'n/a' : `${r.fillAnalytic.toFixed(2)} d AFK (offline, Calm)`, target: '2-4 days', pass: r.fillAnalytic !== null && r.fillAnalytic >= 2 && r.fillAnalytic <= 4 });

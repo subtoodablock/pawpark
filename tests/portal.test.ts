@@ -71,6 +71,12 @@ describe('portal unlock + build', () => {
 });
 
 describe('data tables', () => {
+  it('every recycle reward is at least 1 Golden Bone and rises with rarity', () => {
+    for (const row of RECYCLE_BONES) {
+      for (const v of row) expect(v).toBeGreaterThanOrEqual(1);
+      for (let i = 1; i < row.length; i++) expect(row[i]).toBeGreaterThanOrEqual(row[i - 1]);
+    }
+  });
   it('match the spec shape', () => {
     expect(CREWS).toHaveLength(6);
     expect(CREWS.map((c) => c.unlockRuns)).toEqual([0, 20, 50, 100, 150, 250]);

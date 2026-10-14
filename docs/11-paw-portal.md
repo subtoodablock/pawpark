@@ -47,7 +47,7 @@ cost in the current era. It is permanent and survives prestige.
   | 6 | Infinity Pack | 250 runs of #5 | 6 h / 18 h / 48 h |
 
   (Unlock runs were 6/10/15/20/30 in the first draft; see §9.) Loot per run is
-  short 1, standard 1/1/1/2/2/2 and long 1/2/2/3/3/4 items for crews 1…6.
+  short 1, standard 1/1/1/2/2/2 and long 2/3/4/5/6/8 items for crews 1…6 (long runs pay well because a one-check-in player can only use long runs).
 
   Higher crews bring **more and better loot** per run (capacity), and longer
   runs bring more again. Crew stars (from runs completed) add +capacity and
@@ -172,19 +172,18 @@ Build v6 **after the v5 engine work lands**:
 
 ## 9. Balance results
 Measured with `scripts/balance.ts` (docs/10 §6), seed 12345, AFK+Daily unless
-noted. The same run also fixes the Find gates, so relics are inside the fitted
-timeline.
+noted. The same run fixes the Find gates, so relics are inside the fitted timeline.
 
 | Check | Result | Target |
 |---|---|---|
-| Relic power at day 30 (Park Value ratio with / without the equipped relics, max-zoomies factor removed) | ×2.1 (raw product of the multiplier relics ×2.3) | ×2–3 |
-| Relic power at day 100 | ×7.5 (raw ×9.8) | ×5–10 |
+| Relic power at day 30 (Park Value ratio with / without the equipped relics, max-zoomies factor removed) | ×1.9 (raw product of the multiplier relics ×2.1) | ×2–3 |
+| Relic power at day 100 | ×7.7 (raw ×23: shipping and rescue relics count there but not in the Park Value) | ×5–10 |
 | Portal built | day 0.58 (Rawhide era after the first prestige) | day 1–2 |
-| Expeditions in 108 days | 774 launched, 422 skipped for lack of fuel cash, 771 collected | 3 slots kept busy |
-| Crafts / recycles | 130 / 851 | |
-| Crew runs (crews 1–6) | 21 / 60 / 101 / 260 / 319 / 10; crew 6 unlocks at day ~98 | |
+| Expeditions in 111 days | 688 launched, 452 skipped for lack of fuel cash, 685 collected | 3 slots kept busy |
+| Crafts / recycles | 126 / 823 | |
+| Crew runs (crews 1–6) | 21 / 70 / 102 / 233 / 252 / 7 | |
 | Best relic tier | T4 (the first T4 relics appear in the first month, driven by the craft chain) | |
-| Golden Bones from loot / recycling | 967 / 465 over 108 days (≈ 9 + 4 per day) | a small share of the Academy's 18.4k |
+| Golden Bones from loot / recycling | 840 / 1,260 over 111 days (≈ 8 + 11 per day) | a small share of the Academy's 19.6k |
 
 What the bot does: launches the plan with the best (loot × quality) per hour that
 returns by a check-in (rotating through the three dimensions that favour the
@@ -197,18 +196,18 @@ dominated T4 relics and any family/tier stack above 9. It does not socket stones
 | What | First draft | Now | Why |
 |---|---|---|---|
 | Crew unlock runs (2…6) | 6 / 10 / 15 / 20 / 30 | 20 / 50 / 100 / 150 / 250 | crews 5–6 were open on day 14 and handed out T4 relics (×8) by day 20 |
-| Loot per run | short 1…4, standard 2…8, long 4…16 | short 1, standard 1/1/1/2/2/2, long 1/2/2/3/3/4 | the bot launched ~6 runs a day and recycled 3,000 relics worth 72k 🦴 (Academy maxed on day 60) |
-| Layout of layRate / findValue grids | geometric over 16 cells, +5% → +100% | `0.025 × 3.3^tier × 1.3^rarity` (T1 Common +2.5%, T4 Common +90%, T4 Legendary +197%) | tier, not rarity luck, drives power; the big numbers wait behind the craft chain |
+| Loot per run | short 1…4, standard 2…8, long 4…16 | short 1, standard 1/1/1/2/2/2, long 2/3/4/5/6/8 | the bot launched ~6 runs a day and recycled 3,000 relics worth 72k 🦴 (Academy maxed on day 60) |
+| Grid of layRate / findValue | geometric over 16 cells, +5% → +100% | `0.025 × 3.3^tier × 1.3^rarity` (T1 Common +2.5%, T4 Common +90%, T4 Legendary +197%) | tier, not rarity luck, drives power; the big numbers wait behind the craft chain |
 | Other families | +5% … | +3% … (shipping, rescue); the rest unchanged | |
 | Rarity odds T3 / T4 Legendary | 2% / 5% | 1% / 2% | one lucky roll was worth ×2 at day 20 |
 | `RARITY_STAR_BOOST`, craft-XP boost cap | 0.25, 1.5 | 0.08, 0.4 | same |
 | `STAR_CAPACITY_BONUS` | 0.12 | 0.08 | |
 | Fuel (short / standard / long) | 300 / 1,800 / 7,200 s of income | 1,200 / 7,200 / 28,800 s | expeditions are now a spending decision; the bot often picks shorter plans |
 | Craft fee (T1→2 / 2→3 / 3→4) | 900 / 3,600 / 14,400 s of income | 5,400 / 21,600 / 86,400 s | T4 relics arrived on day 14 |
-| Recycle bones (Common … Legendary, T1…T4) | up to 80 | up to 8 (`[[0,0,0,1],[0,0,1,2],[0,1,2,4],[1,2,4,8]]`) | recycling had become the main source of Golden Bones |
+| Recycle bones (T1…T4 × Common…Legendary) | `[1,1,2,4] [2,3,6,12] [4,8,15,30] [10,20,40,80]` | `[1,1,1,2] [1,1,2,3] [1,2,3,4] [1,2,3,4]` | every recycle now pays at least 1 🦴 (the UI showed "+0"); top end cut so recycling stays a small income |
 
 The relic budget is noisy, because a few Epic or Legendary rolls move it
-noticeably between seeds. The figure is a Park Value ratio, so relic families that
-only act through other stats (shipping, kennel capacity, rescue, jar hours) are
-not counted; the "raw product" counts every multiplier relic.
-
+noticeably between seeds (seed 4 reached ×13 at day 100 against ×7.7 on seed 12345).
+The figure is a Park Value ratio, so relic families that only act through other
+stats (shipping, kennel capacity, rescue, jar hours) are not counted; the "raw
+product" counts every multiplier relic.
