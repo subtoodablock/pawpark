@@ -179,6 +179,19 @@ interface Result {
   starsSpent: number;
   stars30: number | null;
   bestStreak: number;
+  /** v4 era log: one record per prestige run (docs/08 section 6) */
+  runs: RunRec[];
+}
+
+/** One prestige run: entry[k] = day when the park entered Find k in this run (undefined = never reached). */
+interface RunRec {
+  startT: number;
+  endT: number | null;
+  /** earnings bonus (B) at the start of the run */
+  bonus: number;
+  prevBest: number;
+  maxFind: number;
+  entry: number[];
 }
 
 function academyTotal(state: GameState): number {
@@ -221,8 +234,23 @@ function simulate(def: ProfileDef): Result {
   let starsBought = 0;
   let stars30: number | null = null;
   let lastClaimIdx = -1;
+  const runs: RunRec[] = [{ startT: 0, endT: null, bonus: 1, prevBest: 0, maxFind: 0, entry: [0] }];
+  let lastFindIdx = 0;
 
   const observe = (t: number) => {
+    // era log: prestige first (it resets findIndex), then era entries of the (new) run
+    if (state.prestigeCount > runs.length - 1) {
+      const cur = runs[runs.length - 1];
+      cur.endT = t / DAY;
+      runs.push({ startT: t / DAY, endT: null, bonus: computeStats(state).earningsBonus, prevBest: Math.max(cur.maxFind, cur.prevBest), maxFind: 0, entry: [t / DAY] });
+      lastFindIdx = 0;
+    }
+    if (state.findIndex > lastFindIdx) {
+      const cur = runs[runs.length - 1];
+      for (let k = lastFindIdx + 1; k <= state.findIndex; k++) cur.entry[k] = t / DAY;
+      if (state.findIndex > cur.maxFind) cur.maxFind = state.findIndex;
+      lastFindIdx = state.findIndex;
+    }
     if (state.highestFindIndex > lastHF) {
       for (let k = lastHF + 1; k <= state.highestFindIndex; k++) { findT[k] = t / DAY; findLogB[k] = Math.log10(computeStats(state).earningsBonus); }
       lastHF = state.highestFindIndex;
@@ -325,9 +353,29 @@ function simulate(def: ProfileDef): Result {
   const keys: AutomationKey[] = ['find', 'build', 'training', 'whistle', 'prestige'];
   const longestGapSec = (def.name === 'daily' ? 24 : 9.5) * H;
 
+  /**
+   * applyOfflineProgress in 60 s sub-steps (the engine's own chunk size) so era / prestige moments are observed with
+   * ~1 min resolution. Same Treat Jar cap and 5 s minimum as one big call.
+   */
+  const advanceTo = (t: number) => {
+    let u = state.lastSaved / 1000;
+    if (t - u < 5) return;
+    const cap = computeStats(state).offlineCapSec;
+    if (t - u > cap) u = t - cap;
+    state.lastSaved = u * 1000;
+    while (t - u > 1e-6 && !done) {
+      let step = Math.min(60, t - u);
+      if (t - (u + step) < 5) step = t - u;
+      applyOfflineProgress(state, (u + step) * 1000);
+      u += step;
+      observe(u);
+    }
+    state.lastSaved = t * 1000;
+  };
+
   /** returns true when this is the first check-in of the local day (daily ritual start) */
   const checkin = (t: number): boolean => {
-    if (state.lastSaved < t * 1000) applyOfflineProgress(state, t * 1000);
+    if (state.lastSaved < t * 1000) advanceTo(t);
     const dayIdx = dayIdxOf(t);
     let firstOfDay = false;
     if (def.daily) {
@@ -442,6 +490,7 @@ function simulate(def: ProfileDef): Result {
     academyBuys: academyBuys, finalPaws: state.spiritPaws, finalGB: state.goldenBones, prestiges: state.prestigeCount,
     secs: (Date.now() - t0) / 1000,
     levelT, curve, starsFree: state.premium.stars + starsSpent - starsBought, starsSpent, stars30, bestStreak: state.daily.bestStreak,
+    runs,
   };
 }
 
@@ -523,6 +572,118 @@ if (argv.includes('--fit') && prim.findT[12] !== null) {
   console.log('PARK_LEVEL_THRESHOLDS fit:\n' + JSON.stringify(th.map((x) => Number(x.toPrecision(3)))));
 }
 
+// ---------------------------------------------------------------- v4 era report (docs/08 section 6)
+const quant = (a: number[], q: number) => {
+  if (a.length === 0) return NaN;
+  const b = [...a].sort((x, y) => x - y);
+  const i = (b.length - 1) * q;
+  const lo = Math.floor(i);
+  return b[lo] + (b[Math.min(b.length - 1, lo + 1)] - b[lo]) * (i - lo);
+};
+const fx = (x: number, d = 1) => (Number.isNaN(x) ? 'n/a' : x.toFixed(d));
+const fT = (d: number) => (Number.isNaN(d) ? 'n/a' : d < 1 / 24 ? `${(d * 1440).toFixed(1)}m` : d < 2 ? `${(d * 24).toFixed(1)}h` : `${d.toFixed(1)}d`);
+
+interface EraStats {
+  /** L[k] = list of (run index, days spent in Find k before the gate) for complete eras */
+  L: { run: number; len: number }[][];
+  ratios: { run: number; k: number; ratio: number }[];
+  intervals: { t: number; gap: number }[];
+  newEras: number[];
+  traversed: number[];
+}
+function eraStats(r: Result): EraStats {
+  const L: { run: number; len: number }[][] = FINDS.map(() => []);
+  const ratios: { run: number; k: number; ratio: number }[] = [];
+  r.runs.forEach((run, ri) => {
+    for (let k = 0; k < run.maxFind; k++) {
+      if (run.entry[k] === undefined || run.entry[k + 1] === undefined) continue;
+      const len = run.entry[k + 1] - run.entry[k];
+      L[k].push({ run: ri, len });
+      if (k > 0 && run.entry[k - 1] !== undefined) {
+        const prev = run.entry[k] - run.entry[k - 1];
+        if (prev > 0) ratios.push({ run: ri, k, ratio: len / prev });
+      }
+    }
+  });
+  const intervals: { t: number; gap: number }[] = [];
+  let prevT = 0;
+  for (const run of r.runs.slice(1)) { intervals.push({ t: run.startT, gap: run.startT - prevT }); prevT = run.startT; }
+  const closed = r.runs.filter((x) => x.endT !== null);
+  return {
+    L, ratios, intervals,
+    newEras: closed.map((x) => Math.max(0, x.maxFind - x.prevBest)),
+    traversed: closed.map((x) => x.maxFind),
+  };
+}
+
+let eraPass: { [k: string]: boolean } = {};
+function printEraReport(r: Result): void {
+  const e = eraStats(r);
+  console.log('\n--- Era report (AFK+Daily, ~1 min resolution; L_k = time in Find k until its gate, the last era of a run is excluded) ---');
+  console.log('Find k (era)'.padEnd(18) + 'run1 (B=1)'.padEnd(12) + 'median'.padEnd(10) + 'p10'.padEnd(10) + 'p90'.padEnd(10) + 'n'.padEnd(5) + 'ratio L_k/L_k-1: run1'.padEnd(24) + 'median'.padEnd(9) + 'min'.padEnd(8) + 'max'.padEnd(8) + 'n');
+  for (let k = 0; k < FINDS.length - 1; k++) {
+    const ls = e.L[k].map((x) => x.len);
+    if (ls.length === 0) continue;
+    const first = e.L[k].find((x) => x.run === 0);
+    const rs = e.ratios.filter((x) => x.k === k);
+    const r1 = rs.find((x) => x.run === 0);
+    console.log(
+      `${k} ${FINDS[k].name}`.padEnd(18) + (first ? fT(first.len) : '-').padEnd(12) + fT(quant(ls, 0.5)).padEnd(10) + fT(quant(ls, 0.1)).padEnd(10) + fT(quant(ls, 0.9)).padEnd(10) + String(ls.length).padEnd(5) +
+      (k > 0 ? (r1 ? r1.ratio.toFixed(2) : '-') : '').padEnd(24) + (k > 0 && rs.length ? quant(rs.map((x) => x.ratio), 0.5).toFixed(2) : '').padEnd(9) + (k > 0 && rs.length ? Math.min(...rs.map((x) => x.ratio)).toFixed(2) : '').padEnd(8) + (k > 0 && rs.length ? Math.max(...rs.map((x) => x.ratio)).toFixed(2) : '').padEnd(8) + (k > 0 ? rs.length : ''),
+    );
+  }
+  const allR = e.ratios.map((x) => x.ratio);
+  const medK = new Set(e.ratios.map((x) => x.k));
+  const medians = [...medK].map((k) => quant(e.ratios.filter((x) => x.k === k).map((x) => x.ratio), 0.5));
+  const run1R = e.ratios.filter((x) => x.run === 0).map((x) => x.ratio);
+  console.log(`ratio L_k/L_k-1 (same prestige): pooled median ${fx(quant(allR, 0.5), 2)}, p10 ${fx(quant(allR, 0.1), 2)}, p90 ${fx(quant(allR, 0.9), 2)}, share in [1.0,1.8] ${fx((100 * allR.filter((x) => x >= 1 && x <= 1.8).length) / Math.max(1, allR.length), 0)}%; per-k medians ${medians.map((x) => x.toFixed(2)).join(' ')}; run1 ${run1R.map((x) => x.toFixed(2)).join(' ')}`);
+  eraPass['ratio'] = medians.length > 0 && medians.every((m) => m >= 1.0 && m <= 1.8) && run1R.every((x) => x >= 1.0 && x <= 1.8);
+  const l0 = e.L[0].find((x) => x.run === 0)?.len ?? NaN;
+  const l1 = e.L[1].find((x) => x.run === 0)?.len ?? NaN;
+  eraPass['era1'] = l0 * 1440 >= 3 && l0 * 1440 <= 8;
+  eraPass['era2'] = l1 * 1440 >= 8 && l1 * 1440 <= 20;
+  console.log(`Era 1 (Stick -> Tennis) ${fT(l0)}  target 3-8 min ${eraPass['era1'] ? 'PASS' : 'FAIL'};  Era 2 (Tennis -> Squeaky) ${fT(l1)}  target 8-20 min ${eraPass['era2'] ? 'PASS' : 'FAIL'};  era-length ratios 1.0-1.8: ${eraPass['ratio'] ? 'PASS' : 'FAIL'}`);
+
+  // prestige rhythm by week
+  console.log(`\nPrestige rhythm (${r.runs.length - 1} prestiges): interval in days by the week the prestige happened`);
+  console.log('week'.padEnd(6) + 'n'.padEnd(5) + 'median'.padEnd(9) + 'p10'.padEnd(8) + 'p90'.padEnd(8) + 'new eras/prestige (mean)');
+  const weeks = Math.ceil((r.endT || 1) / 7);
+  const weekRows: string[] = [];
+  const wk: number[][] = [];
+  for (let w = 0; w < weeks; w++) wk.push(e.intervals.filter((x) => Math.floor(x.t / 7) === w).map((x) => x.gap));
+  for (let w = 0; w < weeks; w++) {
+    const g = wk[w];
+    const ne = r.runs.slice(0, -1).filter((x) => x.endT !== null && Math.floor(x.endT! / 7) === w).map((x) => Math.max(0, x.maxFind - x.prevBest));
+    if (g.length === 0) { weekRows.push(`${String(w + 1).padEnd(6)}${'0'.padEnd(5)}-`); continue; }
+    weekRows.push(`${String(w + 1).padEnd(6)}${String(g.length).padEnd(5)}${fx(quant(g, 0.5), 2).padEnd(9)}${fx(quant(g, 0.1), 2).padEnd(8)}${fx(quant(g, 0.9), 2).padEnd(8)}${ne.length ? fx(ne.reduce((a, b) => a + b, 0) / ne.length, 2) : '-'}`);
+  }
+  console.log(weekRows.join('\n'));
+  const wk1 = wk[0] ?? [];
+  const lateStart = r.endT * (2 / 3);
+  const late = e.intervals.filter((x) => x.t >= lateStart).map((x) => x.gap);
+  const w1m = quant(wk1, 0.5);
+  const latem = quant(late, 0.5);
+  eraPass['week1'] = w1m >= 0.5 && w1m <= 1.5;
+  eraPass['late'] = latem >= 3 && latem <= 7;
+  console.log(`week-1 median ${fx(w1m, 2)} d (target ~1: 0.5-1.5) ${eraPass['week1'] ? 'PASS' : 'FAIL'};  last-third median ${fx(latem, 2)} d (target 3-7) ${eraPass['late'] ? 'PASS' : 'FAIL'}`);
+
+  // eras climbed
+  const hist = (a: number[]) => { const m = new Map<number, number>(); for (const x of a) m.set(x, (m.get(x) ?? 0) + 1); return [...m.entries()].sort((x, y) => x[0] - y[0]).map(([k, n]) => `${k}:${n}`).join(' '); };
+  const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
+  console.log(`\nEras per prestige run (${e.newEras.length} closed runs)`);
+  console.log(`new eras past the previous best: mean ${fx(mean(e.newEras), 2)}, histogram ${hist(e.newEras)}`);
+  console.log(`eras climbed in the run (highest Find reached from Stick): mean ${fx(mean(e.traversed), 2)}, median ${fx(quant(e.traversed, 0.5), 1)}, histogram ${hist(e.traversed)}`);
+  const growing = e.newEras.filter((x) => x > 0);
+  console.log(`prestiges that set a new best era: ${growing.length}/${e.newEras.length}, mean new eras when they do ${fx(mean(growing), 2)}`);
+  if (VERBOSE) {
+    r.runs.forEach((run, i) => {
+      const ls: string[] = [];
+      for (let k = 0; k < run.maxFind; k++) if (run.entry[k] !== undefined && run.entry[k + 1] !== undefined) ls.push(fT(run.entry[k + 1] - run.entry[k]));
+      console.log(`run ${i} start d${run.startT.toFixed(2)} B ${run.bonus.toExponential(2)} best ${run.prevBest}->${run.maxFind} L: ${ls.join(' ')}`);
+    });
+  }
+}
+
 const fmtStat = (x: number) => (x >= 1e6 ? x.toExponential(2) : x.toFixed(0));
 const primCosmic = prim.findT[12];
 const ratioOf = (r: Result) => (r.findT[12] !== null && primCosmic !== null ? r.findT[12]! / primCosmic : null);
@@ -587,6 +748,11 @@ for (const p of selected) {
   if (isPrim || VERBOSE) {
     console.log('final Academy levels: ' + ACADEMY.map((d) => `${d.id} ${r.levels[d.id] ?? 0}/${d.maxLevel}`).join(', '));
     console.log('first Academy buys (day): ' + Object.entries(r.academyT).map(([k, v]) => `${k}@${v.toFixed(1)}`).join(' '));
+  }
+  if (isPrim) {
+    printEraReport(r);
+    for (const [key, ok] of Object.entries(eraPass)) if (!ok && key !== 'late' && key !== 'week1') allPass = false;
+    if (!eraPass['late'] || !eraPass['week1']) allPass = false;
   }
   console.log(`(max pups ${sig(r.maxPups)}, paws ${sig(r.finalPaws)}, prestiges ${r.prestiges}, academy levels ${r.academyLevels}, unspent GB ${sig(r.finalGB)}, Academy spent ${sig(r.academySpent)}, free+bought stars ${fmtStat(r.starsFree)} (spent ${fmtStat(r.starsSpent)}), best streak ${r.bestStreak})`);
   if (isPrim) {
