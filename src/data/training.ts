@@ -55,5 +55,5 @@ export const TRAINING: TrainingDef[] = [
   { tier: 7, id: 'hyperspace_express', name: 'Hyperspace Express', icon: '🌀', description: 'Shipping capacity x2 per level.', stat: 'shippingCapacity', perLevel: 0, multPerLevel: 2, maxLevel: 3, baseCost: 5e26, costGrowth: 10 },
   { tier: 7, id: 'universal_search', name: 'Universal Search', icon: '🔭', description: 'All rescues +300% per level.', stat: 'rescueMult', perLevel: 3, maxLevel: 5, baseCost: 1e27, costGrowth: 5 },
   { tier: 7, id: 'event_horizon_dig', name: 'Event Horizon Dig', icon: '🌀', description: 'Dig rate x2 per level.', stat: 'layRate', perLevel: 0, multPerLevel: 2, maxLevel: 3, baseCost: 2e27, costGrowth: 10 },
-  { tier: 7, id: 'infinite_kennels', name: 'Infinite Kennels', icon: '♾️', description: 'Room for every pup in the universe.', stat: 'kennelCapacity', perLevel: 3, maxLevel: 6, baseCost: 1e28, costGrowth: 3.5 },
+  { tier: 7, id: 'infinite_kennels', name: 'Infinite Kennels', icon: '♾️', description: 'Room for every pup in the universe.', stat: 'kennelCapacity', perLevel: 3, maxLevel: 6, baseCost: 3e27, costGrowth: 3.5 },
 ];
