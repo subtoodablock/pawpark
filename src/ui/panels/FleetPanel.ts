@@ -10,10 +10,12 @@ import {
 } from '../../core';
 import type { GameController } from '../GameController';
 import { h, setClass, setText } from '../dom';
-import { makeRow, setBtn, type Panel, type Row } from './common';
+import { eraNote, makeRow, setBtn, type Panel, type Row } from './common';
 
 export function createFleetPanel(c: GameController): Panel {
   const el = h('div', { cls: 'panel' }, h('div', { cls: 'toolbar', text: 'Vehicles ship your finds to market. More capacity = more sold.' }));
+  const note = eraNote();
+  el.append(note.el);
   const rows: Row[] = [];
   for (let i = 0; i < MAX_FLEET_SLOTS; i++) {
     const row = makeRow('', '', () => {
@@ -27,6 +29,7 @@ export function createFleetPanel(c: GameController): Panel {
   function update(): void {
     const s = c.state;
     const d = computeStats(s);
+    note.set(d.costScale);
     const mult = statValue(s, 'shippingCapacity');
     rows.forEach((row, i) => {
       const locked = i >= d.fleetSlots;

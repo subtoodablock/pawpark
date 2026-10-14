@@ -544,7 +544,8 @@ export class ParkScene {
       const sl = this.slots[i];
       if (now !== sl.tier) {
         const first = sl.tier === null && sl.anim >= 1 && this.frames < 3;
-        if (this.frames >= 3 && now !== null && !first) {
+        const reset = now !== null && sl.tier !== null && now < sl.tier; // era reset: snap, no pop
+        if (this.frames >= 3 && now !== null && !first && !reset) {
           sl.old = sl.tier;
           sl.anim = 0;
           sl.fxDone = false;
@@ -581,10 +582,11 @@ export class ParkScene {
       }
       if (now !== v.tier) {
         const wasNull = v.tier === null;
+        const reset = now !== null && v.tier !== null && now < v.tier; // era reset: no pop
         v.tier = now;
         if (now !== null) {
           if (wasNull) this.placeVehicle(i, this.frames < 3);
-          if (this.frames >= 3 && v.out) {
+          if (this.frames >= 3 && v.out && !reset) {
             v.pop = 0;
             const sp = VEHICLE_SPECS[Math.min(now, VEHICLE_SPECS.length - 1)];
             const y = this.laneY();

@@ -1,6 +1,7 @@
 import {
   KENNELS,
   KENNEL_SLOTS,
+  computeStats,
   buyKennel,
   formatMoney,
   formatNumber,
@@ -9,10 +10,12 @@ import {
 } from '../../core';
 import type { GameController } from '../GameController';
 import { h, setText } from '../dom';
-import { makeRow, setBtn, type Panel, type Row } from './common';
+import { eraNote, makeRow, setBtn, type Panel, type Row } from './common';
 
 export function createKennelsPanel(c: GameController): Panel {
   const el = h('div', { cls: 'panel' }, h('div', { cls: 'toolbar', text: 'Kennels house your pups. Upgrade each slot to a bigger tier.' }));
+  const note = eraNote();
+  el.append(note.el);
   const rows: Row[] = [];
   for (let i = 0; i < KENNEL_SLOTS; i++) {
     const row = makeRow('', '', () => {
@@ -25,6 +28,7 @@ export function createKennelsPanel(c: GameController): Panel {
   }
   function update(): void {
     const s = c.state;
+    note.set(computeStats(s).costScale);
     const mult = statValue(s, 'kennelCapacity');
     rows.forEach((row, i) => {
       const tier = s.kennels[i];

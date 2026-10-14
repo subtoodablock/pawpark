@@ -10,14 +10,13 @@ import {
   importSave,
   nextFind,
   prestige,
-  upgradeFind,
 } from '../../core';
 import type { TrophyDef, TrophyKind } from '../../core';
 import type { GameController } from '../GameController';
 import { h, meter, setClass, setDisabled, setHidden, setMeter, setText } from '../dom';
 import { showModal } from '../Modal';
 import { toast } from '../Toasts';
-import { burst } from '../motion';
+import { confirmEraUpgrade } from '../eraUpgrade';
 import { confetti } from '../fx/confetti';
 import { createShareCard } from '../share';
 import { getDayNight, setDayNight } from '../prefs';
@@ -33,12 +32,9 @@ export function createParkPanel(c: GameController): Panel {
   const nfLabel = h('div', { cls: 'row-meta' });
   const nfBtn = h('button', {
     cls: 'btn primary',
-    text: 'Upgrade find!',
+    text: 'Start next era!',
     on: {
-      click: () => {
-        if (c.check(upgradeFind(c.state))) burst(nfBtn, 'coins', 10);
-        update();
-      },
+      click: () => confirmEraUpgrade(c, update),
     },
   });
   const nfCard = h('div', { cls: 'card' }, nfTitle, nfDesc, nfMeter.el, nfLabel, nfBtn);
@@ -216,7 +212,7 @@ export function createParkPanel(c: GameController): Panel {
     setHidden(nfCard, false);
     if (nf) {
       const ready = d.parkValue >= nf.unlockParkValue;
-      setText(nfTitle, `Next: ${nf.icon} ${nf.name} (${formatMoney(nf.value)} each)`);
+      setText(nfTitle, `Next era: ${nf.icon} ${nf.name} (${formatMoney(nf.value)} each)`);
       setText(nfDesc, nf.flavor);
       setMeter(nfMeter, nf.unlockParkValue > 0 ? d.parkValue / nf.unlockParkValue : 1);
       setText(nfLabel, `Park value ${formatMoney(d.parkValue)} / ${formatMoney(nf.unlockParkValue)}` + (s.highestFindIndex < s.findIndex + 1 ? ` • first time: +${nf.unlockReward} \u{1F9B4}` : ''));
@@ -242,7 +238,14 @@ export function createParkPanel(c: GameController): Panel {
     // prestige
     const gain = d.prestigeGain;
     const after = 1 + (s.spiritPaws + gain) * d.pawBonus * d.collarMult;
-    setText(prInfo, gain >= 1 ? `Start fresh and earn +${formatNumber(gain)} Spirit Paws \u{1F43E}.` : 'Earn more this run to gain Spirit Paws.');
+    const pctGain = d.earningsBonus > 0 ? Math.round((after / d.earningsBonus - 1) * 100) : 0;
+    const stick = FINDS[0];
+    setText(
+      prInfo,
+      gain >= 1
+        ? `Back to the ${stick?.icon ?? ''} ${stick?.name ?? 'Stick'} Era with +${formatNumber(gain)} Spirit Paws (+${formatNumber(pctGain)}% earnings)`
+        : 'Earn more this run to gain Spirit Paws.',
+    );
     setText(prBonus, `Earnings bonus: ×${formatNumber(d.earningsBonus)} → ×${formatNumber(after)}  •  run earnings ${formatMoney(s.runEarnings)}`);
     setText(prBtn, gain >= 1 ? `Open a New Park (+${formatNumber(gain)} \u{1F43E})` : 'Not enough yet');
     setDisabled(prBtn, gain < 1);

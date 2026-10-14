@@ -7,12 +7,12 @@ import {
   formatMoney,
   formatNumber,
   nextFind,
-  upgradeFind,
   FINDS,
 } from '../core';
 import type { GameController } from './GameController';
 import { h, meter, setClass, setHidden, setMeter, setText } from './dom';
-import { DampedValue, bump, burst, floatText, reducedMotion } from './motion';
+import { confirmEraUpgrade } from './eraUpgrade';
+import { DampedValue, bump, floatText, reducedMotion } from './motion';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RING_R = 54;
@@ -48,6 +48,7 @@ export class HUD {
   private bones = makeChip('span', 'bones', '\u{1F9B4}', 'Golden Bones');
   private paws = makeChip('span', 'paws', '\u{1F43E}', 'Spirit Paws');
   private findLine = h('div', { cls: 'find-text' });
+  private prestigeChip = h('span', { cls: 'prestige-chip', attrs: { title: 'Spirit Paws you would earn by prestiging now' } });
   private goalIcon = h('span', { cls: 'goal-icon' });
   private goalText = h('span', { cls: 'goal-text' });
   private goalMeter = meter('goal');
@@ -82,11 +83,7 @@ export class HUD {
     this.level.el.addEventListener('click', () => this.onOpenLevel());
     this.stars.el.addEventListener('click', () => this.onOpenStore());
     this.upgradePill.addEventListener('click', () => {
-      const f = nextFind(c.state);
-      if (c.check(upgradeFind(c.state)) && f) {
-        burst(this.upgradePill, 'coins', 10);
-        this.onFindUpgraded(f.icon);
-      }
+      confirmEraUpgrade(c);
     });
     this.top = h(
       'header',
@@ -97,7 +94,7 @@ export class HUD {
         h('div', { cls: 'cash-col' }, this.cash, this.income),
         h('div', { cls: 'chips' }, this.level.el, this.bones.el, this.paws.el, this.stars.el),
       ),
-      h('div', { cls: 'find-row' }, this.findLine, this.upgradePill),
+      h('div', { cls: 'find-row' }, this.findLine, this.prestigeChip, this.upgradePill),
       this.goalRow,
     );
     this.goalRow.append(this.goalIcon, this.goalMeter.el, this.goalText);
@@ -230,7 +227,9 @@ export class HUD {
     this.setChip(this.paws, s.spiritPaws, formatNumber(s.spiritPaws));
 
     const f = FINDS[s.findIndex];
-    setText(this.findLine, `${f?.icon ?? ''} ${f?.name ?? '?'} • Park ${formatMoney(d.parkValue)}`);
+    setText(this.findLine, `${f?.icon ?? ''} ${f?.name ?? '?'} Era · Park ${formatMoney(d.parkValue)}`);
+    setText(this.prestigeChip, `+${formatNumber(d.prestigeGain)} \u{1F43E} on prestige`);
+    setHidden(this.prestigeChip, !(d.prestigeGain >= 1));
     const nf = nextFind(s);
     setHidden(this.upgradePill, !(nf && d.parkValue >= nf.unlockParkValue));
 

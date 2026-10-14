@@ -13,7 +13,7 @@ import type { TrainingDef } from '../../core';
 import type { GameController } from '../GameController';
 import { h, setClass, setHidden, setText } from '../dom';
 import { statLabel } from '../labels';
-import { makeRow, setBtn, type Panel, type Row } from './common';
+import { eraNote, makeRow, setBtn, type Panel, type Row } from './common';
 
 export function createTrainingPanel(c: GameController): Panel {
   let maxMode = false;
@@ -26,6 +26,9 @@ export function createTrainingPanel(c: GameController): Panel {
     update();
   }
   const el = h('div', { cls: 'panel' }, h('div', { cls: 'toolbar' }, h('span', { text: 'Training resets when you open a new park.' }), h('div', { cls: 'segs' }, x1, xm)));
+
+  const note = eraNote();
+  el.append(note.el);
 
   interface TierView {
     tier: number;
@@ -52,7 +55,9 @@ export function createTrainingPanel(c: GameController): Panel {
 
   function update(): void {
     const s = c.state;
-    const total = computeStats(s).totalTrainingLevels;
+    const ds = computeStats(s);
+    note.set(ds.costScale);
+    const total = ds.totalTrainingLevels;
     for (const t of tiers) {
       const unlocked = isTrainingTierUnlocked(s, t.tier);
       setText(t.lock, unlocked ? '' : `\u{1F512} Buy ${formatNumber(Math.max(0, t.unlockAt - total))} more levels to unlock`);

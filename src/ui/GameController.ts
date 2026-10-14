@@ -175,7 +175,7 @@ export class GameController {
         const f = FINDS[e.findIndex];
         if (e.auto) {
           this.session.autoFinds++;
-          if (f) toast(`Find Scout upgraded to ${f.icon} ${f.name}`, 'good', 4500);
+          if (f) toast(`Find Scout started the ${f.icon} ${f.name} Era`, 'good', 4500);
         }
         break;
       }

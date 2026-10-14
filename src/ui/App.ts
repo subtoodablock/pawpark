@@ -6,7 +6,7 @@ import { ParkScene } from './ParkScene';
 import { Sheet } from './Sheet';
 import { h } from './dom';
 import { initModal, showModal } from './Modal';
-import { initToasts, toast } from './Toasts';
+import { initToasts } from './Toasts';
 import { confetti } from './fx/confetti';
 import { createAcademyPanel } from './panels/AcademyPanel';
 import { createFleetPanel } from './panels/FleetPanel';
@@ -25,10 +25,6 @@ export function startApp(root: HTMLElement): GameController {
   const hud = new HUD(controller);
   const scene = new ParkScene(controller);
   hud.onAdopt = () => scene.bounce();
-  hud.onFindUpgraded = (icon) => {
-    toast(`${icon} New find unlocked!`, 'gold');
-    confetti({ y: window.innerHeight * 0.3, count: 70, power: 0.8 });
-  };
 
   const pack = createPackPanel(controller, () => academyEl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   const academy = createAcademyPanel(controller);
@@ -118,7 +114,7 @@ function showWelcomeBack(r: OfflineReport): void {
         'ul',
         { cls: 'report-list' },
         ...rows.map(([k, v]) => h('li', null, h('span', { text: k }), h('b', { text: v }))),
-        r.findsUnlocked.length ? h('li', null, h('span', { text: '\u{1F50D} Finds unlocked' }), h('b', { text: finds })) : null,
+        r.findsUnlocked.length ? h('li', null, h('span', { text: '\u{1F50D} New eras reached' }), h('b', { text: finds })) : null,
         r.trophies.length ? h('li', null, h('span', { text: '\u{1F3C6} Trophies earned' }), h('b', { text: trophies })) : null,
       ),
     ],
