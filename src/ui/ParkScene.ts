@@ -10,6 +10,7 @@ import { h } from './dom';
 import { SpriteCache, blit, makeCanvas } from './render/SpriteCache';
 import type { SpriteCanvas, Sprite } from './render/SpriteCache';
 import { Particles } from './render/particles';
+import { findArt, treatArt } from './render/art';
 import { FONT } from './render/palette';
 import { clamp, contactShadow, easeOutBack, hash01, rng } from './render/shade';
 import { Flock, type SimEnv, drawPup, drawPupShadow } from './render/PupActor';
@@ -65,15 +66,22 @@ import { SQ_AX, SQ_AY, SQ_H, SQ_W, SQUIRREL_POSES as SQ_POSES, drawSquirrel } fr
 import type { SquirrelPose } from './render/squirrel';
 import { BREEDS } from './render/breeds';
 import { DogSheet, parseSheet } from './render/dogSheet';
+import { artSheetRequested, mountArtSheet } from './render/artSheet';
 import { POSE_FRAMES, DOG_H, DOG_W, dogKey, drawDogFrame, drawTail, tailKey, TAIL_W } from './render/dogSprite';
 import type { Pose } from './render/dogSprite';
 
-const EMOJI_FONT = "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
+const EMOJI_RE = /[\p{Extended_Pictographic}\u200d\ufe0f]/gu;
+/** no emoji anywhere on the canvas or in toasts raised from it (docs/12 section 4) */
+function noEmoji(t: string): string {
+  return t.replace(EMOJI_RE, '').replace(/\s+/g, ' ').trim();
+}
 const MAX_VISIBLE = 56;
 const DASH: number[] = [5, 4];
 const NO_DASH: number[] = [];
 
 interface Floater {
+  /** small drawn icon before the text: 'bone', 'mail' or a treat id */
+  icon: string;
   text: string;
   x: number;
   y: number;
@@ -85,7 +93,8 @@ interface FindPop {
   x: number;
   y: number;
   age: number;
-  icon: string;
+  /** index into FINDS */
+  idx: number;
 }
 interface Mound {
   on: boolean;
@@ -212,10 +221,15 @@ export class ParkScene {
         this.doorT = 0.45;
       },
     };
-    for (let i = 0; i < 16; i++) this.finds.push({ on: false, x: 0, y: 0, age: 0, icon: '' });
+    for (let i = 0; i < 16; i++) this.finds.push({ on: false, x: 0, y: 0, age: 0, idx: 0 });
     for (let i = 0; i < 28; i++) this.mounds.push({ on: false, x: 0, y: 0, age: 0 });
     for (let i = 0; i < 6; i++) this.caught.push({ on: false, x: 0, y: 0, age: 0, flip: 1 });
     for (let i = 0; i < KENNEL_SLOTS; i++) this.slots.push({ tier: null, old: null, anim: 1, fxDone: true });
+    try {
+      if (artSheetRequested(location.search)) mountArtSheet(location.search);
+    } catch {
+      /* ignore */
+    }
     try {
       const sheet = parseSheet(location.search);
       if (sheet) this.dogSheet = new DogSheet(sheet);
@@ -368,12 +382,11 @@ export class ParkScene {
     this.flock.bounce(5);
     this.doorT = 0.5;
     this.centerSquash = 1;
-    this.particles.paw(this.centerDoor.x + (Math.random() - 0.5) * 30, this.centerDoor.y - 10);
   }
   private centerSquash = 0;
 
-  floater(text: string, x: number, y: number, color = '#fff6c2'): void {
-    this.floaters.push({ text, x, y, age: 0, color });
+  floater(text: string, x: number, y: number, color = '#fff6c2', icon = ''): void {
+    this.floaters.push({ text: noEmoji(text), x, y, age: 0, color, icon });
     if (this.floaters.length > 20) this.floaters.shift();
   }
 
@@ -445,7 +458,7 @@ export class ParkScene {
       const rew = catchSquirrel(s, best.id);
       if (rew) {
         this.startCatch(p.x, p.y, p.rtl);
-        this.celebrate(rew, p.x, p.y - 20, '\u{1F43F}️ Caught! ');
+        this.celebrate(rew, p.x, p.y - 20, 'Caught! ');
       }
       return;
     }
@@ -454,7 +467,7 @@ export class ParkScene {
       if ((m.x - px) ** 2 + (m.y - py) ** 2 < 46 * 46) {
         const rewards = this.c.collectMail();
         if (rewards.length) {
-          this.floater(`\u{1F4EC} ×${rewards.length}`, m.x - 20, m.y, '#fff6c2');
+          this.floater(`×${rewards.length}`, m.x - 6, m.y, '#fff6c2', 'mail');
           this.particles.confetti(m.x, m.y, 14);
           this.particles.sparkle(m.x, m.y, 5, 10);
         }
@@ -479,22 +492,23 @@ export class ParkScene {
   }
 
   private celebrate(rew: RewardResult, x: number, y: number, prefix: string): void {
-    const txt = formatReward(rew);
-    this.floater(txt, Math.min(this.w - 40, Math.max(40, x)), y, rew.kind === 'goldenBones' ? '#ffe27a' : '#d6ffc9');
+    const txt = noEmoji(formatReward(rew));
+    const icon = rew.kind === 'goldenBones' ? 'bone' : rew.kind === 'treat' ? rew.treatId : '';
+    this.floater(txt, Math.min(this.w - 40, Math.max(40, x)), y, rew.kind === 'goldenBones' ? '#ffe27a' : '#d6ffc9', icon);
     toast(prefix + txt, 'good');
   }
 
   // ---------------------------------------------------------------- pools
 
   private addFind(x: number, y: number): void {
-    const icon = FINDS[this.c.state.findIndex]?.icon ?? '\u{1FAB5}';
+    const idx = Math.max(0, Math.min(FINDS.length - 1, this.c.state.findIndex | 0));
     for (const f of this.finds) {
       if (!f.on) {
         f.on = true;
         f.x = x;
         f.y = y;
         f.age = 0;
-        f.icon = icon;
+        f.idx = idx;
         this.particles.sparkle(x, y - 6, 4, 9, 4);
         return;
       }
@@ -870,14 +884,17 @@ export class ParkScene {
   private kennelShadow(tier: number): Sprite | null {
     return this.cache.getOrNull(`kshadow:${tier}`, BLD_W, BLD_H, (ctx, _w, _h, d) => drawKennelShadow(ctx, tier, d), 3);
   }
-  private emoji(icon: string): Sprite {
-    return this.cache.get(`emoji:${icon}`, 34, 34, (ctx) => {
-      ctx.font = `24px ${EMOJI_FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(icon, 17, 18);
-    });
+  /** rendered Find art (art.ts PNG) as a drawable image; null until it has decoded */
+  private artImg(key: string, src: () => string): HTMLImageElement | null {
+    let im = this.imgs.get(key);
+    if (!im) {
+      im = new Image();
+      im.src = src();
+      this.imgs.set(key, im);
+    }
+    return im.complete && im.naturalWidth > 0 ? im : null;
   }
+  private imgs = new Map<string, HTMLImageElement>();
   private glow(col: string): Sprite {
     return this.cache.get(`glow:${col}`, 32, 32, (ctx) => drawGlow(ctx, col));
   }
@@ -1299,9 +1316,9 @@ export class ParkScene {
       const gs = 38 * pop;
       ctx.drawImage(g.c as CanvasImageSource, f.x - gs / 2, y - gs / 2, gs, gs);
       ctx.globalAlpha = alpha;
-      const sp = this.emoji(f.icon);
-      const sz = 25 * pop;
-      ctx.drawImage(sp.c as CanvasImageSource, f.x - sz / 2 - (sz * 0.0), y - sz / 2, sz * (34 / 34), sz);
+      const im = this.artImg(`find:${f.idx}`, () => findArt(f.idx, 40));
+      const sz = 27 * pop;
+      if (im) ctx.drawImage(im, f.x - sz / 2, y - sz / 2, sz, sz);
     }
     ctx.globalAlpha = 1;
   }
@@ -1398,20 +1415,73 @@ export class ParkScene {
     if (!this.floaters.length) return;
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.textAlign = 'center';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
     for (const f of this.floaters) {
-      const pop = f.age < 0.18 ? 0.6 + 0.6 * easeOutBack(f.age / 0.18, 2.4) : 1.0;
+      const pop = f.age < 0.18 ? 0.7 + 0.3 * easeOutBack(f.age / 0.18, 1.2) : 1.0;
       ctx.globalAlpha = Math.max(0, Math.min(1, (1.8 - f.age) * 1.5));
-      ctx.font = `700 ${Math.round(17 * pop)}px ${FONT}`;
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(30,50,20,.75)';
-      ctx.strokeText(f.text, f.x, f.y);
+      const size = Math.round(20 * pop);
+      ctx.font = `600 ${size}px ${FONT}`;
+      const tw = ctx.measureText(f.text).width;
+      const isz = f.icon ? size * 1.15 : 0;
+      const gap = f.icon && f.text ? 3 : 0;
+      const x0 = f.x - (tw + isz + gap) / 2;
+      if (f.icon) this.drawFloaterIcon(f.icon, x0 + isz / 2, f.y, isz);
+      ctx.font = `600 ${size}px ${FONT}`;
+      ctx.textAlign = 'left';
+      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = 'rgba(24,36,54,.72)';
+      ctx.strokeText(f.text, x0 + isz + gap, f.y);
       ctx.fillStyle = f.color;
-      ctx.fillText(f.text, f.x, f.y);
+      ctx.fillText(f.text, x0 + isz + gap, f.y);
     }
     ctx.globalAlpha = 1;
   }
-}
 
+  /** small drawn icons for floaters (no emoji): a gold bone, a letter, or a treat's art */
+  private drawFloaterIcon(icon: string, cx: number, cy: number, sz: number): void {
+    const ctx = this.ctx;
+    if (icon === 'bone') {
+      const r = sz * 0.2;
+      ctx.fillStyle = '#ffd34d';
+      ctx.strokeStyle = 'rgba(24,36,54,.72)';
+      ctx.lineWidth = 2.2;
+      ctx.lineJoin = 'round';
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-0.6);
+      const w = sz * 0.5;
+      ctx.beginPath();
+      ctx.rect(-w, -r * 0.62, w * 2, r * 1.24);
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+        ctx.moveTo(sx * w + r, sy * r * 0.7);
+        ctx.arc(sx * w, sy * r * 0.7, r, 0, Math.PI * 2);
+      }
+      ctx.stroke();
+      ctx.fill();
+      ctx.restore();
+    } else if (icon === 'mail') {
+      const w = sz * 0.9;
+      const h = sz * 0.62;
+      ctx.fillStyle = '#fff6e0';
+      ctx.strokeStyle = 'rgba(24,36,54,.72)';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.rect(cx - w / 2, cy - h / 2, w, h);
+      ctx.stroke();
+      ctx.fill();
+      ctx.strokeStyle = '#d9483b';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2, cy - h / 2);
+      ctx.lineTo(cx, cy + h * 0.12);
+      ctx.lineTo(cx + w / 2, cy - h / 2);
+      ctx.stroke();
+    } else {
+      const im = this.artImg(`treat:${icon}`, () => treatArt(icon, 32));
+      if (im) ctx.drawImage(im, cx - sz / 2, cy - sz / 2, sz, sz);
+    }
+  }
+}

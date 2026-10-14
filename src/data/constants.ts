@@ -46,6 +46,10 @@ export const PRESTIGE_EXP_EARLY = 0.3;
 export const PRESTIGE_EXP_LATE = 0.2;
 /** Park Value tuning constant (docs/10 §2.2) */
 export const PARK_VALUE_SECONDS = 150;
+/** Park Value popTerm weights (docs/10 §2.2): unshipped pups count this much, emptySpace^exp, rescue-potential factor */
+export const PV_UNSHIPPED_WEIGHT = 0.2;
+export const PV_EMPTY_SPACE_EXP = 0.6;
+export const PV_RESCUE_FACTOR = 0.25;
 /** a Find is "discovered" (carousel teaser) once parkValue >= gate / DISCOVER_DIVISOR */
 export const DISCOVER_DIVISOR = 6.5;
 

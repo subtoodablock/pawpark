@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ACADEMY, BASE_MAX_CARS, BASE_OFFLINE_HOURS, BASE_RESCUE_PER_MIN, CALENDAR_COLLAR_STREAK, CAR_COST_GROWTH,
-  DISCOVER_DIVISOR, DUPLICATE_GROWTH_BY_TIER, FINDS, KENNELS, MAX_FLEET_SLOTS, PARK_VALUE_SECONDS, PRESTIGE_DIVISOR,
+  DISCOVER_DIVISOR, DUPLICATE_GROWTH_BY_TIER, FINDS, KENNELS, MAX_FLEET_SLOTS, PARK_VALUE_SECONDS, PV_EMPTY_SPACE_EXP, PV_RESCUE_FACTOR, PV_UNSHIPPED_WEIGHT, PRESTIGE_DIVISOR,
   PRESTIGE_EXP_EARLY, PRESTIGE_EXP_LATE, PRESTIGE_KNEE, PUP_RANK_TITLES, SAVE_VERSION, TRAINING,
   TRAINING_TIERS, VEHICLES, VEHICLE_DUPLICATE_GROWTH_BY_TIER, applyOfflineProgress, buySledCar, claimDailyTreat,
   buyVehicle, computeStats, deserialize, prestige, kennelTierCost, kennelUpgradeCost, prestigeGainFor, pupRankFor, resetPark, runAutomation,
@@ -204,7 +204,7 @@ describe('Park Value (§2.2)', () => {
     const rescuePerMinPerKennel = (BASE_RESCUE_PER_MIN + statValue(s, 'rescueRate')) * statValue(s, 'rescueMult');
     const offlineMin = (BASE_OFFLINE_HOURS + statValue(s, 'offlineHours')) * 60;
     const pop =
-      s.pups * shipFrac + 0.2 * s.pups * (1 - shipFrac) + empty ** 0.6 + 0.25 * rescuePerMinPerKennel * d.builtKennels * offlineMin;
+      s.pups * shipFrac + PV_UNSHIPPED_WEIGHT * s.pups * (1 - shipFrac) + empty ** PV_EMPTY_SPACE_EXP + PV_RESCUE_FACTOR * rescuePerMinPerKennel * d.builtKennels * offlineMin;
     const maxZoomieMult = 1 + d.maxZoomies * d.zoomieBonusPer;
     return d.findValue * digPerPup * d.earningsBonus * maxZoomieMult * pop * PARK_VALUE_SECONDS * statValue(s, 'earnings');
   }

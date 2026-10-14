@@ -1,14 +1,23 @@
-/* Paw Park balance bot v3 (docs/04 §5, docs/06 §10). Run with `npm run balance [-- --profile afkdaily|afk|daily|active|minnow|whale|all --days N --verbose --fit]`.
- * Simulates REAL days (day 0 starts at 18:00). Between check-ins it calls applyOfflineProgress,
- * i.e. the real offline path (Treat Jar cap, chunking, automation). Uses ONLY the public barrel. */
+/* Paw Park balance bot v4 (docs/04 §5, docs/06 §10, docs/10 §5, docs/11 §5).
+ * Run with `npm run balance [-- --profile afkdaily|afk|daily|active|minnow|whale|all --days N --seed N --verbose --fit --full]`.
+ * Simulates REAL days (day 0 = Thu 2026-01-01 starts at 18:00 UTC). Between check-ins it calls applyOfflineProgress,
+ * i.e. the real offline path (Treat Jar cap, chunking, automation). Uses ONLY the public barrel.
+ * v5/v6 behaviour: sled cars (manual policy; automation buys them too), Dog Show (join at the first check-in of each
+ * Monday, claim medals; Active also whistles in the show park), Paw Portal (build, 3 expeditions sized to the next
+ * check-in, collect, craft 3 -> 1, equip the best 4 relics by estimated value, recycle surplus).
+ * AFK+Daily runs on until the endgame (4 Planet Paws full + Academy maxed); the other profiles stop at the Cosmic Bone
+ * unless --full is passed. */
+process.env.TZ = 'UTC';
 import {
-  ACADEMY, AUTO_SPLURGE_FRACTION, FINDS, PARK_LEVEL_THRESHOLDS, PARK_TITLES, PREMIUM_SHOP, PRODUCTS, VIP_TIERS, adopt, HOLD_ADOPT_PER_SEC, KENNEL_SLOTS, TRAINING,
-  academyCost, applyOfflineProgress, buyAcademy, buyKennel, buyPremium, buyStreakFreeze, buyTraining, buyTreat, buyVehicle,
-  catchSquirrel, claimDailyDig, claimDailyDigBonus, claimDailyTreat, computeStats, createInitialState, grantPurchase,
-  isTrainingTierUnlocked, kennelUpgradeCost, openAllMail, parkLevel, premiumCost, prestige, refreshDaily, setAutomation,
-  tick, trainingCost, vehicleUpgradeCost,
+  ACADEMY, AUTO_SPLURGE_FRACTION, CREWS, DIMENSIONS, EXPEDITION_LENGTHS, FINDS, KENNELS, PARK_LEVEL_THRESHOLDS, PARK_TITLES, PORTAL_BUILD_COST, PREMIUM_SHOP, PRODUCTS,
+  RELIC_FAMILIES, TOP_VEHICLE_TIER, VIP_TIERS, adopt, HOLD_ADOPT_PER_SEC, KENNEL_SLOTS, TRAINING,
+  academyCost, applyOfflineProgress, buildPortal, buyAcademy, buyKennel, buyPremium, buySledCar, buyStreakFreeze, buyTraining, buyTreat, buyVehicle,
+  catchSquirrel, claimDailyDig, claimDailyDigBonus, claimDailyTreat, claimShowGoal, collectAll, computeStats, craftCost, craftRelic, craftableRelics,
+  createInitialState, crewStars, crewUnlocked, equipRelic, grantPurchase, joinShow, launchExpedition, fuelCost,
+  isTrainingTierUnlocked, kennelUpgradeCost, openAllMail, parkLevel, premiumCost, prestige, recycleRelic, refreshDaily, refreshShow, relicEffect, setAutomation,
+  sledCarCost, statMode, statValue, tick, trainingCost, unequipRelic, vehicleUpgradeCost, SHOW_REWARDS, TROPHIES, STAR_CAPACITY_BONUS,
 } from '../src/core/index';
-import type { AutomationKey, GameState, Rng, Stat } from '../src/core/index';
+import type { AutomationKey, GameState, Relic, Rng, Stat } from '../src/core/index';
 
 // ---------------------------------------------------------------- args
 const argv = process.argv.slice(2);
@@ -41,11 +50,18 @@ for (const id of (process.env.ABL ?? '').split(',').filter(Boolean)) {
 }
 const JSON_OUT = argv.includes('--json');
 /** diagnostic: stop the profile once this find index is reached (default: the last find) */
-const STOP_AT = Number(flag('--stop') ?? FINDS.length - 1);
+const STOP_ARG = flag('--stop');
+const STOP_AT = Number(STOP_ARG ?? FINDS.length - 1);
+/** --full: every profile runs on to the endgame (4 full Planet Paws + Academy maxed); default only AFK+Daily does */
+const FULL = argv.includes('--full');
 
 const H = 3600;
 const DAY = 86400;
 const START_HOUR = 18; // day 0 starts at 18:00
+/** sim t = 0 is Thu 2026-01-01 18:00 UTC (TZ is forced to UTC); the engine's wall clock (offline, expeditions, Dog Show) is epoch ms */
+const EPOCH0 = Date.UTC(2026, 0, 1, 18, 0, 0);
+const msOf = (t: number) => EPOCH0 + t * 1000;
+const tOf = (ms: number) => (ms - EPOCH0) / 1000;
 const OPENING_SEC = 1800;
 const FULL_WHISTLE_SEC = 600;
 
@@ -75,13 +91,15 @@ interface ProfileDef {
   stars: StarPolicy;
   /** real-money purchases: [dayIndex, productId] granted at that day's first check-in */
   purchases?: [number, string][];
+  /** during the online window, every other minute's whistle goes to the Dog Show park while its goals are open */
+  showPlay?: boolean;
 }
 const AFK_CHECKINS = [8, 12.5, 18, 22.5];
 const PROFILES: ProfileDef[] = [
   { name: 'afkdaily', label: 'AFK+Daily (primary)', checkins: AFK_CHECKINS, sessionSec: 180, daily: true, stars: 'cheapest' },
   { name: 'afk', label: 'AFK (no dailies, info)', checkins: AFK_CHECKINS, sessionSec: 180, daily: false, stars: 'none' },
   { name: 'daily', label: 'Daily', checkins: [20], sessionSec: 300, daily: true, stars: 'cheapest' },
-  { name: 'active', label: 'Active', checkins: [8, 12.5, 22.5], sessionSec: 180, window: [18, 22], daily: true, stars: 'cheapest' },
+  { name: 'active', label: 'Active', checkins: [8, 12.5, 22.5], sessionSec: 180, window: [18, 22], daily: true, stars: 'cheapest', showPlay: true },
   { name: 'minnow', label: 'Minnow ($4.99)', checkins: AFK_CHECKINS, sessionSec: 180, daily: true, stars: 'cheapest', purchases: [[0, 'stars_m']] },
   { name: 'whale', label: 'Whale ($250.96)', checkins: AFK_CHECKINS, sessionSec: 180, daily: true, stars: 'whale',
     purchases: [[0, 'stars_max'], [0, 'stars_s'], [2, 'stars_max'], [4, 'stars_xxl']] },
@@ -118,6 +136,8 @@ function policyBuys(state: GameState, doBuild: boolean, doTrain: boolean): numbe
       for (let i = 0; i < s.fleetSlots; i++) {
         const c = vehicleUpgradeCost(state, i);
         if (c !== null) cands.push({ cost: c, inBucket: vBucket, buy: () => buyVehicle(state, i).ok });
+        const sc = state.vehicles[i] === TOP_VEHICLE_TIER ? sledCarCost(state, i) : null;
+        if (sc !== null) cands.push({ cost: sc, inBucket: vBucket, buy: () => buySledCar(state, i).ok });
       }
     }
     if (doTrain) {
@@ -151,7 +171,12 @@ const fmtDays = (d: number | null) => (d === null ? 'n/a' : d < 1 / 24 ? `${(d *
 const fmtMin = (d: number | null) => (d === null ? 'n/a' : `${(d * 1440).toFixed(1)} min`);
 const sig = (n: number) => (n >= 1e6 ? n.toExponential(2) : n >= 100 ? n.toFixed(0) : n.toFixed(1));
 
-interface DayRow { day: number; lv: number; stars: number; streak: number; log10B: number; log10Income: number; paws: number; find: number; gb: number; prestiges: number; academy: number; cash10: number }
+interface DayRow {
+  day: number; lv: number; stars: number; streak: number; log10B: number; log10Income: number; paws: number; find: number; gb: number; prestiges: number; academy: number; cash10: number;
+  rank: number; collars: number; relicPV: number; relicProd: number; crew: number; relics: number;
+}
+interface WeekRec { weekKey: string; findIndex: number; medals: number; delivered: number; targets: number[] }
+interface EraRebuild { find: number; len: number; rebuild: number }
 interface Result {
   def: ProfileDef;
   findT: (number | null)[]; // days
@@ -186,6 +211,18 @@ interface Result {
   bestStreak: number;
   /** v4 era log: one record per prestige run (docs/08 section 6) */
   runs: RunRec[];
+  /** Dog Show results, one per closed week */
+  weeks: WeekRec[];
+  rebuilds: EraRebuild[];
+  /** endgame: first day all 4 kennels are Planet Paws, first day after that pups >= 98% of capacity, Academy fully maxed */
+  tPP: number | null;
+  tFull: number | null;
+  tAcademyMax: number | null;
+  /** analytic offline fill time (days) of an empty endgame park at the moment the 4 Planet Paws stood */
+  fillAnalytic: number | null;
+  endgameT: number | null;
+  portal: { built: number | null; launched: number; collected: number; crafted: number; recycled: number; crewRuns: number[]; maxTier: number; goldenFromLoot: number; goldenFromRecycle: number };
+  collarsBySource: { trophies: number; show: number; calendar: number };
 }
 
 /** One prestige run: entry[k] = day when the park entered Find k in this run (undefined = never reached). */
@@ -209,8 +246,8 @@ function simulate(def: ProfileDef): Result {
   const t0 = Date.now();
   const rng = seeded(SEED);
   Math.random = rng; // applyOfflineProgress uses Math.random: make it deterministic
-  const state = createInitialState(0);
-  state.lastSaved = 0;
+  const state = createInitialState(msOf(0));
+  state.lastSaved = msOf(0);
   for (const kv of (process.env.CHEAT_FOR && process.env.CHEAT_FOR !== def.name ? '' : process.env.CHEAT ?? '').split(',').filter(Boolean)) { const [a, b] = kv.split('='); state.academy[a] = Number(b); }
 
   const findT: (number | null)[] = FINDS.map(() => null);
@@ -242,7 +279,46 @@ function simulate(def: ProfileDef): Result {
   const runs: RunRec[] = [{ startT: 0, endT: null, bonus: 1, prevBest: 0, maxFind: 0, entry: [0] }];
   let lastFindIdx = 0;
 
+  // ---- era rebuild tracking (docs/10 §5): time for automation to regain the previous era's peak kennel tiers
+  const rebuilds: EraRebuild[] = [];
+  const kennelSum = () => state.kennels.reduce<number>((a, k) => a + (k === null || k === undefined ? 0 : k + 1), 0);
+  const eraTrack = { find: 0, start: 0, target: 0, rebuiltAt: null as number | null, peak: 0, prestiges: 0 };
+  const closeEra = (t: number) => {
+    if (eraTrack.target > 0) rebuilds.push({ find: eraTrack.find, len: t - eraTrack.start, rebuild: (eraTrack.rebuiltAt ?? t) - eraTrack.start });
+  };
+  // ---- endgame tracking
+  const academyMaxTotal = ACADEMY.reduce((a, d) => a + d.maxLevel, 0);
+  let tPP: number | null = null;
+  let tFull: number | null = null;
+  let tAcademyMax: number | null = null;
+  let fillAnalytic: number | null = null;
+  let endgameT: number | null = null;
+  const stopRule = STOP_ARG !== null ? 'find' : def.name === 'afkdaily' || FULL ? 'endgame' : 'find';
+
   const observe = (t: number) => {
+    // era rebuild
+    if (state.prestigeCount > eraTrack.prestiges) {
+      closeEra(t / DAY);
+      eraTrack.prestiges = state.prestigeCount;
+      Object.assign(eraTrack, { find: 0, start: t / DAY, target: 0, rebuiltAt: null, peak: 0 });
+    } else if (state.findIndex > eraTrack.find) {
+      closeEra(t / DAY);
+      Object.assign(eraTrack, { find: state.findIndex, start: t / DAY, target: eraTrack.peak, rebuiltAt: null, peak: 0 });
+    }
+    const ks = kennelSum();
+    if (ks > eraTrack.peak) eraTrack.peak = ks;
+    if (eraTrack.target > 0 && eraTrack.rebuiltAt === null && ks >= eraTrack.target) eraTrack.rebuiltAt = t / DAY;
+    // endgame: 4 Planet Paws, rescue fill, Academy maxed
+    if (tPP === null && state.kennels.every((k) => k === KENNELS.length - 1)) {
+      tPP = t / DAY;
+      const s = computeStats(state);
+      const rate = s.rescuePerSec * statValue(state, 'offlineRescueMult');
+      fillAnalytic = rate > 0 ? s.kennelCapacity / rate / DAY : Infinity;
+    }
+    if (tPP !== null && tFull === null && state.kennels.every((k) => k === KENNELS.length - 1) && state.pups >= 0.98 * computeStats(state).kennelCapacity) tFull = t / DAY;
+    if (tAcademyMax === null && academyTotal(state) >= academyMaxTotal) tAcademyMax = t / DAY;
+    if (endgameT === null && tPP !== null && tAcademyMax !== null && state.highestFindIndex >= FINDS.length - 1) endgameT = Math.max(tPP, tAcademyMax);
+
     // era log: prestige first (it resets findIndex), then era entries of the (new) run
     if (state.prestigeCount > runs.length - 1) {
       const cur = runs[runs.length - 1];
@@ -268,7 +344,7 @@ function simulate(def: ProfileDef): Result {
       eventsT.push(t);
       if (firstPrestigeT === null) firstPrestigeT = t / DAY;
     }
-    if (state.highestFindIndex >= STOP_AT) done = true;
+    if (stopRule === 'find' ? state.highestFindIndex >= STOP_AT : endgameT !== null) done = true;
     const lv = parkLevel(state.lifetimeEarnings);
     if (lv > lastLv) { for (let k = lastLv + 1; k <= lv; k++) levelT[k - 1] = t / DAY; lastLv = lv; }
     if (t - lastSample >= 30) { lastSample = t; curve.push([t / DAY, Math.log10(Math.max(state.lifetimeEarnings, 1))]); }
@@ -280,10 +356,13 @@ function simulate(def: ProfileDef): Result {
     nextLogDay = Math.floor(day) + 1;
     const s = computeStats(state);
     if (stars30 === null && day >= 30) stars30 = state.premium.stars + starsSpent - starsBought;
+    const rp = relicPower();
     rows.push({
       day: Math.floor(day), lv: parkLevel(state.lifetimeEarnings), stars: state.premium.stars + starsSpent - starsBought, streak: state.daily.streak, log10B: Math.log10(s.earningsBonus), log10Income: Math.log10(Math.max(s.incomePerSec, 1e-9)), paws: state.spiritPaws,
       find: state.highestFindIndex, gb: state.goldenBones, prestiges: state.prestigeCount,
       academy: academyTotal(state), cash10: 0,
+      rank: s.pupRank, collars: state.legendCollars, relicPV: rp.pv, relicProd: rp.prod,
+      crew: state.portal ? CREWS.filter((c) => crewUnlocked(state, c.id)).length : 0, relics: state.portal ? state.portal.relics.length : 0,
     });
   };
 
@@ -355,6 +434,193 @@ function simulate(def: ProfileDef): Result {
   const dayIdxOf = (t: number) => Math.floor((t + START_HOUR * H) / DAY);
   let purchasesDone = 0;
 
+  // ================================================================ v5/v6 behaviour (Dog Show, Paw Portal)
+  const baseOfDay = (d: number) => d * DAY - START_HOUR * H;
+  /** all check-in starts of calendar day d (the Active window end counts as a check-in too) */
+  const startsOfDay = (d: number): number[] => {
+    const out = def.checkins.map((h) => baseOfDay(d) + h * H);
+    if (def.window) out.push(baseOfDay(d) + def.window[0] * H, baseOfDay(d) + def.window[1] * H);
+    return out.sort((a, b) => a - b);
+  };
+  const nextCheckinAfter = (t: number): number => {
+    const d0 = dayIdxOf(t);
+    for (let d = d0 - 1; d <= d0 + 3; d++) for (const x of startsOfDay(d)) if (x > t + 120) return x;
+    return t + 12 * H;
+  };
+  const firstCheckinAtOrAfter = (x: number, from: number): number => {
+    let c = nextCheckinAfter(from);
+    for (let g = 0; g < 400 && c < x - 60; g++) c = nextCheckinAfter(c);
+    return c;
+  };
+
+  // ---- Dog Show
+  const weeks: WeekRec[] = [];
+  let showSnap: Omit<WeekRec, 'medals'> | null = null;
+  const showPhase = (t: number) => {
+    const now = msOf(t);
+    if (state.show) {
+      showSnap = { weekKey: state.show.weekKey, findIndex: state.show.findIndex, delivered: state.show.park.stats.findsDelivered, targets: state.show.goals.map((g) => g.target) };
+    }
+    for (const e of refreshShow(state, now)) {
+      if (e.type === 'showEnded') weeks.push({ weekKey: e.weekKey, findIndex: showSnap?.findIndex ?? 0, medals: e.medals, delivered: showSnap?.delivered ?? 0, targets: showSnap?.targets ?? [] });
+    }
+    if (!state.show && new Date(now).getUTCDay() === 1) joinShow(state, now); // first check-in of a Monday
+    if (state.show) for (let i = 0; i < state.show.goals.length; i++) claimShowGoal(state, i);
+  };
+
+  // ---- Paw Portal
+  const P = { built: null as number | null, launched: 0, skipped: 0, collected: 0, crafted: 0, recycled: 0, goldenFromLoot: 0, goldenFromRecycle: 0 };
+  let dimCounter = 0;
+  const FAMILY_IMPORTANCE: Record<string, number> = {
+    bacon_prism: 1, squeaky_orb: 1, bark_tablet: 1, wormhole_leash: 0.7, kennel_key: 0.5, rescue_beacon: 0.6, golden_bowl: 0.4, cosmic_frisbee: 0.3, timefold_collar: 0.2, lucky_acorn: 0.1,
+  };
+
+  /** estimated value of equipping relic r (log-scale): income + gate (Park Value) change, plus proxies for stats that act later */
+  const scoreRelic = (r: Relic, base: ReturnType<typeof computeStats>): number => {
+    equipRelic(state, r.id, 0);
+    const s = computeStats(state);
+    unequipRelic(state, 0);
+    const e = relicEffect(r);
+    const stat = RELIC_FAMILIES.find((f) => f.id === r.family)?.stat;
+    let score = Math.log(Math.max(s.incomePerSec, 1e-9) / Math.max(base.incomePerSec, 1e-9)) + 0.7 * Math.log(Math.max(s.parkValue, 1e-9) / Math.max(base.parkValue, 1e-9));
+    if (stat === 'rescueMult') score += (state.pups < 0.95 * base.kennelCapacity ? 0.6 : 0.15) * Math.log(1 + e);
+    else if (stat === 'kennelCapacity') score += (state.pups >= 0.9 * base.kennelCapacity ? 0.5 : 0.25) * Math.log(1 + e);
+    else if (stat === 'offlineHours') score += base.offlineCapSec < longestGapSec ? 0.5 * Math.log((base.offlineCapSec + e * 3600) / base.offlineCapSec) : 0;
+    else if (stat === 'researchDiscount') score += 0.3 * -Math.log(1 - e);
+    else if (stat === 'squirrelRate') score += 0.05 * Math.log(1 + e);
+    return score;
+  };
+  const equipBest = () => {
+    const p = state.portal;
+    if (!p) return;
+    for (let i = 0; i < p.equipped.length; i++) if (p.equipped[i] !== null) unequipRelic(state, i);
+    const best = new Map<string, Relic>();
+    for (const r of p.relics) {
+      const c = best.get(r.family);
+      if (!c || relicEffect(r) > relicEffect(c)) best.set(r.family, r);
+    }
+    if (best.size === 0) return;
+    const base = computeStats(state);
+    const scored = [...best.values()].map((r) => ({ r, v: scoreRelic(r, base) })).sort((a, b) => b.v - a.v);
+    let slot = 0;
+    for (const x of scored) {
+      if (slot >= p.equipped.length || x.v <= 1e-9) break;
+      equipRelic(state, x.r.id, slot++);
+    }
+  };
+  const craftAll = () => {
+    const p = state.portal;
+    if (!p) return;
+    for (let guard = 0; guard < 100; guard++) {
+      let did = false;
+      for (const f of RELIC_FAMILIES) {
+        for (let tier = 0; tier < 3; tier++) {
+          if (craftableRelics(state, f.id, tier).length >= 3 && state.cash >= craftCost(state, tier) && craftRelic(state, f.id, tier).ok) { P.crafted++; did = true; }
+        }
+      }
+      if (!did) break;
+    }
+  };
+  const recycleSurplus = () => {
+    const p = state.portal;
+    if (!p) return;
+    // keep the best relic of every family; recycle dominated top-tier relics and fodder beyond 9 per family/tier
+    const bestId = new Map<string, number>();
+    for (const r of p.relics) {
+      const c = bestId.get(r.family);
+      const cr = c === undefined ? undefined : p.relics.find((x) => x.id === c);
+      if (!cr || relicEffect(r) > relicEffect(cr)) bestId.set(r.family, r.id);
+    }
+    const groups = new Map<string, Relic[]>();
+    for (const r of p.relics) {
+      if (p.equipped.includes(r.id) || bestId.get(r.family) === r.id) continue;
+      const k = `${r.family}|${r.tier}`;
+      const g = groups.get(k);
+      if (g) g.push(r); else groups.set(k, [r]);
+    }
+    for (const g of groups.values()) {
+      g.sort((a, b) => a.rarity - b.rarity || a.id - b.id);
+      const topTier = g[0].tier === 3;
+      const surplus = topTier ? g.length : Math.max(0, g.length - 9);
+      for (let i = 0; i < surplus; i++) {
+        const r = recycleRelic(state, g[i].id);
+        if (r.ok) { P.recycled++; P.goldenFromRecycle += r.goldenBones ?? 0; }
+      }
+    }
+  };
+  type Plan = { ci: number; li: number; score: number };
+  const choosePlan = (t: number, slotFuelPaid: number): Plan | null => {
+    let best: Plan | null = null;
+    for (let ci = 0; ci < CREWS.length; ci++) {
+      const crew = CREWS[ci];
+      if (!crewUnlocked(state, crew.id)) continue;
+      const stars = crewStars(state, crew.id);
+      EXPEDITION_LENGTHS.forEach((len, li) => {
+        if (state.cash < fuelCost(state, len) + slotFuelPaid) { return; }
+        const wait = firstCheckinAtOrAfter(t + crew.durationsSec[len], t) - t;
+        const count = crew.capacity[len] * (1 + STAR_CAPACITY_BONUS * stars);
+        const q = Math.exp((0.9 * (ci + li) * 3) / (CREWS.length + 1));
+        const score = (count * q) / wait;
+        if (!best || score > best.score) best = { ci, li, score };
+      });
+    }
+    return best;
+  };
+  const pickDimension = (ci: number): string => {
+    const avail = DIMENSIONS.filter((d) => ci >= d.minCrew);
+    const scored = avail.map((d) => {
+      let sc = 0;
+      let tot = 0;
+      for (const f of RELIC_FAMILIES) {
+        const w = d.familyWeights[f.id] ?? 0.25;
+        tot += w;
+        sc += w * (FAMILY_IMPORTANCE[f.id] ?? 0.2);
+      }
+      return { id: d.id, v: sc / tot };
+    }).sort((a, b) => b.v - a.v);
+    const top = scored.slice(0, Math.min(3, scored.length));
+    return top[dimCounter++ % top.length].id;
+  };
+  const portalPhase = (t: number, launch = true) => {
+    const p = state.portal;
+    if (!p) return;
+    const now = msOf(t);
+    if (!p.built) {
+      if (state.cash >= PORTAL_BUILD_COST && buildPortal(state).ok) P.built = t / DAY;
+      if (!p.built) return;
+    }
+    const c = collectAll(state, now);
+    if (c.ok) { P.collected += c.collected; P.goldenFromLoot += c.goldenBones ?? 0; }
+    craftAll();
+    recycleSurplus();
+    equipBest();
+    if (!launch) return;
+    for (let slot = 0; slot < p.slots.length; slot++) {
+      if (p.slots[slot]) continue;
+      const plan = choosePlan(t, 0);
+      if (!plan) { P.skipped++; continue; }
+      const crew = CREWS[plan.ci];
+      const r = launchExpedition(state, slot, crew.id, pickDimension(plan.ci), EXPEDITION_LENGTHS[plan.li], now, 'cash');
+      if (r.ok) P.launched++; else P.skipped++;
+    }
+  };
+  const relicPower = (): { pv: number; prod: number } => {
+    const p = state.portal;
+    if (!p || p.equipped.every((x) => x === null)) return { pv: 1, prod: 1 };
+    const eq = [...p.equipped];
+    const withS = computeStats(state);
+    p.equipped = p.equipped.map(() => null);
+    const without = computeStats(state);
+    p.equipped = eq;
+    let prod = 1;
+    for (const id of eq) {
+      const r = p.relics.find((x) => x.id === id);
+      const f = r && RELIC_FAMILIES.find((x) => x.id === r.family);
+      if (r && f && statMode(f.stat) === 'mult') prod *= 1 + relicEffect(r);
+    }
+    return { pv: withS.parkValue / Math.max(without.parkValue, 1e-300), prod };
+  };
+
   const keys: AutomationKey[] = ['find', 'build', 'training', 'whistle', 'prestige'];
   const longestGapSec = (def.name === 'daily' ? 24 : 9.5) * H;
 
@@ -363,24 +629,24 @@ function simulate(def: ProfileDef): Result {
    * ~1 min resolution. Same Treat Jar cap and 5 s minimum as one big call.
    */
   const advanceTo = (t: number) => {
-    let u = state.lastSaved / 1000;
+    let u = tOf(state.lastSaved);
     if (t - u < 5) return;
     const cap = computeStats(state).offlineCapSec;
     if (t - u > cap) u = t - cap;
-    state.lastSaved = u * 1000;
+    state.lastSaved = msOf(u);
     while (t - u > 1e-6 && !done) {
       let step = Math.min(60, t - u);
       if (t - (u + step) < 5) step = t - u;
-      applyOfflineProgress(state, (u + step) * 1000);
+      applyOfflineProgress(state, msOf(u + step));
       u += step;
       observe(u);
     }
-    state.lastSaved = t * 1000;
+    state.lastSaved = msOf(t);
   };
 
   /** returns true when this is the first check-in of the local day (daily ritual start) */
   const checkin = (t: number): boolean => {
-    if (state.lastSaved < t * 1000) advanceTo(t);
+    if (state.lastSaved < msOf(t)) advanceTo(t);
     const dayIdx = dayIdxOf(t);
     let firstOfDay = false;
     if (def.daily) {
@@ -404,6 +670,8 @@ function simulate(def: ProfileDef): Result {
       }
     }
     openAllMail(state, rng);
+    showPhase(t);
+    portalPhase(t);
     academyPhase(t, longestGapSec);
     const s = computeStats(state);
     for (const k of keys) if (s.automationUnlocked[k] && !state.automation[k]) setAutomation(state, k, true);
@@ -422,7 +690,9 @@ function simulate(def: ProfileDef): Result {
       const first10 = start === 0 && rel < FULL_WHISTLE_SEC;
       const dailyWhistle = firstOfDay && rel < DAILY_WHISTLE_SEC;
       const activeWhistle = active && start >= 0 && (t % 60) < 10 && !(start === 0 && rel < FULL_WHISTLE_SEC);
-      if (first10 || activeWhistle || dailyWhistle) adopt(state, HOLD_ADOPT_PER_SEC * dt, true);
+      if (activeWhistle && def.showPlay && state.show && Math.floor(t / 60) % 2 === 0 && state.show.park.stats.findsDelivered < state.show.goals[state.show.goals.length - 1].target) {
+        adopt(state.show.park, HOLD_ADOPT_PER_SEC * dt, true); // Active plays the Dog Show park every other minute while a goal is open
+      } else if (first10 || activeWhistle || dailyWhistle) adopt(state, HOLD_ADOPT_PER_SEC * dt, true);
       if (active) for (const q of [...state.squirrels]) catchSquirrel(state, q.id);
       tick(state, dt, rng);
       const s = computeStats(state);
@@ -438,14 +708,15 @@ function simulate(def: ProfileDef): Result {
       }
       if (state.pups > maxPups) maxPups = state.pups;
       observe(t + dt);
-      if (done) { state.lastSaved = (t + dt) * 1000; return; }
+      if (done) { state.lastSaved = msOf(t + dt); return; }
     }
     if (def.daily) {
       claimDigs();
       spendStars();
       academyPhase(end, longestGapSec);
     }
-    state.lastSaved = end * 1000;
+    if (len >= H) { showPhase(end); portalPhase(end); }
+    state.lastSaved = msOf(end);
   };
 
   // sessions in chronological order
@@ -495,7 +766,16 @@ function simulate(def: ProfileDef): Result {
     academyBuys: academyBuys, finalPaws: state.spiritPaws, finalGB: state.goldenBones, prestiges: state.prestigeCount,
     secs: (Date.now() - t0) / 1000,
     levelT, curve, starsFree: state.premium.stars + starsSpent - starsBought, starsSpent, stars30, bestStreak: state.daily.bestStreak,
-    runs,
+    runs, weeks, rebuilds, tPP, tFull, tAcademyMax, fillAnalytic, endgameT: endgameT,
+    portal: {
+      ...P, built: P.built, crewRuns: CREWS.map((c) => state.portal?.crews[c.id]?.runs ?? 0),
+      maxTier: Math.max(0, ...(state.portal?.relics.map((r) => r.tier + 1) ?? [0])),
+    },
+    collarsBySource: (() => {
+      const trophies = state.trophies.reduce((a, id) => a + (TROPHIES.find((x) => x.id === id)?.collars ?? 0), 0);
+      const show = weeks.filter((w) => w.medals >= 3).length * SHOW_REWARDS[2].collars;
+      return { trophies, show, calendar: state.legendCollars - trophies - show };
+    })(),
   };
 }
 

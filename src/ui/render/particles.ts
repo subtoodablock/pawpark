@@ -103,7 +103,7 @@ export class Particles {
   }
   /** a small sleepy z that drifts up (away from the dog's facing side) and fades */
   z(x: number, y: number, dir = 1): void {
-    this.spawn(K.Z, x, y, dir * (2.5 + Math.random() * 1.5), -7.5 - Math.random() * 2, 2.4, 2.5 + Math.random() * 0.4);
+    this.spawn(K.Z, x, y, dir * (2.5 + Math.random() * 1.5), -7.5 - Math.random() * 2, 2.4, 1.7 + Math.random() * 0.3);
   }
   paw(x: number, y: number): void {
     const a = Math.random() * Math.PI * 2;
@@ -227,11 +227,8 @@ export class Particles {
           ctx.lineTo(q.x + s, q.y - s);
           ctx.lineTo(q.x - s, q.y + s);
           ctx.lineTo(q.x + s, q.y + s);
-          ctx.strokeStyle = 'rgba(60,80,150,0.85)';
-          ctx.lineWidth = 2.4;
-          ctx.stroke();
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.1;
+          ctx.strokeStyle = 'rgba(70,84,130,0.8)';
+          ctx.lineWidth = 1.3;
           ctx.stroke();
           break;
         }

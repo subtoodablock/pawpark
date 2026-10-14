@@ -25,4 +25,4 @@ export const P = {
 export const LIGHT_X = -0.6;
 export const LIGHT_Y = -0.8;
 
-export const FONT = "'Fredoka', ui-rounded, system-ui, sans-serif";
+export const FONT = "'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif";

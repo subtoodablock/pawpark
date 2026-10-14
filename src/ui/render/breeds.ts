@@ -143,7 +143,7 @@ export const BREEDS: Breed[] = [
     legH: 6.8,
     legW: 1.08,
     headR: 5.3,
-    snoutL: 3.9,
+    snoutL: 3.3,
     size: 1.04,
     body: [
       { k: 'e', x: 0.5, y: 6.6, rx: 14, ry: 3.0, col: '#f1f3f7' },

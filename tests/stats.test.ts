@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACADEMY, BASE_COLLAR_BONUS, BASE_DIG_PER_MIN, BASE_OFFLINE_HOURS, BASE_SPIRIT_PAW_BONUS, BASE_ZOOMIE_BONUS, FINDS, PARK_VALUE_SECONDS,
+  ACADEMY, BASE_COLLAR_BONUS, BASE_DIG_PER_MIN, BASE_OFFLINE_HOURS, BASE_SPIRIT_PAW_BONUS, BASE_ZOOMIE_BONUS, FINDS, PARK_VALUE_SECONDS, PV_EMPTY_SPACE_EXP, PV_RESCUE_FACTOR, PV_UNSHIPPED_WEIGHT,
   KENNELS, PRESTIGE_DIVISOR, PRESTIGE_EXP_EARLY, STAT_MODES, TRAINING, VEHICLES, computeStats, statMode, statValue,
 } from '../src/core';
 import { newState } from './helpers';
@@ -77,8 +77,8 @@ describe('computeStats', () => {
     const digRaw = 100 * (BASE_DIG_PER_MIN / 60) * lay;
     const shipFrac = Math.min(1, d.shipPerSec / digRaw);
     const empty = d.kennelCapacity - 100;
-    const rescueTerm = 0.25 * (2 + 0) * 2 * BASE_OFFLINE_HOURS * 60;
-    const pop = 100 * shipFrac + 0.2 * 100 * (1 - shipFrac) + empty ** 0.6 + rescueTerm;
+    const rescueTerm = PV_RESCUE_FACTOR * (2 + 0) * 2 * BASE_OFFLINE_HOURS * 60;
+    const pop = 100 * shipFrac + PV_UNSHIPPED_WEIGHT * 100 * (1 - shipFrac) + empty ** PV_EMPTY_SPACE_EXP + rescueTerm;
     const pv = FINDS[1].value * fv * (BASE_DIG_PER_MIN / 60) * lay * bonus * (1 + d.maxZoomies * zPer) * pop * PARK_VALUE_SECONDS;
     expect(d.parkValue).toBeCloseTo(pv, 6);
     expect(d.totalTrainingLevels).toBe(27);

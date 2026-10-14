@@ -13,6 +13,9 @@ import {
   PRESTIGE_EXP_EARLY,
   PRESTIGE_EXP_LATE,
   PUP_RANK_TITLES,
+  PV_EMPTY_SPACE_EXP,
+  PV_RESCUE_FACTOR,
+  PV_UNSHIPPED_WEIGHT,
   BASE_RESCUE_PER_MIN,
   BASE_MAX_ZOOMIES,
   BASE_OFFLINE_HOURS,
@@ -62,6 +65,9 @@ const L_BASE_MAIL_CAPACITY = BASE_MAIL_CAPACITY;
 const L_PARK_VALUE_SECONDS = PARK_VALUE_SECONDS;
 const L_BASE_MAX_CARS = BASE_MAX_CARS;
 const L_DISCOVER_DIVISOR = DISCOVER_DIVISOR;
+const L_PV_UNSHIPPED_WEIGHT = PV_UNSHIPPED_WEIGHT;
+const L_PV_EMPTY_SPACE_EXP = PV_EMPTY_SPACE_EXP;
+const L_PV_RESCUE_FACTOR = PV_RESCUE_FACTOR;
 
 
 interface Source {
@@ -248,9 +254,9 @@ export function computeStats(state: GameState): DerivedStats {
   const rescuePerMinPerKennel = (L_BASE_RESCUE_PER_MIN + rescueRate) * rescueMult;
   const popTerm =
     state.pups * shipFrac +
-    0.2 * state.pups * (1 - shipFrac) +
-    Math.pow(emptySpace, 0.6) +
-    0.25 * rescuePerMinPerKennel * builtKennels * offlineHours * 60;
+    L_PV_UNSHIPPED_WEIGHT * state.pups * (1 - shipFrac) +
+    Math.pow(emptySpace, L_PV_EMPTY_SPACE_EXP) +
+    L_PV_RESCUE_FACTOR * rescuePerMinPerKennel * builtKennels * offlineHours * 60;
   const maxZoomieMult = 1 + maxZoomies * zoomieBonusPer;
   const parkValue =
     find.value * findValueMult * digPerPup * earningsBonus * maxZoomieMult * popTerm *

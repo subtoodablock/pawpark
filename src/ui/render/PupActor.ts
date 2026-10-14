@@ -325,7 +325,7 @@ export class Flock {
     } else if (r < 90) {
       a.state = St.Sit;
       a.dur = 2 + Math.random() * 3;
-      a.squash = 1;
+      a.squash = 0.4;
     } else if (r < 95) {
       a.state = St.Nap;
       a.dur = 4 + Math.random() * 5;
